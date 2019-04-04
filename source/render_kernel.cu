@@ -27,7 +27,6 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 
-
 #include <stdio.h>
 #include "cuda_math.cuh"
 #include <cuda_runtime.h> 
@@ -62,9 +61,59 @@ typedef unsigned long long	uint64;
 typedef curandStatePhilox4_32_10_t Rand_state;
 #define rand(state) curand_uniform(state)
 
+
+//Phase functions 
+
+__device__ inline float isotropic() {
+
+	return M_PI_4;
+
+}
+
+__device__ inline float henyey_greenstein(float cos_theta, float g) {
+
+	float denominator = 1 + g * g - 2 * g * cos_theta;
+
+	return M_PI_4 * (1 - g * g) / (denominator * sqrtf(denominator));
+
+}
+
+__device__ inline float double_henyey_greenstein(float cos_theta, float f, float g1, float g2) {
+
+	return (1 - f)*henyey_greenstein(cos_theta, g1) + f * henyey_greenstein(cos_theta, g2);
+
+}
+
+__device__ inline float schlick(float cos_theta, float k) { // simpler hg phase function Note: -1<k<1   
+
+	float denominator = 1 + k * cos_theta;
+
+	return M_PI_4 * (1 - k * k) / (denominator*denominator);
+
+}
+
+__device__ inline float rayleigh(float cos_sq_theta, float lambda) // rayleigh scattering
+{
+
+	return 3 * (1 + cos_sq_theta) / 4 * lambda*lambda*lambda*lambda; // 
+
+}
+
+__device__ inline float cornette_shanks(float cos_theta, float cos_sq_theta, float g) {
+
+	float first_part = (1 - g * g) / (2 + g * g);
+	float second_part = (1 + cos_sq_theta) / pow((1 + g * g - cos_theta), 1.5f);
+
+	return M_PI_4 * 1.5f * first_part * second_part;
+
+}
+// End phase functions
+
+
+
 __device__ inline bool in_volume_bbox(
-		const VDBInfo &gvdb, 
-		const float3 &pos) 
+		const VDBInfo gvdb, 
+		const float3 pos) 
 {
 
 	return pos.x >= gvdb.bmin.x && pos.y >= gvdb.bmin.y && pos.z >= gvdb.bmin.z && pos.x < gvdb.bmax.x && pos.y < gvdb.bmax.y && pos.z < gvdb.bmax.z;
@@ -105,7 +154,6 @@ __device__ inline bool sample_interaction(
 {
 
 	float t = 0.0f; 
-
 	float3 pos; 
 
 
