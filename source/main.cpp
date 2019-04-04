@@ -2,14 +2,13 @@
 // Small interactive application running the volume path tracer
 //
 
-
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
-#include <vector_functions.h>
+//#include <vector_functions.h>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -24,7 +23,7 @@
 
 CUmodule		cuCustom;
 CUfunction		cuRaycastKernel;
-
+VolumeGVDB		gvdb;
 
 #define check_success(expr) \
     do { \
@@ -36,7 +35,7 @@ CUfunction		cuRaycastKernel;
 
 
 // Initialize gvdb volume 
-static void init_gvdb(VolumeGVDB &gvdb)
+static void init_gvdb()
 {
 
 	int cuda_devices[1];
@@ -153,8 +152,8 @@ static GLuint create_quad(GLuint program, GLuint* vertex_buffer)
 {
 	static const float3 vertices[6] = {
 		{ -1.f, -1.f, 0.0f },
-		{  1.f, -1.f, 0.0f },
 		{ -1.f,  1.f, 0.0f },
+		{  1.f, -1.f, 0.0f },
 		{  1.f, -1.f, 0.0f },
 		{  1.f,  1.f, 0.0f },
 		{ -1.f,  1.f, 0.0f }
@@ -319,28 +318,15 @@ static bool create_environment(
 
 // Process camera movement.
 static void update_camera(
-	Kernel_params &kernel_params,
-	double phi,
-	double theta,
-	float base_dist,
-	int zoom)
+	double dx,
+	double dy)
 {
-	kernel_params.cam_dir.x = float(-sin(phi) * sin(theta));
-	kernel_params.cam_dir.y = float(-cos(theta));
-	kernel_params.cam_dir.z = float(-cos(phi) * sin(theta));
+	Camera3D* cam = gvdb.getScene()->getCamera();
+	Vector3DF angs = cam->getAng();
+	angs.x += dx * 0.2f;
+	angs.y += dy * 0.2f;
+	cam->setOrbit(angs, cam->getToPos(), cam->getOrbitDist(), cam->getDolly());
 
-	kernel_params.cam_right.x = float(cos(phi));
-	kernel_params.cam_right.y = 0.0f;
-	kernel_params.cam_right.z = float(-sin(phi));
-
-	kernel_params.cam_up.x = float(-sin(phi) * cos(theta));
-	kernel_params.cam_up.y = float(sin(theta));
-	kernel_params.cam_up.z = float(-cos(phi) * cos(theta));
-
-	const float dist = float(base_dist * pow(0.95, double(zoom)));
-	kernel_params.cam_pos.x = -kernel_params.cam_dir.x * dist;
-	kernel_params.cam_pos.y = -kernel_params.cam_dir.y * dist;
-	kernel_params.cam_pos.z = -kernel_params.cam_dir.z * dist;
 }
 
 int main(const int argc, const char* argv[])
@@ -379,12 +365,10 @@ int main(const int argc, const char* argv[])
 
 	// Setup GVDB parameters
 
-	VolumeGVDB gvdb;
-
 	// Initilize gvdb
 
 	printf("Initializing GVDB volume object ");
-	init_gvdb(gvdb);
+	init_gvdb();
 	gvdb.AddPath(ASSET_PATH);
 
 
@@ -403,8 +387,6 @@ int main(const int argc, const char* argv[])
 	cam->setOrbit(Vector3DF(-40, 0, 0), Vector3DF(0, 0, 0), 100, 1.0);
 	gvdb.getScene()->SetCamera(cam);
 	
-
-
 	printf("Loading module: render_kernel.ptx\n");
 	cuModuleLoad(&cuCustom, "render_kernel.ptx");
 	cuModuleGetFunction(&cuRaycastKernel, cuCustom, "volume_rt_kernel");
@@ -425,15 +407,9 @@ int main(const int argc, const char* argv[])
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
 	kernel_params.volume_type = 0;
-	kernel_params.max_extinction = 10.0f;
+	kernel_params.max_extinction = 50.0f;
 	kernel_params.albedo = 1.0f;
 
-	// Setup initial camera.
-	double phi = -0.084823;
-	double theta = 1.423141;
-	float base_dist = 1.3f;
-	int zoom = 0;
-	update_camera(kernel_params, phi, theta, base_dist, zoom);
 	
 	cudaArray_t env_tex_data = 0;
 	bool env_tex = false;
@@ -461,24 +437,7 @@ int main(const int argc, const char* argv[])
 			kernel_params.environment_type = environment_type;
 			kernel_params.iteration = 0;
 
-		}
-		/*
-		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->zoom_delta) {
-
-			zoom += ctx->zoom_delta;
-			ctx->zoom_delta = 0;
-
-			phi -= ctx->move_dx * 0.001 * M_PI;
-			theta -= ctx->move_dy * 0.001 * M_PI;
-			theta = std::max(theta, 0.00 * M_PI);
-			theta = std::min(theta, 1.00 * M_PI);
-			ctx->move_dx = ctx->move_dy = 0.0;
-
-			update_camera(kernel_params, phi, theta, base_dist, zoom);
-
-			kernel_params.iteration = 0;
-		}*/
-
+		}	
 		// Reallocate buffers if window size changed.
 		int nwidth, nheight;
 		glfwGetFramebufferSize(window, &nwidth, &nheight);
@@ -487,6 +446,7 @@ int main(const int argc, const char* argv[])
 			width = nwidth;
 			height = nheight;
 
+			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			resize_buffers(&accum_buffer, &display_buffer_cuda, width, height, display_buffer);
 			kernel_params.accum_buffer = accum_buffer;
 
@@ -497,12 +457,23 @@ int main(const int argc, const char* argv[])
 			kernel_params.iteration = 0;
 		}
 
+		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->zoom_delta) {
+
+			ctx->zoom_delta = 0;
+			update_camera(ctx->move_dx, ctx->move_dy);
+			ctx->move_dx = ctx->move_dy = 0.0;
+			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
+
+			kernel_params.iteration = 0;
+		}
+
 		// Map GL buffer for access with CUDA.
 		check_success(cudaGraphicsMapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 		void *p;
 		size_t size_p;
-		check_success(
-			cudaGraphicsResourceGetMappedPointer(&p, &size_p, display_buffer_cuda) == cudaSuccess);
+		
+		cudaGraphicsResourceGetMappedPointer(&p, &size_p, display_buffer_cuda);
+		//printf("error in: %s\n", cudaGetErrorString(cudaGetLastError()));
 		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
 
 		// Launch volume rendering kernel.

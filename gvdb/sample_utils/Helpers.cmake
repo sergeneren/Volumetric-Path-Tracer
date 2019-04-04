@@ -37,8 +37,7 @@ FUNCTION( _COMPILEPTX )
   
   if ( WIN32 ) 
 		# Windows - PTX compile
-		file ( MAKE_DIRECTORY "${_COMPILEPTX_TARGET_PATH}/Debug" )
-		file ( MAKE_DIRECTORY "${_COMPILEPTX_TARGET_PATH}/Release" )
+		file ( MAKE_DIRECTORY "${_COMPILEPTX_TARGET_PATH}" )
 		string (REPLACE ";" " " _COMPILEPTX_OPTIONS "${_COMPILEPTX_OPTIONS}")  
 		separate_arguments( _OPTS WINDOWS_COMMAND "${_COMPILEPTX_OPTIONS}" )
 		message ( STATUS "NVCC Options: ${_COMPILEPTX_OPTIONS}" )  
@@ -54,7 +53,7 @@ FUNCTION( _COMPILEPTX )
 				
 				# Set output names
 				set( output "${input_without_ext}.ptx" )							# Output name
-				set( output_with_path "${_COMPILEPTX_TARGET_PATH}/$(Configuration)/${input_without_ext}.ptx" )	# Output with path
+				set( output_with_path "${_COMPILEPTX_TARGET_PATH}/${input_without_ext}.ptx" )	# Output with path
 				set( output_with_quote "\"${output_with_path}\"" )
 				LIST( APPEND PTX_FILES ${output} )		# Append to output list
 				LIST( APPEND PTX_FILES_PATH ${output_with_path} )

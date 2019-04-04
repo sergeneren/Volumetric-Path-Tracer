@@ -24,6 +24,10 @@
 //
 //-----------------------------------------------
 
+#define _USE_MATH_DEFINES
+#include <cmath>
+
+
 #include <stdio.h>
 #include "cuda_math.cuh"
 #include <cuda_runtime.h> 
@@ -45,19 +49,162 @@ typedef unsigned long long	uint64;
 
 #include "render_kernel.h"
 
-extern "C" __global__ void volume_rt_kernel(const VDBInfo gvdb, const Kernel_params kernel_params) {
+
+
+#define BLACK			make_float3(0.0f, 0.0f, 0.0f)
+#define WHITE			make_float3(1.0f, 1.0f, 1.0f)
+#define RED				make_float3(1.0f, 0.0f, 0.0f)
+#define GREEN			make_float3(0.0f, 1.0f, 0.0f)
+#define BLUE			make_float3(0.0f, 0.0f, 1.0f)
+#define EPS				0.001f
+
+#include <curand_kernel.h>
+typedef curandStatePhilox4_32_10_t Rand_state;
+#define rand(state) curand_uniform(state)
+
+__device__ inline bool in_volume_bbox(
+		const VDBInfo &gvdb, 
+		const float3 &pos) 
+{
+
+	return pos.x >= gvdb.bmin.x && pos.y >= gvdb.bmin.y && pos.z >= gvdb.bmin.z && pos.x < gvdb.bmax.x && pos.y < gvdb.bmax.y && pos.z < gvdb.bmax.z;
+}
+
+__device__ inline float get_extinction(
+	const Kernel_params &kernel_params,
+	VDBInfo *gvdb,
+	const float3 &p)
+{
+
+	float density = 0.0f; 
+
+	//brick node variables 
+	float3 vmin; //root pos of brick node
+	uint64 nodeid; // brick id 
+	float3 offset; // brick offset
+	float3 vdel; // i.e. voxel size 
+
+	VDBNode* brick_node = getNodeAtPoint(gvdb, p, &offset, &vmin, &vdel, &nodeid);
+
+	if (brick_node != 0x0) {
+
+		float3 brick_pos = (p - vmin) / vdel;
+		float3 atlas_pos = make_float3(brick_node->mValue);
+		density = tex3D<float>(gvdb->volIn[0], brick_pos.x + atlas_pos.x, brick_pos.y + atlas_pos.y, brick_pos.z + atlas_pos.z) * kernel_params.max_extinction;
+	}
+
+	return density;
+}
+
+__device__ inline bool sample_interaction(
+			Rand_state &rand_state,
+			float3 &ray_pos,
+			const float3 &ray_dir,
+			const Kernel_params &kernel_params,
+			VDBInfo &gvdb) 
+{
+
+	float t = 0.0f; 
+
+	float3 pos; 
+
+
+	do {
+		t -= logf(1.0f - rand(&rand_state)) / kernel_params.max_extinction;
+		pos = ray_pos + ray_dir * t; 
+		if (!in_volume_bbox(gvdb, pos)) return false;
+	} while (get_extinction(kernel_params, &gvdb, pos) < rand(&rand_state) * kernel_params.max_extinction);
+
+	ray_pos = pos;
+	return true; 
+
+
+}
+
+__device__ inline float3 trace_volume(
+	Rand_state rand_state,
+	float3 ray_pos,
+	float3 ray_dir,
+	const Kernel_params kernel_params,
+	VDBInfo gvdb)
+{
+	
+	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
+	float w = 1.0f;
+
+	if (t.z != NOHIT) {
+		
+		ray_pos +=  ray_dir * t.x;
+		uint num_interactions = 0; 
+		while (sample_interaction(rand_state, ray_pos, ray_dir, kernel_params, gvdb)) {
+
+			// Is the path length exeeded?
+			if (num_interactions++ >= kernel_params.max_interactions)
+				return make_float3(0.0f, 0.0f, 0.0f);
+
+			w *= kernel_params.albedo;
+			// Russian roulette absorption
+			if (w < 0.2f) {
+				if (rand(&rand_state) > w * 5.0f) {
+					return make_float3(0.0f, 0.0f, 0.0f);
+				}
+				w = 0.2f;
+			}
+
+			// Sample isotropic phase function.
+			const float phi = (float)(2.0 * M_PI) * rand(&rand_state);
+			const float cos_theta = 1.0f - 2.0f * rand(&rand_state);
+			const float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
+			ray_dir = make_float3(
+				cosf(phi) * sin_theta,
+				sinf(phi) * sin_theta,
+				cos_theta);
+
+		}
+
+	}
+
+	// Lookup environment.
+	if (kernel_params.environment_type == 0) {
+		const float f = (0.5f + 0.5f * ray_dir.y) * w;
+		return make_float3(f, f, f);
+	}
+	else {
+		const float4 texval = tex2D<float4>(
+			kernel_params.env_tex,
+			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
+			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
+		return make_float3(texval.x * w, texval.y * w, texval.z * w);
+	}
+}
+
+extern "C" __global__ void volume_rt_kernel(VDBInfo gvdb, const Kernel_params kernel_params) {
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x >= kernel_params.resolution.x || y >= kernel_params.resolution.y)
 		return;
 
-	const unsigned int idx = y * kernel_params.resolution.x + x;
+	// Initialize pseudorandom number generator (PRNG); assume we need no more than 4096 random numbers.
+	const unsigned int idx = y * scn.width + x;
+	Rand_state rand_state;
+	curand_init(idx, 0, kernel_params.iteration * 4096, &rand_state);
+	
+	float3 ray_dir =  normalize(getViewRay((float(scn.width - x) + 0.5) / scn.width, (float(scn.height - y) + 0.5) / scn.height));
 
-	float3 rdir = normalize(getViewRay((float(x) + 0.5) / scn.width, (float(y) + 0.5) / scn.height));
-	float3 vox =  gvdb.bmax/7.0f;
+	float3 value = trace_volume(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
 
-	float3 val = vox;
+	// Accumulate.
+	if (kernel_params.iteration == 0)
+		kernel_params.accum_buffer[idx] = value;
+	else
+		kernel_params.accum_buffer[idx] = kernel_params.accum_buffer[idx] +
+		(value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
+
+	// Update display buffer (simple Reinhard tonemapper + gamma).
+
+	float3 val = kernel_params.accum_buffer[idx] * kernel_params.exposure_scale;
+
 	val.x *= (1.0f + val.x * 0.1f) / (1.0f + val.x);
 	val.y *= (1.0f + val.y * 0.1f) / (1.0f + val.y);
 	val.z *= (1.0f + val.z * 0.1f) / (1.0f + val.z);
