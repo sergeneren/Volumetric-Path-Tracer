@@ -374,17 +374,19 @@ int main(const int argc, const char* argv[])
 
 	// Load VDB
 	char scnpath[1024];
-	if (!gvdb.FindFile("dragon.vdb", scnpath)) {
+	if (!gvdb.FindFile("wdas_cloud_sixteenth.vdb", scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
 	}
 	printf("Loading VDB. %s\n", scnpath);
 	gvdb.LoadVDB(scnpath);
+	gvdb.SetTransform(Vector3DF(0,0,0), Vector3DF(0.1,0.1,0.1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
+	
 	gvdb.Measure(true);
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
-	cam->setOrbit(Vector3DF(-40, 0, 0), Vector3DF(0, 0, 0), 100, 1.0);
+	cam->setOrbit(Vector3DF(-180, 0, 0), Vector3DF(2000, 100,0), 400, 1.0);
 	gvdb.getScene()->SetCamera(cam);
 	
 	printf("Loading module: render_kernel.ptx\n");
@@ -403,11 +405,11 @@ int main(const int argc, const char* argv[])
 	memset(&kernel_params, 0, sizeof(Kernel_params));
 	kernel_params.cam_focal = float(1.0 / tan(90.0 / 2.0 * (2.0 * M_PI / 360.0)));
 	kernel_params.iteration = 0;
-	kernel_params.max_interactions = 1024;
+	kernel_params.max_interactions = 100;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
 	kernel_params.volume_type = 0;
-	kernel_params.max_extinction = 50.0f;
+	kernel_params.max_extinction = 0.1f;
 	kernel_params.albedo = 1.0f;
 
 	

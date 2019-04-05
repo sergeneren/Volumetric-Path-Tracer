@@ -28,7 +28,8 @@ struct Kernel_params {
 
 	// Volume definition
 	unsigned int volume_type;
-	float max_extinction;
+	float max_extinction; // Extinction majorant
+	float min_extinction; // Extinction minorant
 	float albedo; // sigma / kappa
 };
  
