@@ -145,7 +145,7 @@ __device__ inline float get_extinction(
 	return density;
 }
 
-__device__ inline bool sample_interaction(
+__device__ inline bool integrate(
 			Rand_state &rand_state,
 			float3 &ray_pos,
 			const float3 &ray_dir,
@@ -169,6 +169,33 @@ __device__ inline bool sample_interaction(
 
 }
 
+__device__ inline float transmittance(Rand_state &rand_state, float3 pos , const Kernel_params &kernel_params, VDBInfo &gvdb) {
+
+	float3 p = pos; 
+	float t = 0.0f; 
+	float3 Lpos = make_float3(1000.0f, 0.0f, 0.0f);
+	float3 L_dir = normalize(Lpos - pos);
+	bool terminated = false; 
+
+
+	do {
+
+		float zeta = rand(&rand_state);
+		t -= logf(1.0f - zeta) / kernel_params.max_extinction;
+		p = p + L_dir * t;
+		if (!in_volume_bbox(gvdb, p)) break;
+
+		float density = get_extinction(kernel_params, &gvdb, p) / kernel_params.max_extinction;
+
+		float xi = rand(&rand_state);
+		if (density < xi * kernel_params.max_extinction) terminated = true;
+
+	} while ( !terminated);
+
+	if(terminated) return 0.0f;
+	else return 1.0f;
+}
+
 __device__ inline float3 trace_volume(
 	Rand_state rand_state,
 	float3 ray_pos,
@@ -179,26 +206,24 @@ __device__ inline float3 trace_volume(
 	
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	float w = 1.0f;
+	float Tr = 1.0f; 
+	float3 Sun_light = make_float3(0.0f, 0.0f, 0.0f);
 
 	if (t.z != NOHIT) {
 		
 		ray_pos +=  ray_dir * t.x;
 		uint num_interactions = 0; 
-		while (sample_interaction(rand_state, ray_pos, ray_dir, kernel_params, gvdb)) {
+		
+		while (integrate(rand_state, ray_pos, ray_dir, kernel_params, gvdb)) {
 
 			// Is the path length exeeded?
 			if (num_interactions++ >= kernel_params.max_interactions)
 				return make_float3(0.0f, 0.0f, 0.0f);
 
-			w *= kernel_params.albedo;
-			// Russian roulette absorption
-			if (w < 0.2f) {
-				if (rand(&rand_state) > w * 5.0f) {
-					return make_float3(0.0f, 0.0f, 0.0f);
-				}
-				w = 0.2f;
-			}
+			Tr *= transmittance(rand_state , ray_pos, kernel_params, gvdb);
 
+			w *= kernel_params.albedo * (1.0f - Tr);
+			
 			// Sample isotropic phase function.
 			const float phi = (float)(2.0 * M_PI) * rand(&rand_state);
 			const float cos_theta = 1.0f - 2.0f * rand(&rand_state);
@@ -208,22 +233,26 @@ __device__ inline float3 trace_volume(
 				sinf(phi) * sin_theta,
 				cos_theta);
 
+			Sun_light = make_float3(1.0f,1.0f, 1.0f) * w ;
+
 		}
 
 	}
 
+
 	// Lookup environment.
 	if (kernel_params.environment_type == 0) {
 		const float f = (0.5f + 0.5f * ray_dir.y) * w;
-		return make_float3(f, f, f);
+		return make_float3(f, f, f) + Sun_light;
 	}
 	else {
 		const float4 texval = tex2D<float4>(
 			kernel_params.env_tex,
 			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
 			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-		return make_float3(texval.x * w, texval.y * w, texval.z * w);
+		return make_float3(texval.x * w, texval.y * w, texval.z * w) + Sun_light;
 	}
+	
 }
 
 extern "C" __global__ void volume_rt_kernel(VDBInfo gvdb, const Kernel_params kernel_params) {

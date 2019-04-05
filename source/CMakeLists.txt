@@ -3,9 +3,12 @@ project(GVDB_PT LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 ## Set gvdb library 
-get_filename_component(GVDB_DIR ${CMAKE_SOURCE_DIR}/../gvdb ABSOLUTE)
+get_filename_component(GVDB_DIR ${CMAKE_SOURCE_DIR}/../thirdparty/gvdb ABSOLUTE)
+get_filename_component(STB_DIR ${CMAKE_SOURCE_DIR}/../thirdparty/stb_image ABSOLUTE)
+
 include(${GVDB_DIR}/sample_utils/Helpers.cmake)
 ##################################################################
 
@@ -27,11 +30,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/GVDB_PT/bin)
 
 
 ## Set ASSET_PATH variable to use with VolumeGVDB add path function
-if ( NOT DEFINED ASSET_PATH ) 
-  get_filename_component ( _assets "${GVDB_DIR}/shared_assets" REALPATH )
-  set ( ASSET_PATH ${_assets} CACHE PATH "Full path to gvdb/shared_assets/" )  
-endif()
-add_definitions(-DASSET_PATH="${ASSET_PATH}/")
+get_filename_component(ASSET_DIR ${CMAKE_SOURCE_DIR}/../assets ABSOLUTE)
+add_definitions(-DASSET_PATH="${ASSET_DIR}/")
 ###################################################################
 
 file( GLOB	DLLS 
@@ -76,7 +76,7 @@ message(STATUS "libgvdb path: " ${LIB_GVDB})
 
 ###################################################################
 
-target_link_libraries(gvdb_pt PRIVATE glfw ${LIB_GVDB} cudart cuda )
+target_link_libraries(gvdb_pt PRIVATE glfw imgui::imgui ${LIB_GVDB} cudart cuda )
 
 target_include_directories(gvdb_pt PRIVATE "${GVDB_DIR}/include")
 target_include_directories(gvdb_pt PRIVATE "${GVDB_DIR}/sample_utils")

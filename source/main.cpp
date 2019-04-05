@@ -405,7 +405,7 @@ int main(const int argc, const char* argv[])
 	memset(&kernel_params, 0, sizeof(Kernel_params));
 	kernel_params.cam_focal = float(1.0 / tan(90.0 / 2.0 * (2.0 * M_PI / 360.0)));
 	kernel_params.iteration = 0;
-	kernel_params.max_interactions = 100;
+	kernel_params.max_interactions = 1;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
 	kernel_params.volume_type = 0;
