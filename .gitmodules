@@ -1,3 +1,0 @@
-[submodule "thirdparty/stb_image"]
-	path = thirdparty/stb_image
-	url = https://github.com/nothings/stb

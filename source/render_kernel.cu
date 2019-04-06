@@ -173,7 +173,7 @@ __device__ inline float transmittance(Rand_state &rand_state, float3 pos , const
 
 	float3 p = pos; 
 	float t = 0.0f; 
-	float3 Lpos = make_float3(1000.0f, 0.0f, 0.0f);
+	float3 Lpos = make_float3(0.0f, -1000.0f, 0.0f);
 	float3 L_dir = normalize(Lpos - pos);
 	bool terminated = false; 
 
@@ -222,7 +222,7 @@ __device__ inline float3 trace_volume(
 
 			Tr *= transmittance(rand_state , ray_pos, kernel_params, gvdb);
 
-			w *= kernel_params.albedo * (1.0f - Tr);
+			w *= kernel_params.albedo;
 			
 			// Sample isotropic phase function.
 			const float phi = (float)(2.0 * M_PI) * rand(&rand_state);
@@ -233,12 +233,13 @@ __device__ inline float3 trace_volume(
 				sinf(phi) * sin_theta,
 				cos_theta);
 
-			Sun_light = make_float3(1.0f,1.0f, 1.0f) * w ;
+			
 
 		}
 
 	}
 
+	Sun_light = make_float3(10.0f, 1.0f, 1.0f) * w *(1.0f - Tr);
 
 	// Lookup environment.
 	if (kernel_params.environment_type == 0) {
