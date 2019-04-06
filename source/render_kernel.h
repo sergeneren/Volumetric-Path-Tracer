@@ -15,12 +15,18 @@ struct Kernel_params {
 	// Limit on path length
 	unsigned int max_interactions;
 
+	/*
 	// Camera
 	float3 cam_pos;
 	float3 cam_dir;
 	float3 cam_right;
 	float3 cam_up;
 	float  cam_focal;
+	*/
+
+
+	float3 light_pos;
+	float3 light_energy;
 
 	// Environment
 	unsigned int environment_type;

@@ -2,6 +2,10 @@
 // Small interactive application running the volume path tracer
 //
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
@@ -183,11 +187,13 @@ struct Window_context
 	int zoom_delta;
 
 	bool moving;
+	bool panning;
 	double move_start_x, move_start_y;
-	double move_dx, move_dy;
+	double move_dx, move_dy, move_mx, move_my;
 
 	float exposure;
 
+	bool change;
 	unsigned int config_type;
 };
 
@@ -206,17 +212,25 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 {
 	if (action == GLFW_PRESS) {
 		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
+		Camera3D* cam = gvdb.getScene()->getCamera();
+		float fov = cam->getFov();
+		
+
 		switch (key) {
 		case GLFW_KEY_ESCAPE:
 			glfwSetWindowShouldClose(window, GLFW_TRUE);
 			break;
 		case GLFW_KEY_KP_SUBTRACT:
 		case GLFW_KEY_LEFT_BRACKET:
-			ctx->exposure--;
+			fov -= 1.0f;
+			cam->setFov(fov);
+			ctx->change=true;
 			break;
 		case GLFW_KEY_KP_ADD:
 		case GLFW_KEY_RIGHT_BRACKET:
-			ctx->exposure++;
+			fov += 1.0f;
+			cam->setFov(fov);
+			ctx->change=true;
 			break;
 		case GLFW_KEY_SPACE:
 			++ctx->config_type;
@@ -230,14 +244,23 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 static void handle_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
 	Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
-
-	if (button == GLFW_MOUSE_BUTTON_LEFT) {
+	bool imgui_hover = ImGui::IsMouseHoveringAnyWindow();
+	if (button == GLFW_MOUSE_BUTTON_LEFT && !imgui_hover) {
 		if (action == GLFW_PRESS) {
 			ctx->moving = true;
 			glfwGetCursorPos(window, &ctx->move_start_x, &ctx->move_start_y);
 		}
 		else
 			ctx->moving = false;
+	}
+
+	if (button == GLFW_MOUSE_BUTTON_MIDDLE && !imgui_hover) {
+		if (action == GLFW_PRESS) {
+			ctx->panning = true;
+			glfwGetCursorPos(window, &ctx->move_start_x, &ctx->move_start_y);
+		}
+		else
+			ctx->panning = false;
 	}
 }
 
@@ -249,6 +272,13 @@ static void handle_mouse_pos(GLFWwindow *window, double xpos, double ypos)
 	{
 		ctx->move_dx += xpos - ctx->move_start_x;
 		ctx->move_dy += ypos - ctx->move_start_y;
+		ctx->move_start_x = xpos;
+		ctx->move_start_y = ypos;
+	}
+	if (ctx->panning)
+	{
+		ctx->move_mx += xpos - ctx->move_start_x;
+		ctx->move_my += ypos - ctx->move_start_y;
 		ctx->move_start_x = xpos;
 		ctx->move_start_y = ypos;
 	}
@@ -319,14 +349,19 @@ static bool create_environment(
 // Process camera movement.
 static void update_camera(
 	double dx,
-	double dy)
+	double dy,
+	double mx,
+	double my,
+	int zoom_delta)
 {
 	Camera3D* cam = gvdb.getScene()->getCamera();
 	Vector3DF angs = cam->getAng();
-	angs.x += dx * 0.2f;
-	angs.y += dy * 0.2f;
-	cam->setOrbit(angs, cam->getToPos(), cam->getOrbitDist(), cam->getDolly());
-
+	float dist = cam->getOrbitDist();
+	dist -= zoom_delta*300;
+	angs.x += dx * 0.05f;
+	angs.y -= dy * 0.05f;
+	cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
+	cam->moveRelative(float(mx) * dist / 200, float(my) * dist / 200, 0);
 }
 
 int main(const int argc, const char* argv[])
@@ -342,6 +377,7 @@ int main(const int argc, const char* argv[])
 	GLFWwindow *window = NULL;
 	int width = -1;
 	int height = -1;
+	window_context.change = false;
 
 	// Init OpenGL window and callbacks.
 	window = init_opengl();
@@ -363,16 +399,25 @@ int main(const int argc, const char* argv[])
 	float3 *accum_buffer = NULL;
 	cudaGraphicsResource_t display_buffer_cuda = NULL;
 
-	// Setup GVDB parameters
+	// SETUP IMGUI PARAMETERS
+	const char* glsl_version = "#version 330";
 
-	// Initilize gvdb
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO &io = ImGui::GetIO(); (void)io;
+	io.ConfigWindowsMoveFromTitleBarOnly = true;
+	ImGui::StyleColorsDark();
+
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init(glsl_version);
+
+	// SETUP GVDB PARAMETERS
+
 
 	printf("Initializing GVDB volume object ");
 	init_gvdb();
 	gvdb.AddPath(ASSET_PATH);
 
-
-	// Load VDB
 	char scnpath[1024];
 	if (!gvdb.FindFile("wdas_cloud_sixteenth.vdb", scnpath)) {
 		printf("Cannot find vdb file.\n");
@@ -386,7 +431,7 @@ int main(const int argc, const char* argv[])
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
-	cam->setOrbit(Vector3DF(-180, 0, 0), Vector3DF(2000, 100,0), 400, 1.0);
+	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(2000, 100,0), 400, 1.0);
 	gvdb.getScene()->SetCamera(cam);
 	
 	printf("Loading module: render_kernel.ptx\n");
@@ -400,21 +445,33 @@ int main(const int argc, const char* argv[])
 	gvdb.PrepareVDB();
 	char *vdbinfo = gvdb.getVDBInfo();
 
+	// END GVDB PARAMETERS
+
+
 	// Setup initial CUDA kernel parameters.
 	Kernel_params kernel_params;
 	memset(&kernel_params, 0, sizeof(Kernel_params));
-	kernel_params.cam_focal = float(1.0 / tan(90.0 / 2.0 * (2.0 * M_PI / 360.0)));
 	kernel_params.iteration = 0;
 	kernel_params.max_interactions = 1;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
 	kernel_params.volume_type = 0;
-	kernel_params.max_extinction = 0.1f;
+	kernel_params.max_extinction = 0.3f;
 	kernel_params.albedo = 1.0f;
-
-	
+	kernel_params.light_pos = make_float3(0, 1000, 0);
+	kernel_params.light_energy = make_float3(1.0f, 1.0f, 1.0f);
 	cudaArray_t env_tex_data = 0;
 	bool env_tex = false;
+	
+	// Imgui Parameters
+	
+	int max_interaction = 1; 
+	float max_extinction = 0.1;
+	ImVec4 light_pos = ImVec4(0.0f, 1000.0f, 0.0f, 1.00f);
+	ImVec4 light_energy = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
+	 
+	// End ImGui parameters
+	
 	if (argc >= 2)
 		env_tex = create_environment(
 			&kernel_params.env_tex, &env_tex_data, argv[1]);
@@ -422,22 +479,43 @@ int main(const int argc, const char* argv[])
 		kernel_params.environment_type = 1;
 		window_context.config_type = 2;
 	}
-
 	while (!glfwWindowShouldClose(window)) {
 
 		// Process events.
 		glfwPollEvents();
 		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
+		
+		// Update kernel params
 		kernel_params.exposure_scale = powf(2.0f, ctx->exposure);
+		kernel_params.max_interactions = max_interaction;
+		kernel_params.max_extinction = max_extinction;
+		//kernel_params.light_pos = light_pos;
+		//kernel_params.light_energy = light_energy;
+
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
+		
+		// Draw imgui 
+		
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
 
-		if (kernel_params.volume_type != volume_type ||
-			kernel_params.environment_type != environment_type) {
+		ImGui::Begin("Debug window"); 
+		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
+		ImGui::InputInt("max_interactions", &max_interaction, 1);
+		ImGui::InputFloat("extinction maj.", &max_extinction, .0f, 1.0f);
+		ImGui::InputFloat3("light position", (float *)&kernel_params.light_pos, 3);
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::End();
+		ImGui::Render();
 
-			kernel_params.volume_type = volume_type;
-			kernel_params.environment_type = environment_type;
+
+		if (ctx->change || max_interaction != kernel_params.max_interactions) {
+
+			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			kernel_params.iteration = 0;
+			ctx->change = false;
 
 		}	
 		// Reallocate buffers if window size changed.
@@ -459,11 +537,12 @@ int main(const int argc, const char* argv[])
 			kernel_params.iteration = 0;
 		}
 
-		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->zoom_delta) {
+		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->move_mx != 0.0 || ctx->move_my != 0.0 || ctx->zoom_delta) {
 
+			
+			update_camera(ctx->move_dx, ctx->move_dy , ctx->move_mx, ctx->move_my, ctx->zoom_delta);
+			ctx->move_dx = ctx->move_dy = ctx->move_mx = ctx->move_my = 0.0;
 			ctx->zoom_delta = 0;
-			update_camera(ctx->move_dx, ctx->move_dy);
-			ctx->move_dx = ctx->move_dy = 0.0;
 			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 
 			kernel_params.iteration = 0;
@@ -494,21 +573,28 @@ int main(const int argc, const char* argv[])
 		// Update texture for display.
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, display_buffer);
 		glBindTexture(GL_TEXTURE_2D, display_tex);
-		glTexImage2D(
-			GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 		check_success(glGetError() == GL_NO_ERROR);
 
 		// Render the quad.
+		
 		glClear(GL_COLOR_BUFFER_BIT);
 		glBindVertexArray(quad_vao);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		check_success(glGetError() == GL_NO_ERROR);
 
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 		glfwSwapBuffers(window);
 	}
+
+	//Cleanup imgui
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 
 	// Cleanup CUDA.
 	if (env_tex) {

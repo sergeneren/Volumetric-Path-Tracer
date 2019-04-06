@@ -173,7 +173,7 @@ __device__ inline float transmittance(Rand_state &rand_state, float3 pos , const
 
 	float3 p = pos; 
 	float t = 0.0f; 
-	float3 Lpos = make_float3(0.0f, -1000.0f, 0.0f);
+	float3 Lpos = kernel_params.light_pos;
 	float3 L_dir = normalize(Lpos - pos);
 	bool terminated = false; 
 
@@ -182,13 +182,13 @@ __device__ inline float transmittance(Rand_state &rand_state, float3 pos , const
 
 		float zeta = rand(&rand_state);
 		t -= logf(1.0f - zeta) / kernel_params.max_extinction;
-		p = p + L_dir * t;
+		p += L_dir * t;
 		if (!in_volume_bbox(gvdb, p)) break;
 
-		float density = get_extinction(kernel_params, &gvdb, p) / kernel_params.max_extinction;
+		float density = get_extinction(kernel_params, &gvdb, p);
 
 		float xi = rand(&rand_state);
-		if (density < xi * kernel_params.max_extinction) terminated = true;
+		if ( xi < density / kernel_params.max_extinction) terminated = true;
 
 	} while ( !terminated);
 
@@ -208,6 +208,7 @@ __device__ inline float3 trace_volume(
 	float w = 1.0f;
 	float Tr = 1.0f; 
 	float3 Sun_light = make_float3(0.0f, 0.0f, 0.0f);
+
 
 	if (t.z != NOHIT) {
 		
@@ -232,14 +233,12 @@ __device__ inline float3 trace_volume(
 				cosf(phi) * sin_theta,
 				sinf(phi) * sin_theta,
 				cos_theta);
-
+		
 			
-
 		}
 
 	}
-
-	Sun_light = make_float3(10.0f, 1.0f, 1.0f) * w *(1.0f - Tr);
+	Sun_light = make_float3(0.1f, 0.1f, 0.1f) * Tr;
 
 	// Lookup environment.
 	if (kernel_params.environment_type == 0) {

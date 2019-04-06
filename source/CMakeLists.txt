@@ -43,6 +43,8 @@ file( GLOB	PTX
 
 file( GLOB	HEADERS "*.h")
 
+file( GLOB	IMGUI "imgui_*")
+
 file( GLOB CUDA_SOURCES 
 	"*.cu"
 	"*.cuh")
@@ -57,6 +59,7 @@ set(SOURCE_FILES
 	)
 
 source_group(Cuda FILES ${CUDA_SOURCES})
+source_group(Imgui FILES ${IMGUI})
 
 add_executable(gvdb_pt ${SOURCE_FILES})
 
