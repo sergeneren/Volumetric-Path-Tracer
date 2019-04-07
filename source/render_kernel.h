@@ -19,12 +19,16 @@ struct Kernel_params {
 	//Volume parameters ( No absorbtion coefficient)
 
 	float max_extinction;	// Extinction majorant
-	float min_extinction;	// Extinction minorant
+	float min_extinction;	// Extinction minorant (for residual ratio tracking)
 	float phase_g1;			// Phase function anisotropy (.0f means isotropic phase function)
 	float phase_g2;			// Phase function anisotropy for double lobe phase functions
+	float phase_f;			// Anistropy factor for double henyey_greeinstein
+
 	float3 albedo;			// sigma_s / sigma_t
 	float3 extinction;		// sigma_t
-	
+	float3 transmittance;	// At which depth transmittance gets this value 
+	float3 tr_depth;		// Multiply transmittance density factor (transmittance step size regulator)
+
 	// Environment
 	unsigned int environment_type;
 	float3 light_pos;

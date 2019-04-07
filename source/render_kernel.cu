@@ -135,7 +135,7 @@ __device__ inline float cornette_shanks(float cos_theta, float cos_sq_theta, flo
 
 //Phase function direction samplers
 
-__device__ inline float sample_hg(float3 &wi, Rand_state &randstate ,float g) {
+__device__ inline float sample_hg(float3 &wi, Rand_state &randstate, float &cosTheta ,float g) {
 
 	float cos_theta;
 	
@@ -154,6 +154,19 @@ __device__ inline float sample_hg(float3 &wi, Rand_state &randstate ,float g) {
 
 	return henyey_greenstein(cos_theta, g);
 }
+
+__device__ inline float sample_double_hg(float3 &wi, Rand_state randstate, float f, float g1, float g2) {
+
+	float3 v1, v2; 
+	float cos_theta1, cos_theta2;
+	sample_hg(v1, randstate, cos_theta1, g1);
+	sample_hg(v2, randstate, cos_theta2, g2);
+
+	wi = lerp(v1, v2, 1-f);
+	float cos_theta = lerp(cos_theta1, cos_theta2, 1-f);
+	return double_henyey_greenstein(cos_theta, f, g1, g2);
+}
+
 
 // End phase function samplers
 
@@ -272,7 +285,7 @@ __device__ inline float3 trace_volume(
 
 			w *= (float3)kernel_params.albedo;
 			
-			phase_pdf = sample_hg(ray_dir, rand_state,kernel_params.phase_g1 );
+			phase_pdf = sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2 );
 
 		}
 

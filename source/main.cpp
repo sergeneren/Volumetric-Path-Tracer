@@ -458,6 +458,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.max_extinction = 0.3f;
 	kernel_params.phase_g1 = 0.0f;
 	kernel_params.phase_g2 = 0.0f;
+	kernel_params.phase_f = 1.0f;
 	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.light_pos = make_float3(0, 1000, 0);
@@ -504,7 +505,11 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("max_interactions", &max_interaction, 1);
 		ImGui::InputFloat("extinction maj.", &kernel_params.max_extinction, .0f, 1.0f);
-		ImGui::SliderFloat("phase anistropy", &kernel_params.phase_g1, -1.0f, 1.0f);
+		
+		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
+		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
+		ImGui::SliderFloat("phase f", &kernel_params.phase_f, 0.0f, 1.0f);
+
 		ImGui::ColorEdit3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::ColorEdit3("Volume Color", (float *)&kernel_params.albedo);
 

@@ -83,7 +83,6 @@ target_link_libraries(gvdb_pt PRIVATE glfw imgui::imgui ${LIB_GVDB} cudart cuda 
 
 target_include_directories(gvdb_pt PRIVATE "${GVDB_DIR}/include")
 target_include_directories(gvdb_pt PRIVATE "${GVDB_DIR}/sample_utils")
-target_include_directories(gvdb_pt PRIVATE "${GVDB_DIR}/sample_utils")
 
 ## Set dlls to be installed to executable directory after build 
 
