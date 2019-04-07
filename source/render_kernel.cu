@@ -360,12 +360,10 @@ __device__ inline float3 sample_atmosphere(const Kernel_params &kernel_params ,c
 
 // Volume functions 
 
-__device__ inline float3 transmittance(Rand_state &rand_state, float3 pos , const Kernel_params &kernel_params, VDBInfo &gvdb) {
+__device__ inline float3 transmittance(Rand_state &rand_state, float3 pos , float3 dir ,  const Kernel_params &kernel_params, VDBInfo &gvdb) {
 
 	float3 p = pos; 
 	float t = 0.0f; 
-	float3 Lpos = kernel_params.light_pos;
-	float3 L_dir = normalize(Lpos - pos);
 	bool terminated = false; 
 
 
@@ -373,7 +371,7 @@ __device__ inline float3 transmittance(Rand_state &rand_state, float3 pos , cons
 
 		float zeta = rand(&rand_state);
 		t -= logf(1.0f - zeta) / kernel_params.max_extinction;
-		p += L_dir * t;
+		p += dir * t;
 		if (!in_volume_bbox(gvdb, p)) break;
 
 		float density = get_extinction(kernel_params, &gvdb, p);
@@ -386,6 +384,32 @@ __device__ inline float3 transmittance(Rand_state &rand_state, float3 pos , cons
 	if(terminated) return make_float3(0.0f);
 	else return kernel_params.extinction;
 }
+
+__device__ inline float3 sample(Rand_state &rand_state, float3 pos, float3 dir, const Kernel_params &kernel_params, VDBInfo &gvdb) {
+
+	float3 p = pos;
+	float t = 0.0f;
+	bool terminated = false;
+
+
+	do {
+
+		float zeta = rand(&rand_state);
+		t -= logf(1.0f - zeta) / kernel_params.max_extinction;
+		p += dir * t;
+		if (!in_volume_bbox(gvdb, p)) break;
+
+		float density = get_extinction(kernel_params, &gvdb, p);
+
+		float xi = rand(&rand_state);
+		if (xi < density / kernel_params.max_extinction) terminated = true;
+
+	} while (!terminated);
+
+	if (terminated) return make_float3(0.0f);
+	else return kernel_params.extinction;
+}
+
 
 __device__ inline float3 trace_volume(
 	Rand_state rand_state,
@@ -417,7 +441,9 @@ __device__ inline float3 trace_volume(
 
 			w *= (float3)kernel_params.albedo;
 			
-			phase_pdf = sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2 );
+			float cos_theta;
+			phase_pdf = sample_hg(ray_dir, rand_state, cos_theta, kernel_params.phase_g1);
+			//phase_pdf = sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2 );
 
 		}
 
@@ -425,9 +451,16 @@ __device__ inline float3 trace_volume(
 	//Sun_light = kernel_params.light_energy * Tr;
 
 	// Lookup environment.
+
 	if (kernel_params.environment_type == 0) {
-		const float f = (0.5f + 0.5f * ray_dir.y) * w.x;
-		return make_float3(f, f, f) + Sun_light;
+		float t0, t1, tmax = FLT_MAX;
+		float3 pos = ray_pos;
+		pos.y += 1000 + 6360e3f;
+
+		if (raySphereIntersect(pos, ray_dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
+		float3 L = sample_atmosphere(kernel_params, pos, ray_dir, 0, tmax);
+
+		return L * w / phase_pdf;
 	}
 	else {
 		const float4 texval = tex2D<float4>(
@@ -436,7 +469,7 @@ __device__ inline float3 trace_volume(
 			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
 		return make_float3(texval.x , texval.y , texval.z )* w / phase_pdf + Sun_light;
 	}
-	
+	*/
 }
 
 extern "C" __global__ void volume_rt_kernel(VDBInfo gvdb, const Kernel_params kernel_params) {
@@ -452,14 +485,8 @@ extern "C" __global__ void volume_rt_kernel(VDBInfo gvdb, const Kernel_params ke
 	curand_init(idx, 0, kernel_params.iteration * 4096, &rand_state);
 	
 	float3 ray_dir =  normalize(getViewRay((float(scn.width - x) + 0.5) / scn.width, (float(scn.height - y) + 0.5) / scn.height));
-
-	float3 value;
-	float t0, t1, tmax = FLT_MAX;
-	float3 pos = scn.campos + 2000 + 6360e3f;
-	if (raySphereIntersect(pos, ray_dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
-		
-	value = sample_atmosphere(kernel_params ,pos, ray_dir, 0, tmax);
-	//float3 value = trace_volume(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
+	
+	float3 value = trace_volume(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
 
 	// Accumulate.
 	if (kernel_params.iteration == 0)
@@ -475,12 +502,9 @@ extern "C" __global__ void volume_rt_kernel(VDBInfo gvdb, const Kernel_params ke
 	val.x *= (1.0f + val.x * 0.1f) / (1.0f + val.x);
 	val.y *= (1.0f + val.y * 0.1f) / (1.0f + val.y);
 	val.z *= (1.0f + val.z * 0.1f) / (1.0f + val.z);
-	const unsigned int r = (unsigned int)(255.0f *
-		fminf(powf(fmaxf(val.x, 0.0f), (float)(1.0 / 2.2)), 1.0f));
-	const unsigned int g = (unsigned int)(255.0f *
-		fminf(powf(fmaxf(val.y, 0.0f), (float)(1.0 / 2.2)), 1.0f));
-	const unsigned int b = (unsigned int)(255.0f *
-		fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
+	const unsigned int r = (unsigned int)(255.0f * fminf(powf(fmaxf(val.x, 0.0f), (float)(1.0 / 2.2)), 1.0f));
+	const unsigned int g = (unsigned int)(255.0f * fminf(powf(fmaxf(val.y, 0.0f), (float)(1.0 / 2.2)), 1.0f));
+	const unsigned int b = (unsigned int)(255.0f * fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 	kernel_params.display_buffer[idx] = 0xff000000 | (r << 16) | (g << 8) | b;
 
 }

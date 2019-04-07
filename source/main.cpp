@@ -461,7 +461,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.phase_f = 1.0f;
 	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.light_pos = make_float3(0, 1000, 0);
+	kernel_params.light_pos = make_float3(70, 70, 0);
 	kernel_params.light_energy = make_float3(1.0f, 1.0f, 1.0f);
 	cudaArray_t env_tex_data = 0;
 	bool env_tex = false;
