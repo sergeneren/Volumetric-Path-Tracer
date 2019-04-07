@@ -500,7 +500,7 @@ int main(const int argc, const char* argv[])
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::Begin("Debug window"); 
+		ImGui::Begin("Parameters window"); 
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("max_interactions", &max_interaction, 1);
 		ImGui::InputFloat("extinction maj.", &kernel_params.max_extinction, .0f, 1.0f);
@@ -567,7 +567,6 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 		void *params[] = {vdbinfo, &kernel_params };
-		//check_success(cudaLaunchKernel((const void *)&volume_rt_kernel,	num_blocks,	threads_per_block,	params) == cudaSuccess);
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
