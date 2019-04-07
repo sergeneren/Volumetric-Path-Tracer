@@ -85,6 +85,43 @@ __device__ inline float3 spherical_direction(
 
 }
 
+__device__ inline bool solveQuadratic(float a, float b, float c, float& x1, float& x2)
+{
+	if (b == 0) {
+		// Handle special case where the the two vector ray.dir and V are perpendicular
+		// with V = ray.orig - sphere.centre
+		if (a == 0) return false;
+		x1 = 0; x2 = sqrt(-c / a);
+		return true;
+	}
+
+	float discr = b * b - 4 * a * c;
+
+	if (discr < 0) return false;
+
+	float q = (b < 0.f) ? -0.5f * (b - sqrt(discr)) : -0.5f * (b + sqrt(discr));
+	x1 = q / a;
+	x2 = c / q;
+
+	return true;
+}
+
+__device__ bool raySphereIntersect(const float3& orig, const float3& dir, const float& radius, float& t0, float& t1) {
+	
+	float A = dir.squared_length();
+	float B = 2 * (dir.x() * orig.x() + dir.y() * orig.y() + dir.z() * orig.z());
+	float C = orig.x() * orig.x() + orig.y() * orig.y() + orig.z() * orig.z() - radius * radius;
+
+	if (!solveQuadratic(A, B, C, t0, t1)) return false;
+
+	if (t0 > t1) {
+		float tempt = t1;
+		t1 = t0;
+		t0 = tempt;
+	}
+	return true;
+}
+
 
 //Phase functions pdf 
 
@@ -104,7 +141,7 @@ __device__ inline float henyey_greenstein(float cos_theta, float g) {
 
 __device__ inline float double_henyey_greenstein(float cos_theta, float f, float g1, float g2) {
 
-	return (1 - f)*henyey_greenstein(cos_theta, g1) + f * henyey_greenstein(cos_theta, g2);
+	return (1 - f)*henyey_greenstein(cos_theta, g2) + f * henyey_greenstein(cos_theta, g1);
 
 }
 
