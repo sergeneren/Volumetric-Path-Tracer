@@ -358,7 +358,7 @@ static void update_camera(
 	Vector3DF angs = cam->getAng();
 	float dist = cam->getOrbitDist();
 	dist -= zoom_delta*300;
-	angs.x += dx * 0.05f;
+	angs.x -= dx * 0.05f;
 	angs.y -= dy * 0.05f;
 	cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
 	cam->moveRelative(float(mx) * dist / 200, float(my) * dist / 200, 0);
@@ -455,9 +455,11 @@ int main(const int argc, const char* argv[])
 	kernel_params.max_interactions = 1;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
-	kernel_params.volume_type = 0;
 	kernel_params.max_extinction = 0.3f;
-	kernel_params.albedo = 1.0f;
+	kernel_params.phase_g1 = 0.0f;
+	kernel_params.phase_g2 = 0.0f;
+	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
+	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.light_pos = make_float3(0, 1000, 0);
 	kernel_params.light_energy = make_float3(1.0f, 1.0f, 1.0f);
 	cudaArray_t env_tex_data = 0;
@@ -488,7 +490,6 @@ int main(const int argc, const char* argv[])
 		// Update kernel params
 		kernel_params.exposure_scale = powf(2.0f, ctx->exposure);
 		kernel_params.max_interactions = max_interaction;
-		kernel_params.max_extinction = max_extinction;
 
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
@@ -503,8 +504,12 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("max_interactions", &max_interaction, 1);
 		ImGui::InputFloat("extinction maj.", &kernel_params.max_extinction, .0f, 1.0f);
-		ImGui::InputFloat3("light position", (float *)&kernel_params.light_pos, 3);
+		ImGui::SliderFloat("phase anistropy", &kernel_params.phase_g1, -1.0f, 1.0f);
+		ImGui::ColorEdit3("Volume Extinction", (float *)&kernel_params.extinction);
+		ImGui::ColorEdit3("Volume Color", (float *)&kernel_params.albedo);
+
 		ImGui::ColorEdit3("Light Color", (float *)&kernel_params.light_energy);
+		ImGui::InputFloat3("light position", (float *)&kernel_params.light_pos, 3);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		ImGui::End();
 		ImGui::Render();

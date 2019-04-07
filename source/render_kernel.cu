@@ -61,8 +61,32 @@ typedef unsigned long long	uint64;
 typedef curandStatePhilox4_32_10_t Rand_state;
 #define rand(state) curand_uniform(state)
 
+// Helper functions
 
-//Phase functions 
+__device__ inline void coordinate_system(float3 v1, float3 &v2, float3 &v3) {
+
+	if (fabsf(v1.x) > fabsf(v1.y)) v2 = make_float3(-v1.z , 0 , v1.x) / sqrtf(v1.x * v1.x + v1.z +v1.z);
+	else v2 = make_float3(0, v1.z, -v1.y) / sqrtf(v1.y * v1.y + v1.z + v1.z);
+
+	v3 = cross(v1, v2);
+
+}
+
+__device__ inline float3 spherical_direction(
+						float sinTheta, 
+						float cosTheta, 
+						float phi, 
+						float3 x, 
+						float3 y,
+						float3 z)
+{
+
+	return (x * sinTheta * cosf(phi)) + (y * sinTheta * sinf(phi)) + (z * cosTheta);
+
+}
+
+
+//Phase functions pdf 
 
 __device__ inline float isotropic() {
 
@@ -107,9 +131,31 @@ __device__ inline float cornette_shanks(float cos_theta, float cos_sq_theta, flo
 	return M_PI_4 * 1.5f * first_part * second_part;
 
 }
-// End phase functions
+// End phase functions pdf
 
+//Phase function direction samplers
 
+__device__ inline float sample_hg(float3 &wi, Rand_state &randstate ,float g) {
+
+	float cos_theta;
+	
+	if (fabsf(g) < 0.001f) cos_theta = 1 - 2 * rand(&randstate);
+	else {
+
+		float sqr_term = (1 - g * g) / (1 - g + 2 * g * rand(&randstate));
+		cos_theta = (1 + g * g - sqr_term * sqr_term) / (2 * g);
+	}
+	float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
+	float phi = (float)(2.0 * M_PI) * rand(&randstate);
+	float3 v1, v2;
+	coordinate_system(wi, v1, v2);
+	spherical_direction(sin_theta, cos_theta, phi, v1, v2, wi);
+	wi = make_float3(cosf(phi) * sin_theta, sinf(phi) * sin_theta, cos_theta);
+
+	return henyey_greenstein(cos_theta, g);
+}
+
+// End phase function samplers
 
 __device__ inline bool in_volume_bbox(
 		const VDBInfo gvdb, 
@@ -169,7 +215,7 @@ __device__ inline bool integrate(
 
 }
 
-__device__ inline float transmittance(Rand_state &rand_state, float3 pos , const Kernel_params &kernel_params, VDBInfo &gvdb) {
+__device__ inline float3 transmittance(Rand_state &rand_state, float3 pos , const Kernel_params &kernel_params, VDBInfo &gvdb) {
 
 	float3 p = pos; 
 	float t = 0.0f; 
@@ -192,8 +238,8 @@ __device__ inline float transmittance(Rand_state &rand_state, float3 pos , const
 
 	} while ( !terminated);
 
-	if(terminated) return 0.0f;
-	else return 1.0f;
+	if(terminated) return make_float3(0.0f);
+	else return kernel_params.extinction;
 }
 
 __device__ inline float3 trace_volume(
@@ -205,10 +251,11 @@ __device__ inline float3 trace_volume(
 {
 	
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
-	float w = 1.0f;
-	float Tr = 1.0f; 
+	float3 w = make_float3(1.0f);
+	float3 Tr = make_float3(1.0f); 
 	float3 Sun_light = make_float3(0.0f, 0.0f, 0.0f);
 
+	float phase_pdf = 1.0f;
 
 	if (t.z != NOHIT) {
 		
@@ -221,27 +268,20 @@ __device__ inline float3 trace_volume(
 			if (num_interactions++ >= kernel_params.max_interactions)
 				return make_float3(0.0f, 0.0f, 0.0f);
 
-			Tr *= transmittance(rand_state , ray_pos, kernel_params, gvdb);
+			//Tr *= transmittance(rand_state , ray_pos, kernel_params, gvdb);
 
-			w *= kernel_params.albedo;
+			w *= (float3)kernel_params.albedo;
 			
-			// Sample isotropic phase function.
-			const float phi = (float)(2.0 * M_PI) * rand(&rand_state);
-			const float cos_theta = 1.0f - 2.0f * rand(&rand_state);
-			const float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
-			ray_dir = make_float3(
-				cosf(phi) * sin_theta,
-				sinf(phi) * sin_theta,
-				cos_theta);
+			phase_pdf = sample_hg(ray_dir, rand_state,kernel_params.phase_g1 );
 
 		}
 
 	}
-	Sun_light = kernel_params.light_energy * Tr;
+	//Sun_light = kernel_params.light_energy * Tr;
 
 	// Lookup environment.
 	if (kernel_params.environment_type == 0) {
-		const float f = (0.5f + 0.5f * ray_dir.y) * w;
+		const float f = (0.5f + 0.5f * ray_dir.y) * w.x;
 		return make_float3(f, f, f) + Sun_light;
 	}
 	else {
@@ -249,7 +289,7 @@ __device__ inline float3 trace_volume(
 			kernel_params.env_tex,
 			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
 			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-		return make_float3(texval.x * w, texval.y * w, texval.z * w) + Sun_light;
+		return make_float3(texval.x , texval.y , texval.z )* w / phase_pdf + Sun_light;
 	}
 	
 }
