@@ -489,8 +489,6 @@ int main(const int argc, const char* argv[])
 		kernel_params.exposure_scale = powf(2.0f, ctx->exposure);
 		kernel_params.max_interactions = max_interaction;
 		kernel_params.max_extinction = max_extinction;
-		//kernel_params.light_pos = light_pos;
-		//kernel_params.light_energy = light_energy;
 
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
@@ -504,8 +502,9 @@ int main(const int argc, const char* argv[])
 		ImGui::Begin("Debug window"); 
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("max_interactions", &max_interaction, 1);
-		ImGui::InputFloat("extinction maj.", &max_extinction, .0f, 1.0f);
+		ImGui::InputFloat("extinction maj.", &kernel_params.max_extinction, .0f, 1.0f);
 		ImGui::InputFloat3("light position", (float *)&kernel_params.light_pos, 3);
+		ImGui::ColorEdit3("Light Color", (float *)&kernel_params.light_energy);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		ImGui::End();
 		ImGui::Render();

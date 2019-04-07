@@ -14,29 +14,22 @@ struct Kernel_params {
 
 	// Limit on path length
 	unsigned int max_interactions;
-
-	/*
-	// Camera
-	float3 cam_pos;
-	float3 cam_dir;
-	float3 cam_right;
-	float3 cam_up;
-	float  cam_focal;
-	*/
+	unsigned int ray_depth;
 
 
-	float3 light_pos;
-	float3 light_energy;
-
-	// Environment
-	unsigned int environment_type;
-	cudaTextureObject_t env_tex;
-
-	// Volume definition
-	unsigned int volume_type;
+	//Volume parameters ( No absorbtion coefficient)
 	float max_extinction; // Extinction majorant
 	float min_extinction; // Extinction minorant
-	float albedo; // sigma / kappa
+	float3 albedo; // sigma_s / sigma_t
+	float3 extinction; // sigma_t
+	
+	// Environment
+	unsigned int environment_type;
+	float3 light_pos;
+	float3 light_energy;
+	cudaTextureObject_t env_tex;
+
+	
 };
  
 extern "C" __global__ void volume_rt_kernel(const VDBInfo gvdb, const Kernel_params kernel_params);

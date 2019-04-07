@@ -233,12 +233,11 @@ __device__ inline float3 trace_volume(
 				cosf(phi) * sin_theta,
 				sinf(phi) * sin_theta,
 				cos_theta);
-		
-			
+
 		}
 
 	}
-	Sun_light = make_float3(0.1f, 0.1f, 0.1f) * Tr;
+	Sun_light = kernel_params.light_energy * Tr;
 
 	// Lookup environment.
 	if (kernel_params.environment_type == 0) {
