@@ -152,7 +152,6 @@ __device__ inline float3 degree_to_cartesian(
 	float elevation) 
 {
 
-
 	float az = clamp(azimuth, .0f, 360.0f);
 	float el = clamp(elevation, .0f, 90.0f);
 
@@ -192,14 +191,14 @@ __device__ inline float double_henyey_greenstein(
 	float g2) 
 {
 
-	return (1 - f)*henyey_greenstein(cos_theta, g2) + f * henyey_greenstein(cos_theta, g1);
+	return f * henyey_greenstein(cos_theta, g1) + (1 - f) * henyey_greenstein(cos_theta, g2);
 
 }
 
 
 //Phase function direction samplers
 
-__device__ inline float sample_hg(
+__device__ inline float3 sample_hg(
 	const float3 &wo,
 	float3 &wi, 
 	Rand_state &randstate, 
@@ -214,16 +213,18 @@ __device__ inline float sample_hg(
 		float sqr_term = (1 - g * g) / (1 - g + 2 * g * rand(&randstate));
 		cos_theta = (1 + g * g - sqr_term * sqr_term) / (2 * g);
 	}
-	float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
+	float sin_theta = sqrtf(fmaxf(.0f, 1.0f - cos_theta * cos_theta));
 	float phi = (float)(2.0 * M_PI) * rand(&randstate);
 	float3 v1, v2;
 	coordinate_system(wo, v1, v2);
-	wi = spherical_direction(sin_theta, cos_theta, phi, v1, v2, wo * -1.0f);
-	return henyey_greenstein(-cos_theta, g);
+	wi = spherical_direction(sin_theta, cos_theta, phi, v1, v2, wo * -1.0f );
+	return wi;
+	//return henyey_greenstein(-cos_theta, g);
 }
 
-/*
+
 __device__ inline float sample_double_hg(
+	float3 wo,
 	float3 &wi, 
 	Rand_state randstate, 
 	float f, 
@@ -233,14 +234,14 @@ __device__ inline float sample_double_hg(
 
 	float3 v1, v2;
 	float cos_theta1, cos_theta2;
-	sample_hg(v1, randstate, cos_theta1, g1);
-	sample_hg(v2, randstate, cos_theta2, g2);
+	sample_hg(wo, v1, randstate, cos_theta1, g1);
+	sample_hg(wo, v2, randstate, cos_theta2, g2);
 
 	wi = lerp(v1, v2, 1 - f);
 	float cos_theta = lerp(cos_theta1, cos_theta2, 1 - f);
 	return double_henyey_greenstein(cos_theta, f, g1, g2);
 }
-*/
+
 
 // Volume accessors
 __device__ inline bool in_volume_bbox(
@@ -440,66 +441,6 @@ __device__ inline float3 trace_volume(
 }
 */
 
-
-__device__ inline float3 Tr(
-	Rand_state &rand_state,
-	float3 pos,
-	float3 dir,
-	const Kernel_params &kernel_params,
-	VDBInfo &gvdb)
-{
-
-	float3 p = pos;
-	float t = 0.0f;
-	bool terminated = false;
-	float tr = 1;
-	float inv_max_density = 1 / kernel_params.max_extinction;
-
-	do {
-
-		float zeta = rand(&rand_state);
-		t -= logf(1.0f - zeta) / kernel_params.max_extinction;
-		p += dir * t;
-		if (!in_volume_bbox(gvdb, p)) break;
-
-		float density = get_extinction(kernel_params, &gvdb, p);
-
-		float xi = rand(&rand_state);
-		if (xi < density * inv_max_density) terminated = true;
-
-	} while (!terminated);
-
-	if (terminated) return make_float3(0.0f);
-	else return kernel_params.extinction;
-}
-
-__device__ inline float3 estimate_direct(
-	Kernel_params kernel_params,
-	Rand_state &randstate,
-	const float3 &ray_pos,
-	const float3 &ray_dir,
-	VDBInfo &gvdb)
-{
-
-
-
-}
-
-__device__ inline float3 uniform_sample_one_light(
-	Kernel_params kernel_params,
-	const float3 &ray_pos,
-	const float3 &ray_dir,
-	Rand_state &randstate, 
-	VDBInfo &gvdb)
-{
-	// Only sample sun light for now
-	int nLights = 1; // number of lights
-	int light_num = 1; // prob 1 of choosing sun light
-
-	return estimate_direct(kernel_params, randstate, ray_pos,ray_dir, gvdb) * (float)nLights ;
-
-}
-
 __device__ inline float get_density(
 	const Kernel_params &kernel_params,
 	VDBInfo *gvdb,
@@ -525,6 +466,68 @@ __device__ inline float get_density(
 
 	return density;
 }
+
+__device__ inline float3 Tr(
+	Rand_state &rand_state,
+	float3 pos,
+	float3 dir,
+	const Kernel_params &kernel_params,
+	VDBInfo &gvdb)
+{
+	float3 Tr = WHITE;
+	float3 p = pos;
+	float t = 0.0f;
+	float inv_max_density = 1 / kernel_params.max_extinction;
+	
+	while (true) {
+
+		t -= logf(1 - rand(&rand_state)) * inv_max_density;
+		p += dir * t;
+		if (!in_volume_bbox(gvdb, p)) break;
+		float density = get_density(kernel_params, &gvdb, p);
+		Tr *= 1 - fmaxf(.0f , density*inv_max_density);
+
+	}
+	return Tr;
+}
+
+__device__ inline float3 estimate_direct(
+	Kernel_params kernel_params,
+	Rand_state &randstate,
+	const float3 &ray_pos,
+	const float3 &ray_dir,
+	VDBInfo &gvdb)
+{
+	float3 Ld = BLACK; 
+	float3 wi;
+	float light_pdf = .0f, phase_pdf = .0f;
+
+	// sample sun light
+	wi = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
+	float cos_theta = dot(ray_dir, wi);
+	light_pdf = 1.0f;
+	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
+	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
+
+	return WHITE * tr * light_pdf ;
+
+}
+
+__device__ inline float3 uniform_sample_one_light(
+	Kernel_params kernel_params,
+	const float3 &ray_pos,
+	const float3 &ray_dir,
+	Rand_state &randstate, 
+	VDBInfo &gvdb)
+{
+	// Only sample sun light for now
+	int nLights = 1; // number of lights
+	int light_num = 1; // prob of 1 of choosing sun light
+
+	return estimate_direct(kernel_params, randstate, ray_pos, ray_dir, gvdb) * (float)nLights ;
+
+}
+
 
 __device__ inline float3 sample(
 	Rand_state &rand_state,
@@ -578,18 +581,22 @@ __device__ inline float3 vol_integrator(
 			if (mi) { // medium interaction 
 
 							//env light
-				L += beta * WHITE * M_PI_4;
+				L += beta * uniform_sample_one_light(kernel_params,ray_pos,ray_dir,rand_state,gvdb );
 
-				float3 wo = -ray_dir, wi;
+				float3 wo = -ray_dir;
+				float3 wi = BLACK;
 				float cos_theta;
-				sample_hg(wo, wi,rand_state, cos_theta, kernel_params.phase_g1);
+				ray_dir = sample_hg(wo, wi, rand_state, cos_theta, kernel_params.phase_g1);
 
-				ray_dir = wi;
+				//ray_dir = wi;
+
 			}
 		}
 
-		if(length(L) > 0.0001) return L;
+		
 	}
+
+	return L;
 
 	// Lookup environment if no volume intersection.
 

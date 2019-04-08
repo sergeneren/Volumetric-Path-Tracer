@@ -358,10 +358,10 @@ static void update_camera(
 	Vector3DF angs = cam->getAng();
 	float dist = cam->getOrbitDist();
 	dist -= zoom_delta*300;
-	angs.x -= dx * 0.05f;
-	angs.y -= dy * 0.05f;
+	angs.x -= dx * 0.2f;
+	angs.y -= dy * 0.2f;
 	cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
-	cam->moveRelative(float(mx) * dist / 200, float(my) * dist / 200, 0);
+	cam->moveRelative(float(mx) * dist / 1000, float(my) * dist / 1000, 0);
 }
 
 int main(const int argc, const char* argv[])
@@ -419,7 +419,7 @@ int main(const int argc, const char* argv[])
 	gvdb.AddPath(ASSET_PATH);
 
 	char scnpath[1024];
-	if (!gvdb.FindFile("wdas_cloud_sixteenth.vdb", scnpath)) {
+	if (!gvdb.FindFile("wdas_cloud_sixteenth_filled.vdb", scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
 	}
@@ -431,7 +431,7 @@ int main(const int argc, const char* argv[])
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
-	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(2000, 100,0), 2000, 1.0);
+	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(200, 100,0), 100, 1.0);
 	gvdb.getScene()->SetCamera(cam);
 	
 	printf("Loading module: render_kernel.ptx\n");
@@ -455,7 +455,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.max_interactions = 1;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
-	kernel_params.max_extinction = 0.3f;
+	kernel_params.max_extinction = 1.0f;
 	kernel_params.ray_depth = 1; 
 	kernel_params.phase_g1 = 0.0f;
 	kernel_params.phase_g2 = 0.0f;
@@ -517,7 +517,7 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase f", &kernel_params.phase_f, 0.0f, 1.0f);
 
-		ImGui::SliderFloat("Depth Multiplier", &kernel_params.tr_depth, 1.0f, 1000.0f);
+		ImGui::InputFloat("Density Multiplier", &kernel_params.tr_depth);
 
 		ImGui::ColorEdit3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::ColorEdit3("Volume Color", (float *)&kernel_params.albedo);
