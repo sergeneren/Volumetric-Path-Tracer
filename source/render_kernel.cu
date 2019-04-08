@@ -73,7 +73,7 @@ __device__ inline void coordinate_system(
 	if (fabsf(v1.x) > fabsf(v1.y)) v2 = make_float3(-v1.z, 0, v1.x) / sqrtf(v1.x * v1.x + v1.z + v1.z);
 	else v2 = make_float3(0, v1.z, -v1.y) / sqrtf(v1.y * v1.y + v1.z + v1.z);
 
-	v3 = cross(v1, v2);
+	v3 = cross(normalize(v1), normalize(v2));
 
 }
 
@@ -86,7 +86,7 @@ __device__ inline float3 spherical_direction(
 	float3 z)
 {
 
-	return (x * sinTheta * cosf(phi)) + (y * sinTheta * sinf(phi)) + (z * cosTheta);
+	return x*sinTheta * cosf(phi) + y * sinTheta * sinf(phi) + z * cosTheta;
 
 }
 
@@ -198,14 +198,12 @@ __device__ inline float double_henyey_greenstein(
 
 //Phase function direction samplers
 
-__device__ inline float3 sample_hg(
-	const float3 &wo,
-	float3 &wi, 
+__device__ inline float sample_hg(
+	float3 &wo, 
 	Rand_state &randstate, 
-	float &cosTheta, 
 	float g) 
 {
-
+	wo *= -1.0f;
 	float cos_theta;
 
 	if (fabsf(g) < 0.001f) cos_theta = 1 - 2 * rand(&randstate);
@@ -216,13 +214,13 @@ __device__ inline float3 sample_hg(
 	float sin_theta = sqrtf(fmaxf(.0f, 1.0f - cos_theta * cos_theta));
 	float phi = (float)(2.0 * M_PI) * rand(&randstate);
 	float3 v1, v2;
-	coordinate_system(wo, v1, v2);
-	wi = spherical_direction(sin_theta, cos_theta, phi, v1, v2, wo * -1.0f );
-	return wi;
-	//return henyey_greenstein(-cos_theta, g);
+	coordinate_system(wo, v1, v2);	
+	wo = spherical_direction(sin_theta, cos_theta, phi, v1, v2, wo * -1.0f);
+	wo = normalize(wo);
+	return henyey_greenstein(-cos_theta, g);
 }
 
-
+/*
 __device__ inline float sample_double_hg(
 	float3 wo,
 	float3 &wi, 
@@ -234,14 +232,14 @@ __device__ inline float sample_double_hg(
 
 	float3 v1, v2;
 	float cos_theta1, cos_theta2;
-	sample_hg(wo, v1, randstate, cos_theta1, g1);
-	sample_hg(wo, v2, randstate, cos_theta2, g2);
+	sample_hg( v1, randstate, cos_theta1, g1);
+	sample_hg( v2, randstate, cos_theta2, g2);
 
 	wi = lerp(v1, v2, 1 - f);
 	float cos_theta = lerp(cos_theta1, cos_theta2, 1 - f);
 	return double_henyey_greenstein(cos_theta, f, g1, g2);
 }
-
+*/
 
 // Volume accessors
 __device__ inline bool in_volume_bbox(
@@ -474,7 +472,7 @@ __device__ inline float3 Tr(
 	const Kernel_params &kernel_params,
 	VDBInfo &gvdb)
 {
-	float3 Tr = WHITE;
+	float3 tr = WHITE;
 	float3 p = pos;
 	float t = 0.0f;
 	float inv_max_density = 1 / kernel_params.max_extinction;
@@ -485,10 +483,10 @@ __device__ inline float3 Tr(
 		p += dir * t;
 		if (!in_volume_bbox(gvdb, p)) break;
 		float density = get_density(kernel_params, &gvdb, p);
-		Tr *= 1 - fmaxf(.0f , density*inv_max_density);
-
+		tr *= 1 - fmaxf(.0f , density*inv_max_density);
+		if (tr.x < EPS) break;
 	}
-	return Tr;
+	return tr;
 }
 
 __device__ inline float3 estimate_direct(
@@ -509,7 +507,7 @@ __device__ inline float3 estimate_direct(
 	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
 
-	return WHITE * tr * light_pdf ;
+	return WHITE * tr  * phase_pdf / light_pdf;
 
 }
 
@@ -573,6 +571,7 @@ __device__ inline float3 vol_integrator(
 	bool mi = false;
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
+
 		
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
@@ -580,19 +579,14 @@ __device__ inline float3 vol_integrator(
 
 			if (mi) { // medium interaction 
 
-							//env light
+							
 				L += beta * uniform_sample_one_light(kernel_params,ray_pos,ray_dir,rand_state,gvdb );
-
-				float3 wo = -ray_dir;
-				float3 wi = BLACK;
-				float cos_theta;
-				ray_dir = sample_hg(wo, wi, rand_state, cos_theta, kernel_params.phase_g1);
-
-				//ray_dir = wi;
+				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
+				
 
 			}
 		}
-
+		
 		
 	}
 
@@ -636,7 +630,7 @@ extern "C" __global__ void volume_rt_kernel(
 	// Initialize pseudorandom number generator (PRNG); assume we need no more than 4096 random numbers.
 	const unsigned int idx = y * scn.width + x;
 	Rand_state rand_state;
-	curand_init(idx, 0, kernel_params.iteration * 4096, &rand_state);
+	curand_init(idx, 0, kernel_params.iteration * 10000, &rand_state);
 
 	float3 ray_dir = normalize(getViewRay((float(scn.width - x) + 0.5) / scn.width, (float(scn.height - y) + 0.5) / scn.height));
 
