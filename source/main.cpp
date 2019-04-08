@@ -222,13 +222,13 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			break;
 		case GLFW_KEY_KP_SUBTRACT:
 		case GLFW_KEY_LEFT_BRACKET:
-			fov -= 1.0f;
+			fov -= 10.0f;
 			cam->setFov(fov);
 			ctx->change=true;
 			break;
 		case GLFW_KEY_KP_ADD:
 		case GLFW_KEY_RIGHT_BRACKET:
-			fov += 1.0f;
+			fov += 10.0f;
 			cam->setFov(fov);
 			ctx->change=true;
 			break;
@@ -431,7 +431,7 @@ int main(const int argc, const char* argv[])
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
-	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(2000, 100,0), 400, 1.0);
+	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(2000, 100,0), 2000, 1.0);
 	gvdb.getScene()->SetCamera(cam);
 	
 	printf("Loading module: render_kernel.ptx\n");
@@ -456,13 +456,16 @@ int main(const int argc, const char* argv[])
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
 	kernel_params.max_extinction = 0.3f;
+	kernel_params.ray_depth = 1; 
 	kernel_params.phase_g1 = 0.0f;
 	kernel_params.phase_g2 = 0.0f;
 	kernel_params.phase_f = 1.0f;
+	kernel_params.tr_depth = 1.0f;
 	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.light_pos = make_float3(70, 70, 0);
-	kernel_params.light_energy = make_float3(1.0f, 1.0f, 1.0f);
+	kernel_params.azimuth = 30;
+	kernel_params.elevation = 50;
+	kernel_params.light_energy = make_float3(20.0f, 20.0f, 20.0f);
 	cudaArray_t env_tex_data = 0;
 	bool env_tex = false;
 	
@@ -482,6 +485,9 @@ int main(const int argc, const char* argv[])
 		kernel_params.environment_type = 1;
 		window_context.config_type = 2;
 	}
+
+	bool debug = false; 
+
 	while (!glfwWindowShouldClose(window)) {
 
 		// Process events.
@@ -503,21 +509,41 @@ int main(const int argc, const char* argv[])
 
 		ImGui::Begin("Parameters window"); 
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
-		ImGui::InputInt("max_interactions", &max_interaction, 1);
+		ImGui::InputInt("Max interactions", &max_interaction, 1);
+		ImGui::InputInt("Ray Depth", &kernel_params.ray_depth, 1);
 		ImGui::InputFloat("extinction maj.", &kernel_params.max_extinction, .0f, 1.0f);
-		
+		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase f", &kernel_params.phase_f, 0.0f, 1.0f);
 
+		ImGui::SliderFloat("Depth Multiplier", &kernel_params.tr_depth, 1.0f, 1000.0f);
+
 		ImGui::ColorEdit3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::ColorEdit3("Volume Color", (float *)&kernel_params.albedo);
 
-		ImGui::ColorEdit3("Light Color", (float *)&kernel_params.light_energy);
-		ImGui::InputFloat3("light position", (float *)&kernel_params.light_pos, 3);
+		ImGui::InputFloat3("Light Color", (float *)&kernel_params.light_energy);
+		ImGui::SliderFloat("Azimuth", &kernel_params.azimuth, 0, 360);
+		ImGui::SliderFloat("Elevation", &kernel_params.elevation, 0, 90);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		ImGui::End();
 		ImGui::Render();
+
+		if (debug) {
+
+			float az = kernel_params.azimuth;
+			float el = kernel_params.elevation;
+			az = az * M_PI / 180.0f;
+			el = el * M_PI / 180.0f;
+
+			float x = sinf(el) * cosf(az);
+			float y = cosf(el);
+			float z = sinf(el) * sinf(az);
+
+			printf("x: %f , y: %f z: %f \n", x, y, z);
+
+
+		}
 
 
 		if (ctx->change || max_interaction != kernel_params.max_interactions) {

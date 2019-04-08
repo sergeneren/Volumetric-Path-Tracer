@@ -14,7 +14,7 @@ struct Kernel_params {
 
 	// Limit on path length
 	unsigned int max_interactions;	// Accumulation buffer count
-	unsigned int ray_depth;			// Max number of bounces 
+	int ray_depth;				// Max number of bounces 
 
 	//Volume parameters ( No absorbtion coefficient)
 
@@ -27,11 +27,12 @@ struct Kernel_params {
 	float3 albedo;			// sigma_s / sigma_t
 	float3 extinction;		// sigma_t
 	float3 transmittance;	// At which depth transmittance gets this value 
-	float3 tr_depth;		// Multiply transmittance density factor (transmittance step size regulator)
+	float tr_depth;		// Multiply transmittance density factor (transmittance step size regulator)
 
 	// Environment
 	unsigned int environment_type;
-	float3 light_pos;
+	float azimuth;
+	float elevation;
 	float3 light_energy;
 	cudaTextureObject_t env_tex;
 		
