@@ -65,15 +65,15 @@ typedef curandStatePhilox4_32_10_t Rand_state;
 // Helper functions
 
 __device__ inline void coordinate_system(
-	float3 v1, 
-	float3 &v2, 
-	float3 &v3) 
+	float3 v1,
+	float3 &v2,
+	float3 &v3)
 {
-
-	if (fabsf(v1.x) > fabsf(v1.y)) v2 = make_float3(-v1.z, 0, v1.x) / sqrtf(v1.x * v1.x + v1.z + v1.z);
-	else v2 = make_float3(0, v1.z, -v1.y) / sqrtf(v1.y * v1.y + v1.z + v1.z);
-
-	v3 = cross(normalize(v1), normalize(v2));
+	//Hughes-Moeller orthonormal basis 
+	if (fabsf(v1.x) > fabsf(v1.z))	v3 = make_float3(-v1.y,	v1.x, 0.0f) ;
+	else							v3 = make_float3(0.0f,	-v1.z, v1.y);
+	v3 = normalize(v3);
+	v2 = cross(v3, v1);
 
 }
 
@@ -86,15 +86,15 @@ __device__ inline float3 spherical_direction(
 	float3 z)
 {
 
-	return x*sinTheta * cosf(phi) + y * sinTheta * sinf(phi) + z * cosTheta;
+	return x * sinTheta * cosf(phi) + y * sinTheta * sinf(phi) + z * cosTheta;
 
 }
 
 __device__ inline bool solveQuadratic(
-	float a, 
-	float b, 
-	float c, 
-	float& x1, 
+	float a,
+	float b,
+	float c,
+	float& x1,
 	float& x2)
 {
 	if (b == 0) {
@@ -117,11 +117,11 @@ __device__ inline bool solveQuadratic(
 }
 
 __device__ bool raySphereIntersect(
-	const float3& orig, 
-	const float3& dir, 
-	const float& radius, 
-	float& t0, 
-	float& t1) 
+	const float3& orig,
+	const float3& dir,
+	const float& radius,
+	float& t0,
+	float& t1)
 {
 
 	float A = squared_length(dir);
@@ -139,7 +139,7 @@ __device__ bool raySphereIntersect(
 }
 
 __device__ inline float degree_to_radians(
-	float degree) 
+	float degree)
 {
 
 	return degree * M_PI / 180.0f;
@@ -148,8 +148,8 @@ __device__ inline float degree_to_radians(
 
 
 __device__ inline float3 degree_to_cartesian(
-	float azimuth, 
-	float elevation) 
+	float azimuth,
+	float elevation)
 {
 
 	float az = clamp(azimuth, .0f, 360.0f);
@@ -174,8 +174,8 @@ __device__ inline float isotropic() {
 }
 
 __device__ inline float henyey_greenstein(
-	float cos_theta, 
-	float g) 
+	float cos_theta,
+	float g)
 {
 
 	float denominator = 1 + g * g - 2 * g * cos_theta;
@@ -185,10 +185,10 @@ __device__ inline float henyey_greenstein(
 }
 
 __device__ inline float double_henyey_greenstein(
-	float cos_theta, 
-	float f, 
-	float g1, 
-	float g2) 
+	float cos_theta,
+	float f,
+	float g1,
+	float g2)
 {
 
 	return f * henyey_greenstein(cos_theta, g1) + (1 - f) * henyey_greenstein(cos_theta, g2);
@@ -199,9 +199,9 @@ __device__ inline float double_henyey_greenstein(
 //Phase function direction samplers
 
 __device__ inline float sample_hg(
-	float3 &wo, 
-	Rand_state &randstate, 
-	float g) 
+	float3 &wo,
+	Rand_state &randstate,
+	float g)
 {
 	wo *= -1.0f;
 	float cos_theta;
@@ -214,32 +214,31 @@ __device__ inline float sample_hg(
 	float sin_theta = sqrtf(fmaxf(.0f, 1.0f - cos_theta * cos_theta));
 	float phi = (float)(2.0 * M_PI) * rand(&randstate);
 	float3 v1, v2;
-	coordinate_system(wo, v1, v2);	
-	wo = spherical_direction(sin_theta, cos_theta, phi, v1, v2, wo * -1.0f);
-	wo = normalize(wo);
+	coordinate_system(wo, v1, v2);
+	wo = spherical_direction(sin_theta, cos_theta, phi, v1, v2, wo * -1.0f);	
 	return henyey_greenstein(-cos_theta, g);
 }
 
-/*
+
 __device__ inline float sample_double_hg(
 	float3 wo,
-	float3 &wi, 
-	Rand_state randstate, 
-	float f, 
-	float g1, 
-	float g2) 
+	float3 &wi,
+	Rand_state randstate,
+	float f,
+	float g1,
+	float g2)
 {
 
 	float3 v1, v2;
 	float cos_theta1, cos_theta2;
-	sample_hg( v1, randstate, cos_theta1, g1);
-	sample_hg( v2, randstate, cos_theta2, g2);
+	cos_theta1 = sample_hg( v1, randstate, g1);
+	cos_theta2 = sample_hg( v2, randstate, g2);
 
 	wi = lerp(v1, v2, 1 - f);
 	float cos_theta = lerp(cos_theta1, cos_theta2, 1 - f);
 	return double_henyey_greenstein(cos_theta, f, g1, g2);
 }
-*/
+
 
 // Volume accessors
 __device__ inline bool in_volume_bbox(
@@ -280,11 +279,11 @@ __device__ inline float get_extinction(
 // Light Samplers 
 
 __device__ inline float3 sample_atmosphere(
-	const Kernel_params &kernel_params, 
-	const float3 orig, 
-	const float3 dir, 
-	float tmin, 
-	float tmax) 
+	const Kernel_params &kernel_params,
+	const float3 orig,
+	const float3 dir,
+	float tmin,
+	float tmax)
 {
 
 	// initial parameters
@@ -351,12 +350,12 @@ __device__ inline float3 sample_atmosphere(
 	}
 
 
-	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * kernel_params.light_energy;
+	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * kernel_params.sky_color;
 }
 
 
-/*
-// Volume functions 
+
+// Volume functions
 __device__ inline bool integrate(
 	Rand_state &rand_state,
 	float3 &ray_pos,
@@ -371,7 +370,7 @@ __device__ inline bool integrate(
 
 	do {
 		t -= logf(1.0f - rand(&rand_state)) / kernel_params.max_extinction;
-		pos = ray_pos + ray_dir * t * kernel_params.tr_depth;
+		pos = ray_pos + ray_dir * t ;
 		if (!in_volume_bbox(gvdb, pos)) return false;
 	} while (get_extinction(kernel_params, &gvdb, pos) < rand(&rand_state) * kernel_params.max_extinction);
 
@@ -408,15 +407,14 @@ __device__ inline float3 trace_volume(
 
 			w *= (float3)kernel_params.albedo;
 
-			float cos_theta;
-			phase_pdf = sample_hg(ray_dir, rand_state, cos_theta, kernel_params.phase_g1);
+			phase_pdf *= sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			//phase_pdf = sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2 );
 
 		}
 
 	}
 
-	w /= phase_pdf;
+	//w /= phase_pdf;
 	// Lookup environment.
 
 	if (kernel_params.environment_type == 0) {
@@ -437,7 +435,7 @@ __device__ inline float3 trace_volume(
 	}
 
 }
-*/
+
 
 __device__ inline float get_density(
 	const Kernel_params &kernel_params,
@@ -459,7 +457,7 @@ __device__ inline float get_density(
 
 		float3 brick_pos = (p - vmin) / vdel;
 		float3 atlas_pos = make_float3(brick_node->mValue);
-		density = tex3D<float>(gvdb->volIn[0], brick_pos.x + atlas_pos.x, brick_pos.y + atlas_pos.y, brick_pos.z + atlas_pos.z) * kernel_params.tr_depth;
+		density = tex3D<float>(gvdb->volIn[0], brick_pos.x + atlas_pos.x, brick_pos.y + atlas_pos.y, brick_pos.z + atlas_pos.z);
 	}
 
 	return density;
@@ -476,27 +474,60 @@ __device__ inline float3 Tr(
 	float3 p = pos;
 	float t = 0.0f;
 	float inv_max_density = 1 / kernel_params.max_extinction;
-	
+
 	while (true) {
 
-		t -= logf(1 - rand(&rand_state)) * inv_max_density;
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth;
 		p += dir * t;
 		if (!in_volume_bbox(gvdb, p)) break;
 		float density = get_density(kernel_params, &gvdb, p);
-		tr *= 1 - fmaxf(.0f , density*inv_max_density);
+		tr *= 1 - fmaxf(.0f, density*inv_max_density);
 		if (tr.x < EPS) break;
 	}
 	return tr;
 }
 
-__device__ inline float3 estimate_direct(
+
+
+__device__ inline float3 estimate_sky(
 	Kernel_params kernel_params,
 	Rand_state &randstate,
 	const float3 &ray_pos,
 	const float3 &ray_dir,
 	VDBInfo &gvdb)
 {
-	float3 Ld = BLACK; 
+	float3 Ld = BLACK;
+	float3 wi;
+	float light_pdf = .0f, phase_pdf = .0f;
+
+	float az = rand(&randstate) * 360.0f;
+	float el = rand(&randstate) * 180.0f;
+
+	wi = degree_to_cartesian(az, el);
+	phase_pdf = isotropic();
+	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
+
+	float t0, t1, tmax = FLT_MAX;
+	float3 pos = ray_pos;
+	pos.y += 1000 + 6360e3f; // raise position 1km above the surface of planet
+
+	if (raySphereIntersect(pos, wi, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
+	Ld = sample_atmosphere(kernel_params, pos, wi, 0, tmax);
+	Ld *= tr / phase_pdf;
+
+	return Ld;
+
+}
+
+
+__device__ inline float3 estimate_sun(
+	Kernel_params kernel_params,
+	Rand_state &randstate,
+	const float3 &ray_pos,
+	const float3 &ray_dir,
+	VDBInfo &gvdb)
+{
+	float3 Ld = BLACK;
 	float3 wi;
 	float light_pdf = .0f, phase_pdf = .0f;
 
@@ -507,7 +538,9 @@ __device__ inline float3 estimate_direct(
 	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
 
-	return WHITE * tr  * phase_pdf / light_pdf;
+	Ld = kernel_params.sun_color * tr  * phase_pdf / light_pdf;
+
+	return Ld;
 
 }
 
@@ -515,14 +548,24 @@ __device__ inline float3 uniform_sample_one_light(
 	Kernel_params kernel_params,
 	const float3 &ray_pos,
 	const float3 &ray_dir,
-	Rand_state &randstate, 
+	Rand_state &randstate,
 	VDBInfo &gvdb)
 {
 	// Only sample sun light for now
-	int nLights = 1; // number of lights
-	int light_num = 1; // prob of 1 of choosing sun light
+	int nLights = 2; // number of lights
+	bool light_num = rand(&randstate) < 0.5f; // prob of 1 of choosing sun light
 
-	return estimate_direct(kernel_params, randstate, ray_pos, ray_dir, gvdb) * (float)nLights ;
+	float3 L = BLACK;
+
+	if (light_num) {
+
+		L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gvdb);
+	}
+	else {
+
+		L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gvdb);
+	}
+	return L * (float)nLights;
 
 }
 
@@ -539,13 +582,14 @@ __device__ inline float3 sample(
 
 	float t = 0.0f;
 	float inv_max_density = 1.0f / kernel_params.max_extinction;
+	float inv_density_mult = 1.0f / kernel_params.density_mult;
 
 	while (true) {
 
-		t -= logf(1 - rand(&rand_state)) * inv_max_density;
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
 		if (!in_volume_bbox(gvdb, ray_pos)) break;
-		float density = get_density(kernel_params, &gvdb, ray_pos) ;
+		float density = get_density(kernel_params, &gvdb, ray_pos);
 		if (density * inv_max_density > rand(&rand_state)) {
 
 			interaction = true;
@@ -569,47 +613,54 @@ __device__ inline float3 vol_integrator(
 	float3 env_pos = ray_pos;
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	bool mi = false;
+	float phase_pdf = 1.0f; 
+
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
 
-		
+
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb);
 
 			if (mi) { // medium interaction 
 
-							
-				L += beta * uniform_sample_one_light(kernel_params,ray_pos,ray_dir,rand_state,gvdb );
-				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
+
+				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gvdb) / phase_pdf;
 				
+				phase_pdf = sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
+				L *= phase_pdf;
 
 			}
 		}
-		
-		
+
+
 	}
 
 	return L;
 
-	// Lookup environment if no volume intersection.
+	if (length(L)<0.0001) {
 
-	if (kernel_params.environment_type == 0) {
-		float t0, t1, tmax = FLT_MAX;
-		float3 pos = env_pos;
-		pos.y += 1000 + 6360e3f;
+		// Lookup environment if no volume intersection.
 
-		if (raySphereIntersect(pos, ray_dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
-		L = sample_atmosphere(kernel_params, pos, ray_dir, 0, tmax);
-		return L ;
+		if (kernel_params.environment_type == 0) {
+			float t0, t1, tmax = FLT_MAX;
+			float3 pos = env_pos;
+			pos.y += 1000 + 6360e3f;
+
+			if (raySphereIntersect(pos, ray_dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
+			L += sample_atmosphere(kernel_params, pos, ray_dir, 0, tmax);
+			return L;
+		}
+		else {
+			const float4 texval = tex2D<float4>(
+				kernel_params.env_tex,
+				atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
+				acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
+			return make_float3(texval.x, texval.y, texval.z);
+		}
 	}
-	else {
-		const float4 texval = tex2D<float4>(
-			kernel_params.env_tex,
-			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
-			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-		return make_float3(texval.x, texval.y, texval.z);
-	}
+	
 
 }
 
@@ -619,7 +670,7 @@ __device__ inline float3 vol_integrator(
 
 
 extern "C" __global__ void volume_rt_kernel(
-	VDBInfo gvdb, 
+	VDBInfo gvdb,
 	const Kernel_params kernel_params) {
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;

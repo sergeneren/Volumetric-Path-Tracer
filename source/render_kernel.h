@@ -27,13 +27,15 @@ struct Kernel_params {
 	float3 albedo;			// sigma_s / sigma_t
 	float3 extinction;		// sigma_t
 	float3 transmittance;	// At which depth transmittance gets this value 
-	float tr_depth;		// Multiply transmittance density factor (transmittance step size regulator)
+	float tr_depth;			// Multiply transmittance density factor (transmittance step size regulator)
+	float density_mult;		// Tracking density multiplier
 
 	// Environment
 	unsigned int environment_type;
 	float azimuth;
 	float elevation;
-	float3 light_energy;
+	float3 sun_color;
+	float3 sky_color;
 	cudaTextureObject_t env_tex;
 		
 };

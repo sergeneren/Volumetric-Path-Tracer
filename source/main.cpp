@@ -461,11 +461,13 @@ int main(const int argc, const char* argv[])
 	kernel_params.phase_g2 = 0.0f;
 	kernel_params.phase_f = 1.0f;
 	kernel_params.tr_depth = 1.0f;
+	kernel_params.density_mult = 1.0f;
 	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.azimuth = 30;
 	kernel_params.elevation = 50;
-	kernel_params.light_energy = make_float3(20.0f, 20.0f, 20.0f);
+	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
+	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
 	cudaArray_t env_tex_data = 0;
 	bool env_tex = false;
 	
@@ -517,12 +519,14 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase f", &kernel_params.phase_f, 0.0f, 1.0f);
 
-		ImGui::InputFloat("Density Multiplier", &kernel_params.tr_depth);
+		ImGui::InputFloat("Density Multiplier", &kernel_params.density_mult);
+		ImGui::InputFloat("Depth Multiplier", &kernel_params.tr_depth);
 
-		ImGui::ColorEdit3("Volume Extinction", (float *)&kernel_params.extinction);
-		ImGui::ColorEdit3("Volume Color", (float *)&kernel_params.albedo);
+		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
+		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
 
-		ImGui::InputFloat3("Light Color", (float *)&kernel_params.light_energy);
+		ImGui::InputFloat3("Sun Color", (float *)&kernel_params.sun_color);
+		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
 		ImGui::SliderFloat("Azimuth", &kernel_params.azimuth, 0, 360);
 		ImGui::SliderFloat("Elevation", &kernel_params.elevation, 0, 90);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
