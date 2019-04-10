@@ -218,7 +218,6 @@ __device__ inline float sample_hg(
 
 
 __device__ inline float sample_double_hg(
-	float3 wo,
 	float3 &wi,
 	Rand_state randstate,
 	float f,
@@ -266,7 +265,7 @@ __device__ inline float get_extinction(
 
 		float3 brick_pos = (p - vmin) / vdel;
 		float3 atlas_pos = make_float3(brick_node->mValue);
-		density = tex3D<float>(gvdb->volIn[0], brick_pos.x + atlas_pos.x, brick_pos.y + atlas_pos.y, brick_pos.z + atlas_pos.z) * kernel_params.max_extinction;
+		density = tex3D<float>(gvdb->volIn[0], brick_pos.x + atlas_pos.x, brick_pos.y + atlas_pos.y, brick_pos.z + atlas_pos.z);
 	}
 
 	return density;
@@ -349,88 +348,6 @@ __device__ inline float3 sample_atmosphere(
 
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * kernel_params.sky_color;
 }
-
-
-// Volume functions
-__device__ inline bool integrate(
-	Rand_state &rand_state,
-	float3 &ray_pos,
-	const float3 &ray_dir,
-	const Kernel_params &kernel_params,
-	VDBInfo &gvdb)
-{
-
-	float t = 0.0f;
-	float3 pos;
-
-	do {
-		t -= logf(1.0f - rand(&rand_state)) / kernel_params.max_extinction;
-		pos = ray_pos + ray_dir * t;
-		if (!in_volume_bbox(gvdb, pos)) return false;
-	} while (get_extinction(kernel_params, &gvdb, pos) < rand(&rand_state) * kernel_params.max_extinction);
-
-	ray_pos = pos;
-	return true;
-
-
-}
-__device__ inline float3 trace_volume(
-	Rand_state rand_state,
-	float3 ray_pos,
-	float3 ray_dir,
-	const Kernel_params kernel_params,
-	VDBInfo gvdb)
-{
-
-	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
-	float3 w = WHITE;
-	float3 Tr = WHITE;
-	float phase_pdf = 1.0f;
-
-	if (t.z != NOHIT) { // No hit, return environment
-
-		ray_pos += ray_dir * t.x;
-		uint num_interactions = 0;
-
-		while (integrate(rand_state, ray_pos, ray_dir, kernel_params, gvdb)) {
-
-			// Is the path length exeeded?
-			if (num_interactions++ >= kernel_params.max_interactions)
-				return make_float3(0.0f, 0.0f, 0.0f);
-
-			//Tr *= transmittance(rand_state, ray_pos, -ray_dir, kernel_params, gvdb);
-
-			w *= (float3)kernel_params.albedo;
-
-			phase_pdf *= sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
-			//phase_pdf = sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2 );
-
-		}
-
-	}
-
-	//w /= phase_pdf;
-	// Lookup environment.
-
-	if (kernel_params.environment_type == 0) {
-		float t0, t1, tmax = FLT_MAX;
-		float3 pos = ray_pos;
-		pos.y += 1000 + 6360e3f;
-
-		if (raySphereIntersect(pos, ray_dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
-		float3 L = sample_atmosphere(kernel_params, pos, ray_dir, 0, tmax);
-		return L * w;
-	}
-	else {
-		const float4 texval = tex2D<float4>(
-			kernel_params.env_tex,
-			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
-			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-		return make_float3(texval.x, texval.y, texval.z) * w;
-	}
-
-}
-
 
 __device__ inline float get_density(
 	const Kernel_params &kernel_params,
@@ -615,6 +532,20 @@ __device__ inline float3 vol_integrator(
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	bool mi;
 	float phase_pdf = 1.0f;
+	
+	
+	if (!kernel_params.render) {
+
+		float t0, t1, tmax = FLT_MAX;
+		float3 pos = env_pos;
+		pos.y += 1000 + 6360e3f;
+
+		if (raySphereIntersect(pos, ray_dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
+		L += sample_atmosphere(kernel_params, pos, ray_dir, 0, tmax);
+		return L;
+
+	}
+
 
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
@@ -694,7 +625,9 @@ extern "C" __global__ void volume_rt_kernel(
 
 	float3 ray_dir = normalize(getViewRay((float(scn.width - x) + 0.5) / scn.width, (float(scn.height - y) + 0.5) / scn.height));
 
-	float3 value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
+	float3 value = BLACK;
+
+	value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
 
 	// Accumulate.
 	if (kernel_params.iteration == 0)

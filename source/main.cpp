@@ -451,6 +451,7 @@ int main(const int argc, const char* argv[])
 	// Setup initial CUDA kernel parameters.
 	Kernel_params kernel_params;
 	memset(&kernel_params, 0, sizeof(Kernel_params));
+	kernel_params.render = true; 
 	kernel_params.iteration = 0;
 	kernel_params.max_interactions = 1;
 	kernel_params.exposure_scale = 1.0f;
@@ -477,7 +478,7 @@ int main(const int argc, const char* argv[])
 	float max_extinction = 0.1;
 	ImVec4 light_pos = ImVec4(0.0f, 1000.0f, 0.0f, 1.00f);
 	ImVec4 light_energy = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
-	 
+	bool render = true; 
 	// End ImGui parameters
 	
 	if (argc >= 2)
@@ -499,6 +500,7 @@ int main(const int argc, const char* argv[])
 		// Update kernel params
 		kernel_params.exposure_scale = powf(2.0f, ctx->exposure);
 		kernel_params.max_interactions = max_interaction;
+		kernel_params.render = render;
 
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
@@ -510,6 +512,7 @@ int main(const int argc, const char* argv[])
 		ImGui::NewFrame();
 
 		ImGui::Begin("Parameters window"); 
+		ImGui::Checkbox("Render", &render);
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
 		ImGui::InputInt("Ray Depth", &kernel_params.ray_depth, 1);
@@ -546,6 +549,12 @@ int main(const int argc, const char* argv[])
 
 			printf("x: %f , y: %f z: %f \n", x, y, z);
 
+
+		}
+
+		if (render != kernel_params.render) {
+			
+			kernel_params.iteration = 0;
 
 		}
 
