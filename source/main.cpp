@@ -46,7 +46,7 @@ static void init_gvdb()
 	unsigned int num_cuda_devices;
 	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
 	if (num_cuda_devices == 0) {
-		fprintf(stderr, "Could not determine CUDA device for current OpenGL context\n.");
+		fprintf(stderr, "Could not determine CUDA device for GVDB context\n.");
 		exit(EXIT_FAILURE);
 	}
 	gvdb.SetCudaDevice(cuda_devices[0]);
@@ -64,7 +64,7 @@ static GLFWwindow *init_opengl()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
 	GLFWwindow *window = glfwCreateWindow(
-		1024, 1024, "volume path tracer", NULL, NULL);
+		1200, 1024, "volume path tracer", NULL, NULL);
 	if (!window) {
 		fprintf(stderr, "Error creating OpenGL window.\n");;
 		glfwTerminate();
@@ -419,7 +419,7 @@ int main(const int argc, const char* argv[])
 	gvdb.AddPath(ASSET_PATH);
 
 	char scnpath[1024];
-	if (!gvdb.FindFile("wdas_cloud_sixteenth_filled.vdb", scnpath)) {
+	if (!gvdb.FindFile("wdas_cloud_eight_filled.vdb", scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
 	}
@@ -441,7 +441,7 @@ int main(const int argc, const char* argv[])
 	gvdb.SetModule(cuCustom);
 
 	gvdb.mbProfile = true;
-	gvdb.PrepareRender(1024, 1024, gvdb.getScene()->getShading());
+	gvdb.PrepareRender(1200, 1024, gvdb.getScene()->getShading());
 	gvdb.PrepareVDB();
 	char *vdbinfo = gvdb.getVDBInfo();
 
@@ -476,6 +476,7 @@ int main(const int argc, const char* argv[])
 	
 	int max_interaction = 1; 
 	float max_extinction = 0.1;
+	int ray_depth = 1; 
 	ImVec4 light_pos = ImVec4(0.0f, 1000.0f, 0.0f, 1.00f);
 	ImVec4 light_energy = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
 	bool render = true; 
@@ -500,6 +501,7 @@ int main(const int argc, const char* argv[])
 		// Update kernel params
 		kernel_params.exposure_scale = powf(2.0f, ctx->exposure);
 		kernel_params.max_interactions = max_interaction;
+		kernel_params.ray_depth = ray_depth;
 		kernel_params.render = render;
 
 		const unsigned int volume_type = ctx->config_type & 1;
@@ -515,7 +517,7 @@ int main(const int argc, const char* argv[])
 		ImGui::Checkbox("Render", &render);
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
-		ImGui::InputInt("Ray Depth", &kernel_params.ray_depth, 1);
+		ImGui::InputInt("Ray Depth", &ray_depth, 1);
 		ImGui::InputFloat("extinction maj.", &kernel_params.max_extinction, .0f, 1.0f);
 		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
@@ -528,7 +530,7 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
 
-		ImGui::InputFloat3("Sun Color", (float *)&kernel_params.sun_color);
+		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
 		ImGui::SliderFloat("Azimuth", &kernel_params.azimuth, 0, 360);
 		ImGui::SliderFloat("Elevation", &kernel_params.elevation, 0, 90);
@@ -559,7 +561,7 @@ int main(const int argc, const char* argv[])
 		}
 
 
-		if (ctx->change || max_interaction != kernel_params.max_interactions) {
+		if (ctx->change || max_interaction != kernel_params.max_interactions || ray_depth != kernel_params.ray_depth) {
 
 			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			kernel_params.iteration = 0;
