@@ -225,7 +225,7 @@ __device__ inline float sample_double_hg(
 	float g2)
 {
 	wi *= -1.0f;
-	float3 v1 = wi, v2=wi;
+	float3 v1 = wi, v2 = wi;
 	float cos_theta1, cos_theta2;
 
 
@@ -234,7 +234,8 @@ __device__ inline float sample_double_hg(
 		cos_theta1 = sample_hg(v1, randstate, g1);
 		wi = v1;
 		return henyey_greenstein(cos_theta1, g1);
-	}else if(f < EPS)
+	}
+	else if (f < EPS)
 	{
 		cos_theta2 = sample_hg(v2, randstate, g2);
 		wi = v2;
@@ -424,13 +425,13 @@ __device__ inline float3 estimate_sky(
 	Kernel_params kernel_params,
 	Rand_state &randstate,
 	const float3 &ray_pos,
-	const float3 &ray_dir,
+	float3 &ray_dir,
 	VDBInfo &gvdb)
 {
 	float3 Ld = BLACK;
 	float3 wi;
 
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 1; i++) {
 
 		float light_pdf = .0f, phase_pdf = .0f;
 
@@ -446,11 +447,11 @@ __device__ inline float3 estimate_sky(
 		pos.y += 1000 + 6360e3f; // raise position 1km above the surface of planet
 
 		if (raySphereIntersect(pos, wi, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
-		Ld += sample_atmosphere(kernel_params, pos, wi, kernel_params.sky_color , 0, tmax);
+		Ld += sample_atmosphere(kernel_params, pos, wi, kernel_params.sky_color, 0, tmax);
 		Ld *= tr / phase_pdf;
 	}
 
-	return Ld / 5.0f;
+	return Ld;
 
 }
 
@@ -459,7 +460,7 @@ __device__ inline float3 estimate_sun(
 	Kernel_params kernel_params,
 	Rand_state &randstate,
 	const float3 &ray_pos,
-	const float3 &ray_dir,
+	float3 &ray_dir,
 	VDBInfo &gvdb)
 {
 	float3 Ld = BLACK;
@@ -471,8 +472,9 @@ __device__ inline float3 estimate_sun(
 	float cos_theta = dot(ray_dir, wi);
 	light_pdf = 1.0f;
 	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
+	//sample_hg(wi, randstate, kernel_params.phase_g1);
 	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
-
+	//ray_dir = -wi;
 	Ld = kernel_params.sun_color * tr  * phase_pdf / light_pdf;
 
 	return Ld;
@@ -482,7 +484,7 @@ __device__ inline float3 estimate_sun(
 __device__ inline float3 uniform_sample_one_light(
 	Kernel_params kernel_params,
 	const float3 &ray_pos,
-	const float3 &ray_dir,
+	float3 &ray_dir,
 	Rand_state &randstate,
 	VDBInfo &gvdb)
 {
@@ -500,6 +502,7 @@ __device__ inline float3 uniform_sample_one_light(
 
 		L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gvdb);
 	}
+
 	return L * (float)nLights;
 
 }
@@ -521,7 +524,7 @@ __device__ inline float3 sample(
 
 	while (true) {
 
-		t -= logf(1 - rand(&rand_state)) * inv_max_density ;
+		t -= logf(1 - rand(&rand_state)) * inv_max_density;
 		ray_pos += ray_dir * t;
 		if (!in_volume_bbox(gvdb, ray_pos)) break;
 		float density = get_density(kernel_params, &gvdb, ray_pos) * kernel_params.density_mult;
@@ -534,6 +537,7 @@ __device__ inline float3 sample(
 	return WHITE;
 
 }
+
 
 
 __device__ inline float3 vol_integrator(
@@ -549,8 +553,8 @@ __device__ inline float3 vol_integrator(
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	bool mi;
 	float phase_pdf = 1.0f;
-	
-	
+
+
 	if (!kernel_params.render) {
 
 		float t0, t1, tmax = FLT_MAX;
@@ -558,7 +562,7 @@ __device__ inline float3 vol_integrator(
 		pos.y += 1000 + 6360e3f;
 
 		if (raySphereIntersect(pos, ray_dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
-		L += sample_atmosphere(kernel_params, pos, ray_dir,WHITE*20.0f, 0, tmax);
+		L += sample_atmosphere(kernel_params, pos, ray_dir, WHITE*20.0f, 0, tmax);
 		return L;
 
 	}
@@ -570,27 +574,27 @@ __device__ inline float3 vol_integrator(
 
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
-			
+
 			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb);
 
 			if (mi) { // medium interaction 
 
-				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gvdb) / phase_pdf;
-				//sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
-				sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2);
+				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gvdb) ;
+				phase_pdf = sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2);
 
 			}
-			
+
 
 		}
 
 
 	}
 
+
 	/*
 	else {		// Lookup environment if no volume bbox intersection.
 
-		
+
 
 		if (kernel_params.environment_type == 0) {
 			float t0, t1, tmax = FLT_MAX;
@@ -610,6 +614,8 @@ __device__ inline float3 vol_integrator(
 		}
 	}
 	*/
+
+
 	return L;
 
 }
@@ -617,6 +623,8 @@ __device__ inline float3 vol_integrator(
 
 
 
+
+// Main cuda kernels accessor 
 
 
 extern "C" __global__ void volume_rt_kernel(

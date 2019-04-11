@@ -25,6 +25,9 @@
 #include "hdr_loader.h"
 #include "render_kernel.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 CUmodule		cuCustom;
 CUfunction		cuRaycastKernel;
 VolumeGVDB		gvdb;
@@ -188,6 +191,7 @@ struct Window_context
 
 	bool moving;
 	bool panning;
+	bool save_image;
 	double move_start_x, move_start_y;
 	double move_dx, move_dy, move_mx, move_my;
 
@@ -206,6 +210,7 @@ static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset)
 	else if (yoffset < 0.0)
 		ctx->zoom_delta = -1;
 }
+
 
 // GLFW keyboard callback.
 static void handle_key(GLFWwindow *window, int key, int scancode, int action, int mods)
@@ -234,6 +239,8 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			break;
 		case GLFW_KEY_SPACE:
 			++ctx->config_type;
+		case GLFW_KEY_S:
+			ctx->save_image = true;
 		default:
 			break;
 		}
@@ -364,6 +371,10 @@ static void update_camera(
 	cam->moveRelative(float(mx) * dist / 1000, float(my) * dist / 1000, 0);
 }
 
+
+
+
+
 int main(const int argc, const char* argv[])
 {
 	Window_context window_context;
@@ -378,7 +389,7 @@ int main(const int argc, const char* argv[])
 	int width = -1;
 	int height = -1;
 	window_context.change = false;
-
+	window_context.save_image = false;
 	// Init OpenGL window and callbacks.
 	window = init_opengl();
 	glfwSetWindowUserPointer(window, &window_context);
@@ -419,7 +430,7 @@ int main(const int argc, const char* argv[])
 	gvdb.AddPath(ASSET_PATH);
 
 	char scnpath[1024];
-	if (!gvdb.FindFile("wdas_cloud_eight_filled.vdb", scnpath)) {
+	if (!gvdb.FindFile("wdas_cloud_quarter_filled.vdb", scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
 	}
@@ -491,6 +502,7 @@ int main(const int argc, const char* argv[])
 	}
 
 	bool debug = false; 
+	int frame = 0; 
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -597,6 +609,21 @@ int main(const int argc, const char* argv[])
 
 			kernel_params.iteration = 0;
 		}
+		if (ctx->save_image) {
+
+			char frame_string[100];
+			sprintf(frame_string, "%d", frame);
+			char file_name[100] = "./render/pathtrace.";
+			strcat(file_name, frame_string);
+			strcat(file_name, ".tga");
+			unsigned char* image_data = (unsigned char *)malloc((int)(nwidth * nheight * 3));
+			glReadPixels(0, 0, nwidth, nheight, GL_RGB, GL_UNSIGNED_BYTE, image_data);
+			stbi_flip_vertically_on_write(1);
+			stbi_write_tga(file_name, nwidth, nheight, 3, image_data);
+
+			frame++;
+			ctx->save_image = false;
+		}
 
 		// Map GL buffer for access with CUDA.
 		check_success(cudaGraphicsMapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
@@ -615,6 +642,9 @@ int main(const int argc, const char* argv[])
 		void *params[] = {vdbinfo, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
+
+
+		
 
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
