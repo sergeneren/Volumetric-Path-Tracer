@@ -296,9 +296,7 @@ __device__ inline float3 sample_atmosphere(
 	const Kernel_params &kernel_params,
 	const float3 orig,
 	const float3 dir,
-	const float3 intensity,
-	float tmin,
-	float tmax)
+	const float3 intensity)
 {
 
 	// initial parameters
@@ -313,8 +311,13 @@ __device__ inline float3 sample_atmosphere(
 
 
 	float t0, t1;
+	float tmin, tmax = FLT_MAX;
+	float3 pos = orig;
+	pos.y += 1000 + 6360e3f;
 
-	if (!raySphereIntersect(orig, dir, atmosphereRadius, t0, t1) || t1 < 0) return make_float3(1.0f, .0f, .0f);
+	if (raySphereIntersect(pos, dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
+	tmin = .0f;
+	if (!raySphereIntersect(pos, dir, atmosphereRadius, t0, t1) || t1 < 0) return make_float3(1.0f, .0f, .0f);
 	if (t0 > tmin && t0 > 0) tmin = t0;
 	if (t1 < tmax) tmax = t1;
 
@@ -334,7 +337,7 @@ __device__ inline float3 sample_atmosphere(
 	float phaseM = 3.f / (8.f * M_PI) * ((1.f - g * g) * (1.f + mu * mu)) / ((2.f + g * g) * pow(1.f + g * g - 2.f * g * mu, 1.5f));
 
 	for (uint i = 0; i < numSamples; ++i) {
-		float3 samplePosition = orig + (tCurrent + segmentLength * 0.5f) * dir;
+		float3 samplePosition = pos + (tCurrent + segmentLength * 0.5f) * dir;
 		float height = length(samplePosition) - earthRadius;
 		// compute optical depth for light
 		float hr = exp(-height / Hr) * segmentLength;
@@ -442,12 +445,7 @@ __device__ inline float3 estimate_sky(
 		phase_pdf = isotropic();
 		float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
 
-		float t0, t1, tmax = FLT_MAX;
-		float3 pos = ray_pos;
-		pos.y += 1000 + 6360e3f; // raise position 1km above the surface of planet
-
-		if (raySphereIntersect(pos, wi, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
-		Ld += sample_atmosphere(kernel_params, pos, wi, kernel_params.sky_color, 0, tmax);
+		Ld += sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
 		Ld *= tr / phase_pdf;
 	}
 
@@ -520,7 +518,6 @@ __device__ inline float3 sample(
 
 	float t = 0.0f;
 	float inv_max_density = 1.0f / kernel_params.max_extinction;
-	float inv_density_mult = 1.0f / kernel_params.density_mult;
 
 	while (true) {
 
@@ -552,17 +549,11 @@ __device__ inline float3 vol_integrator(
 	float3 env_pos = ray_pos;
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	bool mi;
-	float phase_pdf = 1.0f;
 
 
 	if (!kernel_params.render) {
 
-		float t0, t1, tmax = FLT_MAX;
-		float3 pos = env_pos;
-		pos.y += 1000 + 6360e3f;
-
-		if (raySphereIntersect(pos, ray_dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
-		L += sample_atmosphere(kernel_params, pos, ray_dir, WHITE*20.0f, 0, tmax);
+		L += sample_atmosphere(kernel_params, ray_pos, ray_dir, WHITE*20.0f);
 		return L;
 
 	}
@@ -580,7 +571,7 @@ __device__ inline float3 vol_integrator(
 			if (mi) { // medium interaction 
 
 				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gvdb) ;
-				phase_pdf = sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2);
+				sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2);
 
 			}
 
@@ -619,9 +610,6 @@ __device__ inline float3 vol_integrator(
 	return L;
 
 }
-
-
-
 
 
 // Main cuda kernels accessor 

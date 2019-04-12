@@ -20,6 +20,10 @@
 #include <cstdio>
 #include <cstring>
 #include <algorithm>
+#include <fstream>
+
+#include "cuda_math.cuh"
+#undef APIENTRY
 
 #include "gvdb.h"
 #include "hdr_loader.h"
@@ -32,6 +36,9 @@ CUmodule		cuCustom;
 CUfunction		cuRaycastKernel;
 VolumeGVDB		gvdb;
 
+
+
+
 #define check_success(expr) \
     do { \
         if(!(expr)) { \
@@ -40,6 +47,156 @@ VolumeGVDB		gvdb;
         } \
     } while(false)
 
+
+//Env sampling sunctions
+static bool solveQuadratic(
+	float a,
+	float b,
+	float c,
+	float& x1,
+	float& x2)
+{
+	if (b == 0) {
+		// Handle special case where the the two vector ray.dir and V are perpendicular
+		// with V = ray.orig - sphere.centre
+		if (a == 0) return false;
+		x1 = 0; x2 = sqrt(-c / a);
+		return true;
+	}
+
+	float discr = b * b - 4 * a * c;
+
+	if (discr < 0) return false;
+
+	float q = (b < 0.f) ? -0.5f * (b - sqrt(discr)) : -0.5f * (b + sqrt(discr));
+	x1 = q / a;
+	x2 = c / q;
+
+	return true;
+}
+
+static bool raySphereIntersect(
+	const float3& orig,
+	const float3& dir,
+	const float& radius,
+	float& t0,
+	float& t1)
+{
+
+	float A = squared_length(dir);
+	float B = 2 * (dir.x * orig.x + dir.y * orig.y + dir.z * orig.z);
+	float C = orig.x * orig.x + orig.y * orig.y + orig.z * orig.z - radius * radius;
+
+	if (!solveQuadratic(A, B, C, t0, t1)) return false;
+
+	if (t0 > t1) {
+		float tempt = t1;
+		t1 = t0;
+		t0 = tempt;
+	}
+	return true;
+}
+
+static float degree_to_radians(float degree)
+{
+
+	return degree * M_PI / 180.0f;
+
+}
+
+static float3 degree_to_cartesian(
+	float azimuth,
+	float elevation)
+{
+
+	float az = degree_to_radians(azimuth);
+	float el = degree_to_radians(elevation);
+
+	float x = sinf(el) * cosf(az);
+	float y = cosf(el);
+	float z = sinf(el) * sinf(az);
+
+	return normalize(make_float3(x, y, z));
+}
+
+static float3 sample_atmosphere(
+	const Kernel_params &kernel_params,
+	const float3 orig,
+	const float3 dir,
+	const float3 intensity)
+{
+
+	// initial parameters
+	float	atmosphereRadius = 6420e3f;
+	float3	sunDirection = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
+	float	earthRadius = 6360e3f;
+	float	Hr = 7994.0f;
+	float	Hm = 1200.0f;
+	float3	betaR = make_float3(3.8e-6f, 13.5e-6f, 33.1e-6f);
+	float3	betaM = make_float3(21e-6f);
+	//
+
+
+	float t0, t1;
+	float tmin, tmax = FLT_MAX;
+	float3 pos = orig;
+	pos.y += 1000 + 6360e3f;
+
+	if (raySphereIntersect(pos, dir, earthRadius, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
+	tmin = .0f;
+	if (!raySphereIntersect(pos, dir, atmosphereRadius, t0, t1) || t1 < 0) return make_float3(1.0f, .0f, .0f);
+	if (t0 > tmin && t0 > 0) tmin = t0;
+	if (t1 < tmax) tmax = t1;
+
+	uint numSamples = 16;
+	uint numSamplesLight = 8;
+
+	float segmentLength = (tmax - tmin) / numSamples;
+	float tCurrent = tmin;
+	float3 sumR = make_float3(0.0f, .0f, .0f); // Rayleigh contribution
+	float3 sumM = make_float3(0.0f, .0f, .0f); // Mie contribution
+
+	float opticalDepthR = 0, opticalDepthM = 0;
+	float mu = dot(dir, sunDirection); // mu in the paper which is the cosine of the angle between the sun direction and the ray direction
+	float phaseR = 3.f / (16.f * M_PI) * (1 + mu * mu);
+	float g = 0.76f;
+
+	float phaseM = 3.f / (8.f * M_PI) * ((1.f - g * g) * (1.f + mu * mu)) / ((2.f + g * g) * pow(1.f + g * g - 2.f * g * mu, 1.5f));
+
+	for (uint i = 0; i < numSamples; ++i) {
+		float3 samplePosition = pos + (tCurrent + segmentLength * 0.5f) * dir;
+		float height = length(samplePosition) - earthRadius;
+		// compute optical depth for light
+		float hr = exp(-height / Hr) * segmentLength;
+		float hm = exp(-height / Hm) * segmentLength;
+		opticalDepthR += hr;
+		opticalDepthM += hm;
+		// light optical depth
+		float t0Light, t1Light;
+		raySphereIntersect(samplePosition, sunDirection, atmosphereRadius, t0Light, t1Light);
+		float segmentLengthLight = t1Light / numSamplesLight, tCurrentLight = 0;
+		float opticalDepthLightR = 0, opticalDepthLightM = 0;
+		uint j;
+		for (j = 0; j < numSamplesLight; ++j) {
+			float3 samplePositionLight = samplePosition + (tCurrentLight + segmentLengthLight * 0.5f) * sunDirection;
+			float heightLight = length(samplePositionLight) - earthRadius;
+			if (heightLight < 0) break;
+			opticalDepthLightR += exp(-heightLight / Hr) * segmentLengthLight;
+			opticalDepthLightM += exp(-heightLight / Hm) * segmentLengthLight;
+			tCurrentLight += segmentLengthLight;
+		}
+		if (j == numSamplesLight) {
+			float3 tau = betaR * (opticalDepthR + opticalDepthLightR) + betaM * 1.1f * (opticalDepthM + opticalDepthLightM);
+			float3 attenuation = make_float3(exp(-tau.x), exp(-tau.y), exp(-tau.z));
+			sumR += attenuation * hr;
+			sumM += attenuation * hm;
+		}
+		tCurrent += segmentLength;
+	}
+
+
+	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
+}
 
 // Initialize gvdb volume 
 static void init_gvdb()
@@ -314,6 +471,99 @@ static void resize_buffers(
 }
 
 
+static void create_cdf(
+	Kernel_params kernel_params,
+	cudaTextureObject_t *env_func_tex,
+	cudaTextureObject_t *env_cdf_tex,
+	cudaArray_t *env_func_data, 
+	cudaArray_t *env_cdf_data)
+{
+	printf("creating cdf...");
+
+	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
+	const int res_x = 360; 
+	const int res_y = 180; 
+
+	float az = 0; 
+	float el = 0; 
+	
+	float func[res_x * res_y];
+	float cdf[res_x * res_y];
+
+	cdf[0] = .0f;
+	
+	func[0] = length(sample_atmosphere(kernel_params, pos, degree_to_cartesian(0,-90), kernel_params.sky_color));
+
+	float3 val[res_x][res_y];
+	val[0][0] = pos;
+	
+	for (int y = 0; y < res_y; y++) {
+
+		for (int x = 0; x < res_x; x++) {
+
+			az = float(x);
+			el = float(y);
+
+			float3 dir = degree_to_cartesian(az, el);
+
+			int idx = x + y * res_x;
+			
+			val[x][y] = sample_atmosphere(kernel_params, pos, dir, make_float3(10.0f, 10.0f,10.0f));
+			
+			/*
+			func[idx] = length(val[idx]);
+			
+			cdf[idx] = cdf[idx - 1] + func[idx - 1] / res_x;
+			*/
+
+
+		}
+	}
+	/*
+	float funcInt = cdf[res_x-1 * res_y-1];
+	int res[res_x*res_y];
+	if (funcInt == 0) {
+		for (int y = 0; y < res_y; y++) {
+			for (int x = 0; x < res_x; x++) {
+				int idx = x + y * res_x;
+				cdf[idx] = (float(x) / float(res_x)) * (float(y) / float(res_y));
+				res[idx] = int(cdf[idx]*255.99f);
+			}
+		}
+	}
+	
+	else {
+		for (int y = 0; y < res_y; y++) {
+			for (int x = 0; x < res_x; x++) {
+				int idx = x + y * res_x;
+				cdf[idx] /= funcInt;
+				res[idx] = int(cdf[idx] * 255.99f);
+			}
+		}
+	}
+	*/
+	
+	std::ofstream ofs;
+	ofs.open("cdf.ppm", std::ofstream::out);
+	ofs << "P6" << std::endl;
+	ofs << "# File after convolution" << std::endl;
+	ofs << res_x << " " << res_y << std::endl; //check if ASCII conversion is needed
+	ofs << 255 << std::endl;
+
+
+	for (int j = 0; j <res_y ; j++)
+	{
+		for (int i = 0; i < res_x; i++)
+		{
+			int idx = j + i * res_y;
+			ofs << static_cast<char>(max(0, min(int(val[i][j].x*255.99), 255))) << static_cast<char>(max(0, min(int(val[i][j].y*255.99), 255))) << static_cast<char>(max(0, min(int(val[i][j].z*255.99), 255)));  //write as ascii
+		}
+		ofs << std::endl;
+	}
+	
+
+}
+
 // Create enviroment texture.
 static bool create_environment(
 	cudaTextureObject_t *env_tex,
@@ -430,13 +680,13 @@ int main(const int argc, const char* argv[])
 	gvdb.AddPath(ASSET_PATH);
 
 	char scnpath[1024];
-	if (!gvdb.FindFile("wdas_cloud_quarter_filled.vdb", scnpath)) {
+	if (!gvdb.FindFile("wdas_cloud_eight_filled.vdb", scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
 	}
 	printf("Loading VDB. %s\n", scnpath);
 	gvdb.LoadVDB(scnpath);
-	gvdb.SetTransform(Vector3DF(0,0,0), Vector3DF(0.1,0.1,0.1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
+	gvdb.SetTransform(Vector3DF(0,0,0), Vector3DF(1,1,1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
 	
 	gvdb.Measure(true);
 
@@ -476,21 +726,24 @@ int main(const int argc, const char* argv[])
 	kernel_params.density_mult = 1.0f;
 	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.azimuth = 30;
-	kernel_params.elevation = 50;
+	kernel_params.azimuth = 180;
+	kernel_params.elevation = 45;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
 	cudaArray_t env_tex_data = 0;
+	cudaArray_t env_func_data = 0; 
+	cudaArray_t env_cdf_data = 0; 
 	bool env_tex = false;
 	
 	// Imgui Parameters
 	
 	int max_interaction = 1; 
-	float max_extinction = 0.1;
+	float max_extinction = 0.1f;
 	int ray_depth = 1; 
 	ImVec4 light_pos = ImVec4(0.0f, 1000.0f, 0.0f, 1.00f);
 	ImVec4 light_energy = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
-	bool render = true; 
+	bool render = true;
+
 	// End ImGui parameters
 	
 	if (argc >= 2)
@@ -500,6 +753,12 @@ int main(const int argc, const char* argv[])
 		kernel_params.environment_type = 1;
 		window_context.config_type = 2;
 	}
+
+	// Create env map sampling textures
+
+	create_cdf(kernel_params, &kernel_params.env_func_tex, &kernel_params.env_cdf_tex, &env_func_data, &env_cdf_data);
+
+	return 1;
 
 	bool debug = false; 
 	int frame = 0; 
