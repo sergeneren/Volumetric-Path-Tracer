@@ -551,9 +551,10 @@ __device__ inline float3 vol_integrator(
 	bool mi;
 
 	const float texval = tex2D<float>(
-		kernel_params.env_cdf_tex,
-		atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
-		acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
+		kernel_params.env_marginal_func_tex,
+		1.0f,
+		(acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI)) * 360.0f
+		);
 	return make_float3(texval, texval, texval);
 
 

@@ -38,9 +38,6 @@ CUmodule		cuCustom;
 CUfunction		cuRaycastKernel;
 VolumeGVDB		gvdb;
 
-
-
-
 #define check_success(expr) \
     do { \
         if(!(expr)) { \
@@ -50,13 +47,8 @@ VolumeGVDB		gvdb;
     } while(false)
 
 
-//Env sampling sunctions
-static bool solveQuadratic(
-	float a,
-	float b,
-	float c,
-	float& x1,
-	float& x2)
+// Env sampling functions
+static bool solveQuadratic(float a,	float b, float c, float& x1, float& x2)
 {
 	if (b == 0) {
 		// Handle special case where the the two vector ray.dir and V are perpendicular
@@ -76,12 +68,8 @@ static bool solveQuadratic(
 	return true;
 }
 
-static bool raySphereIntersect(
-	const float3& orig,
-	const float3& dir,
-	const float& radius,
-	float& t0,
-	float& t1)
+// check ray against earth and atmosphere upper bound
+static bool raySphereIntersect(const float3& orig, const float3& dir, const float& radius, float& t0, float& t1)
 {
 
 	float A = dir.x * dir.x + dir.y * dir.y + dir.z * dir.z;
@@ -98,6 +86,7 @@ static bool raySphereIntersect(
 	return true;
 }
 
+// Degree to radians conversion
 static float degree_to_radians(float degree)
 {
 
@@ -105,9 +94,8 @@ static float degree_to_radians(float degree)
 
 }
 
-static float3 degree_to_cartesian(
-	float azimuth,
-	float elevation)
+// Polar coordinates to direction
+static float3 degree_to_cartesian(float azimuth, float elevation)
 {
 
 	float az = clamp(azimuth, .0f, 360.0f);
@@ -123,11 +111,8 @@ static float3 degree_to_cartesian(
 	return normalize(make_float3(x, y, z));
 }
 
-static float3 sample_atmosphere(
-	const Kernel_params &kernel_params,
-	const float3 orig,
-	const float3 dir,
-	const float3 intensity)
+// Draw a sample from sky
+static float3 sample_atmosphere(const Kernel_params &kernel_params,	const float3 orig, const float3 dir,const float3 intensity)
 {
 
 	// initial parameters
@@ -372,7 +357,6 @@ static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset)
 		ctx->zoom_delta = -1;
 }
 
-
 // GLFW keyboard callback.
 static void handle_key(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
@@ -479,80 +463,109 @@ static bool create_cdf(
 	Kernel_params kernel_params,
 	cudaTextureObject_t *env_func_tex,
 	cudaTextureObject_t *env_cdf_tex,
+	cudaTextureObject_t *env_marginal_func_tex,
+	cudaTextureObject_t *env_marginal_cdf_tex,
 	cudaArray_t *env_func_data, 
-	cudaArray_t *env_cdf_data)
+	cudaArray_t *env_cdf_data,
+	cudaArray_t *env_marginal_func_data,
+	cudaArray_t *env_marginal_cdf_data)
 {
 	printf("creating cdf and function textures for environment...");
 
-	// Fill the value function and cdf values
+	// Fill the value, function, marginal and cdf values
 	//----------------------------------------------------------------------
 
 	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
-	const unsigned res_x = 360; 
-	const unsigned res_y = 360; 
+	const unsigned res = 180;
 
 	float az = 0; 
 	float el = 0; 
 
-	float3 *val = new float3[res_x*res_y],	*val_p	=	val; //RGB values of env sky
-	float *func = new float[res_x*res_y],	*func_p =	func; // Luminous power of sky
-	float *cdf	= new float[res_x*res_y],	*cdf_p	=	cdf; // constructed CDF of directions 
-	float *func_int = new float[res_y], *func_int_p = func_int; // functions integral at the end of row
+	float3 *val = new float3[res*res],	*val_p	=	val;							//RGB values of env sky
+	float *func = new float[res*res],	*func_p =	func;							// Luminous power of sky
+	float *cdf	= new float[res*res],	*cdf_p	=	cdf;							// constructed CDF of directions 
+	float *marginal_func = new float[res], *marginal_func_p = marginal_func;		// values for marginal distribution
+	float *marginal_cdf = new float[res], *marginal_cdf_p = marginal_cdf;			// cdf for marginal distribution
 
-	memset(val, 0x0, sizeof(float3) * res_x * res_y);
-	memset(func, 0x0, sizeof(float) * res_x * res_y);
-	memset(cdf, 0x0, sizeof(float) * res_x * res_y);
-	memset(func_int, 0x0, sizeof(float) * res_y);
-	
+	memset(val, 0x0, sizeof(float3) * res * res);
+	memset(func, 0x0, sizeof(float) * res * res);
+	memset(cdf, 0x0, sizeof(float) * res * res);
+	memset(marginal_func, 0x0, sizeof(float) * res);
+	memset(marginal_cdf, 0x0, sizeof(float) * res);
+
 	*val_p = make_float3(0.0f, 0.0f, 0.0f);
 	*func_p = .0f;
 	*cdf_p = .0f;
 
-	for (int y = 0; y < res_y; ++y, func_int_p++) {
-		el = float(y) / float(res_y-1) * M_PI;			// elevation goes from 0 to 180 degrees
+	for (int y = 0; y < res; ++y, ++marginal_func_p) {
+		el = float(y) / float(res-1) * M_PI;			// elevation goes from 0 to 180 degrees
 		*(cdf_p-1) = .0f;
-		for (int x = 0; x < res_x; ++x, ++val_p, ++func_p, ++cdf_p) {
+		for (int x = 0; x < res; ++x, ++val_p, ++func_p, ++cdf_p) {
 
-			az = float(x) / float(res_x-1) * M_PI * 2.0f;		// azimuth goes from 0 to 360 degrees 
+			az = float(x) / float(res-1) * M_PI * 2.0f;		// azimuth goes from 0 to 360 degrees 
 			
 			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el) , sinf(el) * sinf(az)); // polar to cartesian 			
 			*val_p = sample_atmosphere(kernel_params, pos, dir, kernel_params.sky_color);
 			*func_p = length((*val_p));
-			*cdf_p = *(cdf_p - 1) + *(func_p - 1) / (res_x);
+			*cdf_p = *(cdf_p - 1) + *(func_p - 1) / (res);
 		}
 
-		*func_int_p = *(cdf_p-1);
+		*marginal_func_p = *(cdf_p-1);
 	}
 
 	//reset pointers
 	val_p = val;
 	func_p = func;
 	cdf_p = cdf;
-	func_int_p = func_int;
+	marginal_func_p = marginal_func;
 
 	float total_int = 0.0f;
-	for (int j = 0; j < res_y; j++) 
+	for (int j = 0; j < res; j++) 
 	{ 
-		total_int += *func_int_p;
+		total_int += *marginal_func_p;
 	}
-	func_int_p = func_int;
+	marginal_func_p = marginal_func;
 
 	if (total_int == .0f) {
-		for (int y = 0; y < res_y; ++y) {
-			for (int x = 0; x < res_x; ++x, ++cdf_p) {
-				*cdf_p = (float(x) / float(res_x)) * (float(y) / float(res_y));
+		for (int y = 0; y < res; ++y) {
+			for (int x = 0; x < res; ++x, ++cdf_p) {
+				*cdf_p = (float(x) / float(res)) * (float(y) / float(res));
 			}
 		}
 	}
 	
 	else {
-		for (int y = 0; y < res_y; y++, func_int_p++) {
-			for (int x = 0; x < res_x; ++x, ++cdf_p) {
-				*cdf_p /= *func_int_p;
-				if (x == res_x - 1) *cdf_p = 1.0f;//Last element of cdf must be 1
+		for (int y = 0; y < res; y++, ++marginal_func_p) {
+			printf("\nfunction integral at row %d is %f", y, *marginal_func_p);
+			for (int x = 0; x < res; ++x, ++cdf_p) {
+				*cdf_p /= *marginal_func_p;
+				if (x == res - 1) *cdf_p = 1.0f;//Last element of cdf must be 1
 			}
 		}
 	}
+
+
+	// Construct marginal distribution cdf array
+	marginal_func_p = marginal_func;
+	*marginal_cdf_p = 0.0f;
+
+	for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
+
+		*marginal_cdf_p = *(marginal_cdf_p - 1) + *marginal_func_p / res;
+
+	}
+	float marginal_int = *(marginal_cdf_p - 1);
+	//printf("\nmarginal distribution integral is %f", marginal_int);
+	
+
+	//divide cdf values with total marginal func integral
+	marginal_cdf_p = marginal_cdf;
+	for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
+
+		*marginal_cdf_p /= max(.000001f, marginal_int);
+
+	}
+	*marginal_cdf_p = 1.0f;
 
 	// End array filling
 	//------------------------------------------------------------------------------------
@@ -564,8 +577,8 @@ static bool create_cdf(
 
 	// Send func data
 	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float>();
-	check_success(cudaMallocArray(env_func_data, &channel_desc, res_x, res_y) == cudaSuccess);
-	check_success(cudaMemcpyToArray(*env_func_data, 0, 0, func, res_x * res_y * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMallocArray(env_func_data, &channel_desc, res, res) == cudaSuccess);
+	check_success(cudaMemcpyToArray(*env_func_data, 0, 0, func, res * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
 
 	cudaResourceDesc res_desc_func;
 	memset(&res_desc_func, 0, sizeof(res_desc_func));
@@ -577,16 +590,16 @@ static bool create_cdf(
 	tex_desc_func.addressMode[0] = cudaAddressModeWrap;
 	tex_desc_func.addressMode[1] = cudaAddressModeClamp;
 	tex_desc_func.addressMode[2] = cudaAddressModeWrap;
-	tex_desc_func.filterMode = cudaFilterModeLinear;
+	tex_desc_func.filterMode = cudaFilterModePoint;
 	tex_desc_func.readMode = cudaReadModeElementType;
-	tex_desc_func.normalizedCoords = 1;
+	tex_desc_func.normalizedCoords = 0;
 
 	check_success(cudaCreateTextureObject(env_func_tex, &res_desc_func, &tex_desc_func, NULL) == cudaSuccess);
 
 	// Send cdf data 
 
-	check_success(cudaMallocArray(env_cdf_data, &channel_desc, res_x, res_y) == cudaSuccess);
-	check_success(cudaMemcpyToArray(*env_cdf_data, 0, 0, cdf, res_x * res_y * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMallocArray(env_cdf_data, &channel_desc, res, res) == cudaSuccess);
+	check_success(cudaMemcpyToArray(*env_cdf_data, 0, 0, cdf, res * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
 
 	cudaResourceDesc res_desc_cdf;
 	memset(&res_desc_cdf, 0, sizeof(res_desc_cdf));
@@ -598,11 +611,54 @@ static bool create_cdf(
 	tex_desc_cdf.addressMode[0] = cudaAddressModeWrap;
 	tex_desc_cdf.addressMode[1] = cudaAddressModeClamp;
 	tex_desc_cdf.addressMode[2] = cudaAddressModeWrap;
-	tex_desc_cdf.filterMode = cudaFilterModeLinear;
+	tex_desc_cdf.filterMode = cudaFilterModePoint;
 	tex_desc_cdf.readMode = cudaReadModeElementType;
-	tex_desc_cdf.normalizedCoords = 1;
+	tex_desc_cdf.normalizedCoords = 0;
 
 	check_success(cudaCreateTextureObject(env_cdf_tex, &res_desc_cdf, &tex_desc_cdf, NULL) == cudaSuccess);
+
+	// Send Marginal 1D distribution func data
+
+	check_success(cudaMallocArray(env_marginal_func_data, &channel_desc, 1, res) == cudaSuccess);
+	check_success(cudaMemcpyToArray(*env_marginal_func_data, 0, 0, marginal_func, 1 * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+
+	cudaResourceDesc res_desc_marginal_func;
+	memset(&res_desc_marginal_func, 0, sizeof(res_desc_marginal_func));
+	res_desc_marginal_func.resType = cudaResourceTypeArray;
+	res_desc_marginal_func.res.array.array = *env_cdf_data;
+
+	cudaTextureDesc tex_desc_marginal_func;
+	memset(&tex_desc_marginal_func, 0, sizeof(tex_desc_marginal_func));
+	tex_desc_marginal_func.addressMode[0] = cudaAddressModeWrap;
+	tex_desc_marginal_func.addressMode[1] = cudaAddressModeClamp;
+	tex_desc_marginal_func.addressMode[2] = cudaAddressModeWrap;
+	tex_desc_marginal_func.filterMode = cudaFilterModePoint;
+	tex_desc_marginal_func.readMode = cudaReadModeElementType;
+	tex_desc_marginal_func.normalizedCoords = 0;
+
+	check_success(cudaCreateTextureObject(env_marginal_func_tex, &res_desc_marginal_func, &tex_desc_marginal_func, NULL) == cudaSuccess);
+
+
+	// Send Marginal 1D distribution cdf data
+
+	check_success(cudaMallocArray(env_marginal_cdf_data, &channel_desc, 1, res) == cudaSuccess);
+	check_success(cudaMemcpyToArray(*env_marginal_cdf_data, 0, 0, marginal_cdf, 1 * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+
+	cudaResourceDesc res_desc_marginal_cdf;
+	memset(&res_desc_marginal_cdf, 0, sizeof(res_desc_marginal_cdf));
+	res_desc_marginal_cdf.resType = cudaResourceTypeArray;
+	res_desc_marginal_cdf.res.array.array = *env_cdf_data;
+
+	cudaTextureDesc tex_desc_marginal_cdf;
+	memset(&tex_desc_marginal_cdf, 0, sizeof(tex_desc_marginal_cdf));
+	tex_desc_marginal_cdf.addressMode[0] = cudaAddressModeWrap;
+	tex_desc_marginal_cdf.addressMode[1] = cudaAddressModeClamp;
+	tex_desc_marginal_cdf.addressMode[2] = cudaAddressModeWrap;
+	tex_desc_marginal_cdf.filterMode = cudaFilterModePoint;
+	tex_desc_marginal_cdf.readMode = cudaReadModeElementType;
+	tex_desc_marginal_cdf.normalizedCoords = 0;
+
+	check_success(cudaCreateTextureObject(env_marginal_cdf_tex, &res_desc_marginal_cdf, &tex_desc_marginal_cdf, NULL) == cudaSuccess);
 
 
 
@@ -622,22 +678,37 @@ static bool create_cdf(
 	};
 
 	std::ofstream ofs_val("./env_sample/val.ppm", std::ios::out | std::ios::binary);
-	ofs_val << "P6\n" << res_x << " " << res_y << "\n255\n";
+	ofs_val << "P6\n" << res << " " << res << "\n255\n";
 	
 	std::ofstream ofs_func("./env_sample/func.ppm", std::ios::out | std::ios::binary);
-	ofs_func << "P6\n" << res_x << " " << res_y << "\n255\n";
+	ofs_func << "P6\n" << res << " " << res << "\n255\n";
 
 	std::ofstream ofs_cdf("./env_sample/cdf.ppm", std::ios::out | std::ios::binary);
-	ofs_cdf << "P6\n" << res_x << " " << res_y << "\n255\n";
+	ofs_cdf << "P6\n" << res << " " << res << "\n255\n";
 
+	std::ofstream ofs_marginal_func("./env_sample/marginal_func.ppm", std::ios::out | std::ios::binary);
+	ofs_marginal_func << "P6\n" << 1 << " " << res << "\n255\n";
+
+	std::ofstream ofs_marginal_cdf("./env_sample/marginal_cdf.ppm", std::ios::out | std::ios::binary);
+	ofs_marginal_cdf << "P6\n" << 1 << " " << res << "\n255\n";
 
 	val_p = val;
 	func_p = func;
 	cdf_p = cdf;
+	marginal_func_p = marginal_func;
+	marginal_cdf_p = marginal_cdf;
 
-	for (unsigned j = 0; j <res_y ; ++j)
+	for (unsigned j = 0; j <res ; ++j, ++marginal_func_p, ++marginal_cdf_p)
 	{
-		for (unsigned i = 0; i < res_x; ++i, ++val_p, ++func_p, ++cdf_p)
+		ofs_marginal_func	<< (unsigned char)(min(1.0f, (*marginal_func_p)) * 255)
+							<< (unsigned char)(min(1.0f, (*marginal_func_p)) * 255)
+							<< (unsigned char)(min(1.0f, (*marginal_func_p)) * 255);
+
+		ofs_marginal_cdf << (unsigned char)(min(1.0f, (*marginal_cdf_p)) * 255)
+							<< (unsigned char)(min(1.0f, (*marginal_cdf_p)) * 255)
+							<< (unsigned char)(min(1.0f, (*marginal_cdf_p)) * 255);
+			   
+		for (unsigned i = 0; i < res; ++i, ++val_p, ++func_p, ++cdf_p)
 		{
 			(*val_p).x = (*val_p).x < 1.413f ? pow((*val_p).x * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-(*val_p).x);
 			(*val_p).y = (*val_p).y < 1.413f ? pow((*val_p).y * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-(*val_p).y);
@@ -660,6 +731,8 @@ static bool create_cdf(
 	ofs_val.close();
 	ofs_func.close();
 	ofs_cdf.close();
+	ofs_marginal_func.close();
+	ofs_marginal_cdf.close();
 
 #endif
 
@@ -725,9 +798,6 @@ static void update_camera(
 	cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
 	cam->moveRelative(float(mx) * dist / 1000, float(my) * dist / 1000, 0);
 }
-
-
-
 
 
 int main(const int argc, const char* argv[])
@@ -835,9 +905,13 @@ int main(const int argc, const char* argv[])
 	kernel_params.elevation = 30;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
+	
+	//kernel parameters env data
 	cudaArray_t env_tex_data = 0;
 	cudaArray_t env_func_data = 0; 
-	cudaArray_t env_cdf_data = 0; 
+	cudaArray_t env_cdf_data = 0;
+	cudaArray_t env_marginal_func_data = 0;
+	cudaArray_t env_marginal_cdf_data = 0;
 	bool env_tex = false;
 	
 	// Imgui Parameters
@@ -861,7 +935,16 @@ int main(const int argc, const char* argv[])
 
 	// Create env map sampling textures
 
-	create_cdf(kernel_params, &kernel_params.env_func_tex, &kernel_params.env_cdf_tex, &env_func_data, &env_cdf_data);
+	create_cdf(
+		kernel_params, 
+		&kernel_params.env_func_tex, 
+		&kernel_params.env_cdf_tex,
+		&kernel_params.env_marginal_func_tex, 
+		&kernel_params.env_marginal_cdf_tex, 
+		&env_func_data, 
+		&env_cdf_data, 
+		&env_marginal_func_data,
+		&env_marginal_cdf_data);
 
 	bool debug = false; 
 	int frame = 0; 
@@ -973,6 +1056,7 @@ int main(const int argc, const char* argv[])
 		}
 		if (ctx->save_image) {
 
+			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
 			char frame_string[100];
 			sprintf(frame_string, "%d", frame);
 			char file_name[100] = "./render/pathtrace.";
