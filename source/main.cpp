@@ -21,7 +21,7 @@
 #include <cstring>
 #include <algorithm>
 #include <fstream>
-
+#include <sys/stat.h>
 #include "cuda_math.cuh"
 #undef APIENTRY
 
@@ -31,6 +31,11 @@
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+
+#ifndef RENDER_ENV_SAMPLE_TEXTURES
+#define RENDER_ENV_SAMPLE_TEXTURES  0;
+#endif 
+
 
 CUmodule		cuCustom;
 CUfunction		cuRaycastKernel;
@@ -60,15 +65,14 @@ static bool solveQuadratic(
 		// Handle special case where the the two vector ray.dir and V are perpendicular
 		// with V = ray.orig - sphere.centre
 		if (a == 0) return false;
-		x1 = 0; x2 = sqrt(-c / a);
+		x1 = 0; x2 = sqrtf(-c / a);
 		return true;
 	}
-
 	float discr = b * b - 4 * a * c;
 
 	if (discr < 0) return false;
-
-	float q = (b < 0.f) ? -0.5f * (b - sqrt(discr)) : -0.5f * (b + sqrt(discr));
+	
+	float q = (b < 0.f) ? -0.5f * (b - sqrtf(discr)) : -0.5f * (b + sqrtf(discr));
 	x1 = q / a;
 	x2 = c / q;
 
@@ -83,7 +87,7 @@ static bool raySphereIntersect(
 	float& t1)
 {
 
-	float A = squared_length(dir);
+	float A = dir.x * dir.x + dir.y * dir.y + dir.z * dir.z;
 	float B = 2 * (dir.x * orig.x + dir.y * orig.y + dir.z * orig.z);
 	float C = orig.x * orig.x + orig.y * orig.y + orig.z * orig.z - radius * radius;
 
@@ -109,8 +113,11 @@ static float3 degree_to_cartesian(
 	float elevation)
 {
 
-	float az = degree_to_radians(azimuth);
-	float el = degree_to_radians(elevation);
+	float az = clamp(azimuth, .0f, 360.0f);
+	float el = clamp(elevation, .0f, 90.0f);
+
+	az = degree_to_radians(az);
+	el = degree_to_radians(90.0f - el);
 
 	float x = sinf(el) * cosf(az);
 	float y = cosf(el);
@@ -478,90 +485,141 @@ static void create_cdf(
 	cudaArray_t *env_func_data, 
 	cudaArray_t *env_cdf_data)
 {
-	printf("creating cdf...");
+	printf("creating cdf and function textures for environment...");
+
+	// Fill the value function and cdf values
 
 	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
-	const int res_x = 360; 
-	const int res_y = 180; 
+	const unsigned res_x = 360; 
+	const unsigned res_y = 360; 
 
 	float az = 0; 
 	float el = 0; 
+
+	float3 *val = new float3[res_x*res_y],	*val_p	=	val; //RGB values of env sky
+	float *func = new float[res_x*res_y],	*func_p =	func; // Luminous power of sky
+	float *cdf	= new float[res_x*res_y],	*cdf_p	=	cdf; // constructed CDF of directions 
+	float *func_int = new float[res_y], *func_int_p = func_int; // functions integral at the end of row
+
+	memset(val, 0x0, sizeof(float3) * res_x * res_y);
+	memset(func, 0x0, sizeof(float) * res_x * res_y);
+	memset(cdf, 0x0, sizeof(float) * res_x * res_y);
+	memset(func_int, 0x0, sizeof(float) * res_y);
 	
-	float func[res_x * res_y];
-	float cdf[res_x * res_y];
+	*val_p = make_float3(0.0f, 0.0f, 0.0f);
+	*func_p = .0f;
+	*cdf_p = .0f;
 
-	cdf[0] = .0f;
-	
-	func[0] = length(sample_atmosphere(kernel_params, pos, degree_to_cartesian(0,-90), kernel_params.sky_color));
+	for (int y = 0; y < res_y; ++y, func_int_p++) {
+		el = float(y) / float(res_y-1) * M_PI;			// elevation goes from 0 to 180 degrees
+		*(cdf_p-1) = .0f;
+		for (int x = 0; x < res_x; ++x, ++val_p, ++func_p, ++cdf_p) {
 
-	float3 val[res_x][res_y];
-	val[0][0] = pos;
-	
-	for (int y = 0; y < res_y; y++) {
-
-		for (int x = 0; x < res_x; x++) {
-
-			az = float(x);
-			el = float(y);
-
-			float3 dir = degree_to_cartesian(az, el);
-
-			int idx = x + y * res_x;
+			az = float(x) / float(res_x-1) * M_PI * 2.0f;		// azimuth goes from 0 to 360 degrees 
 			
-			val[x][y] = sample_atmosphere(kernel_params, pos, dir, make_float3(10.0f, 10.0f,10.0f));
-			
-			/*
-			func[idx] = length(val[idx]);
-			
-			cdf[idx] = cdf[idx - 1] + func[idx - 1] / res_x;
-			*/
-
-
+			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el) , sinf(el) * sinf(az)); // polar to cartesian 			
+			*val_p = sample_atmosphere(kernel_params, pos, dir, kernel_params.sky_color);
+			*func_p = length((*val_p));
+			*cdf_p = *(cdf_p - 1) + *(func_p - 1) / (res_x);
 		}
+
+		*func_int_p = *(cdf_p-1);
 	}
-	/*
-	float funcInt = cdf[res_x-1 * res_y-1];
-	int res[res_x*res_y];
-	if (funcInt == 0) {
-		for (int y = 0; y < res_y; y++) {
-			for (int x = 0; x < res_x; x++) {
-				int idx = x + y * res_x;
-				cdf[idx] = (float(x) / float(res_x)) * (float(y) / float(res_y));
-				res[idx] = int(cdf[idx]*255.99f);
+
+	//reset pointers
+	val_p = val;
+	func_p = func;
+	cdf_p = cdf;
+	func_int_p = func_int;
+
+	float total_int = 0.0f;
+	for (int j = 0; j < res_y; j++) 
+	{ 
+		total_int += *func_int_p;
+	}
+	func_int_p = func_int;
+
+	if (total_int == .0f) {
+		for (int y = 0; y < res_y; ++y) {
+			for (int x = 0; x < res_x; ++x, ++cdf_p) {
+				*cdf_p = (float(x) / float(res_x)) * (float(y) / float(res_y));
 			}
 		}
 	}
 	
 	else {
-		for (int y = 0; y < res_y; y++) {
-			for (int x = 0; x < res_x; x++) {
-				int idx = x + y * res_x;
-				cdf[idx] /= funcInt;
-				res[idx] = int(cdf[idx] * 255.99f);
+		for (int y = 0; y < res_y; y++, func_int_p++) {
+			for (int x = 0; x < res_x; ++x, ++cdf_p) {
+				*cdf_p /= *func_int_p;
+				if (x == res_x - 1) *cdf_p = 1.0f;//Last element of cdf must be 1
 			}
 		}
 	}
-	*/
+
+	// End array filling
+
+
+	// Send data to GPU 
+
+
+
+
+	// render textures images if requested
+
+#if RENDER_ENV_SAMPLE_TEXTURES
 	
-	std::ofstream ofs;
-	ofs.open("cdf.ppm", std::ofstream::out);
-	ofs << "P6" << std::endl;
-	ofs << "# File after convolution" << std::endl;
-	ofs << res_x << " " << res_y << std::endl; //check if ASCII conversion is needed
-	ofs << 255 << std::endl;
+	if (CreateDirectory("./env_sample", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+	else {
+	
+		printf("\nError: unable to create directory for environment sample textures\n");
+		exit(-1);
+	
+	};
+
+	std::ofstream ofs_val("./env_sample/val.ppm", std::ios::out | std::ios::binary);
+	ofs_val << "P6\n" << res_x << " " << res_y << "\n255\n";
+	
+	std::ofstream ofs_func("./env_sample/func.ppm", std::ios::out | std::ios::binary);
+	ofs_func << "P6\n" << res_x << " " << res_y << "\n255\n";
+
+	std::ofstream ofs_cdf("./env_sample/cdf.ppm", std::ios::out | std::ios::binary);
+	ofs_cdf << "P6\n" << res_x << " " << res_y << "\n255\n";
 
 
-	for (int j = 0; j <res_y ; j++)
+	val_p = val;
+	func_p = func;
+	cdf_p = cdf;
+
+	for (unsigned j = 0; j <res_y ; ++j)
 	{
-		for (int i = 0; i < res_x; i++)
+		for (unsigned i = 0; i < res_x; ++i, ++val_p, ++func_p, ++cdf_p)
 		{
-			int idx = j + i * res_y;
-			ofs << static_cast<char>(max(0, min(int(val[i][j].x*255.99), 255))) << static_cast<char>(max(0, min(int(val[i][j].y*255.99), 255))) << static_cast<char>(max(0, min(int(val[i][j].z*255.99), 255)));  //write as ascii
-		}
-		ofs << std::endl;
-	}
-	
+			(*val_p).x = (*val_p).x < 1.413f ? pow((*val_p).x * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-(*val_p).x);
+			(*val_p).y = (*val_p).y < 1.413f ? pow((*val_p).y * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-(*val_p).y);
+			(*val_p).z = (*val_p).z < 1.413f ? pow((*val_p).z * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-(*val_p).z);
+					   			
+			ofs_val << (unsigned char)(min(1.0f  , (*val_p).x) * 255)
+					<< (unsigned char)(min(1.0f  , (*val_p).y) * 255)
+					<< (unsigned char)(min(1.0f	 , (*val_p).z) * 255);
 
+			ofs_func << (unsigned char)(min(1.0f, (*func_p)) * 255)
+					<< (unsigned char)(min(1.0f, (*func_p)) * 255)
+					<< (unsigned char)(min(1.0f, (*func_p)) * 255);
+
+			ofs_cdf << (unsigned char)(min(1.0f, (*cdf_p)) * 255)
+					<< (unsigned char)(min(1.0f, (*cdf_p)) * 255)
+					<< (unsigned char)(min(1.0f, (*cdf_p)) * 255);
+
+		}
+	}
+	ofs_val.close();
+	ofs_func.close();
+	ofs_cdf.close();
+
+#endif
+
+
+	delete[] val, func, cdf;
 }
 
 // Create enviroment texture.
