@@ -478,7 +478,7 @@ static void resize_buffers(
 }
 
 
-static void create_cdf(
+static bool create_cdf(
 	Kernel_params kernel_params,
 	cudaTextureObject_t *env_func_tex,
 	cudaTextureObject_t *env_cdf_tex,
@@ -488,6 +488,7 @@ static void create_cdf(
 	printf("creating cdf and function textures for environment...");
 
 	// Fill the value function and cdf values
+	//----------------------------------------------------------------------
 
 	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
 	const unsigned res_x = 360; 
@@ -557,15 +558,62 @@ static void create_cdf(
 	}
 
 	// End array filling
+	//------------------------------------------------------------------------------------
+
 
 
 	// Send data to GPU 
+	//-------------------------------------------------------------------------------------
+
+	// Send func data
+	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float>();
+	check_success(cudaMallocArray(env_func_data, &channel_desc, res_x, res_y) == cudaSuccess);
+	check_success(cudaMemcpyToArray(*env_func_data, 0, 0, func, res_x * res_y * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+
+	cudaResourceDesc res_desc_func;
+	memset(&res_desc_func, 0, sizeof(res_desc_func));
+	res_desc_func.resType = cudaResourceTypeArray;
+	res_desc_func.res.array.array = *env_func_data;
+
+	cudaTextureDesc tex_desc_func;
+	memset(&tex_desc_func, 0, sizeof(tex_desc_func));
+	tex_desc_func.addressMode[0] = cudaAddressModeWrap;
+	tex_desc_func.addressMode[1] = cudaAddressModeClamp;
+	tex_desc_func.addressMode[2] = cudaAddressModeWrap;
+	tex_desc_func.filterMode = cudaFilterModeLinear;
+	tex_desc_func.readMode = cudaReadModeElementType;
+	tex_desc_func.normalizedCoords = 1;
+
+	check_success(cudaCreateTextureObject(env_func_tex, &res_desc_func, &tex_desc_func, NULL) == cudaSuccess);
+
+	// Send cdf data 
+
+	check_success(cudaMallocArray(env_cdf_data, &channel_desc, res_x, res_y) == cudaSuccess);
+	check_success(cudaMemcpyToArray(*env_cdf_data, 0, 0, cdf, res_x * res_y * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+
+	cudaResourceDesc res_desc_cdf;
+	memset(&res_desc_cdf, 0, sizeof(res_desc_cdf));
+	res_desc_cdf.resType = cudaResourceTypeArray;
+	res_desc_cdf.res.array.array = *env_cdf_data;
+
+	cudaTextureDesc tex_desc_cdf;
+	memset(&tex_desc_cdf, 0, sizeof(tex_desc_cdf));
+	tex_desc_cdf.addressMode[0] = cudaAddressModeWrap;
+	tex_desc_cdf.addressMode[1] = cudaAddressModeClamp;
+	tex_desc_cdf.addressMode[2] = cudaAddressModeWrap;
+	tex_desc_cdf.filterMode = cudaFilterModeLinear;
+	tex_desc_cdf.readMode = cudaReadModeElementType;
+	tex_desc_cdf.normalizedCoords = 1;
+
+	check_success(cudaCreateTextureObject(env_cdf_tex, &res_desc_cdf, &tex_desc_cdf, NULL) == cudaSuccess);
 
 
 
+	//End host to device data migration
+	//------------------------------------------------------------------------------------------
 
-	// render textures images if requested
-
+	// render texture images if requested
+	//------------------------------------------------------------------------------------------
 #if RENDER_ENV_SAMPLE_TEXTURES
 	
 	if (CreateDirectory("./env_sample", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
@@ -620,6 +668,8 @@ static void create_cdf(
 
 
 	delete[] val, func, cdf;
+	return true;
+
 }
 
 // Create enviroment texture.
@@ -815,8 +865,6 @@ int main(const int argc, const char* argv[])
 	// Create env map sampling textures
 
 	create_cdf(kernel_params, &kernel_params.env_func_tex, &kernel_params.env_cdf_tex, &env_func_data, &env_cdf_data);
-
-	return 1;
 
 	bool debug = false; 
 	int frame = 0; 
