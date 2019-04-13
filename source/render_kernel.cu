@@ -1,4 +1,4 @@
-//--------------------------------------------------------------------------------
+﻿//--------------------------------------------------------------------------------
 // NVIDIA(R) GVDB VOXELS
 // Copyright 2017, NVIDIA Corporation. 
 //
@@ -162,6 +162,86 @@ __device__ inline float3 degree_to_cartesian(
 
 	return normalize(make_float3(x, y, z));
 }
+
+__device__ inline float tex_lookup_1d(
+	cudaTextureObject_t tex, 
+	float v) 
+{
+	const float texval = tex1D<float>( tex, v);
+
+	return texval;
+}
+
+__device__ inline float tex_lookup_2d(
+	cudaTextureObject_t tex, 
+	float u,
+	float v) {
+
+
+	const float texval = tex2D<float>(tex, u, v);
+
+	return texval;
+}
+
+__device__ inline float draw_sample_from_distribution(
+	Kernel_params kernel_params,
+	Rand_state rand_state,
+	float3 &wo) {
+
+	float xi = rand(&rand_state);
+	float zeta = rand(&rand_state);
+
+	float pdf = 1.0f;
+	int v=0;
+	int res = kernel_params.env_sample_tex_res;
+	
+	// Find marginal row number
+	for (int i = 0; i < res; i++) {
+
+		if (xi <= tex_lookup_1d(kernel_params.env_marginal_cdf_tex, i)) v = i;
+		else break;
+
+	}
+
+	float dv = xi - tex_lookup_1d(kernel_params.env_marginal_cdf_tex, v);
+	float d_cdf_marginal = tex_lookup_1d(kernel_params.env_marginal_cdf_tex, v + 1) - tex_lookup_1d(kernel_params.env_marginal_cdf_tex, v);
+	if (d_cdf_marginal > .0f) dv /= d_cdf_marginal;
+
+	// Calculate marginal pdf
+	float marginal_pdf = tex_lookup_1d(kernel_params.env_marginal_func_tex, v + dv) / kernel_params.env_marginal_int;
+
+	// calculate θ (elevation)
+	float phi = ((float(v) + dv) / float(res)) * M_PI;
+	
+	// v is now our row number. find the conditional value and pdf from v
+
+	int u;
+	for (int i = 0; i < res; i++) {
+
+		if (zeta <= tex_lookup_2d(kernel_params.env_marginal_cdf_tex, i , v)) u = i;
+		else break;
+	}
+
+	float du = zeta - tex_lookup_2d(kernel_params.env_marginal_cdf_tex, u , v);
+	float d_cdf_conditional = tex_lookup_2d(kernel_params.env_marginal_cdf_tex, u + 1, v) - tex_lookup_2d(kernel_params.env_marginal_cdf_tex, u, v);
+	if (d_cdf_conditional > 0) du /= d_cdf_conditional;
+
+	//Calculate conditional pdf
+	float conditional_pdf = tex_lookup_2d(kernel_params.env_marginal_func_tex, u + du, v) / tex_lookup_1d(kernel_params.env_marginal_func_tex, v);
+
+	// Find the Φ (azimuth)
+	float theta = ((float(u) + du) / float(res)) * M_PI * 2.0f;
+
+	float cos_theta = cosf(theta);
+	float sin_theta = sinf(theta);
+	float sin_phi = sinf(phi);
+	float cos_phi = cosf(phi);
+
+	wo = normalize(degree_to_cartesian(theta, phi));
+
+	return pdf = (marginal_pdf * conditional_pdf) / (2 * M_PI * M_PI * sin_theta);
+}
+
 
 //Phase functions pdf 
 
@@ -441,12 +521,12 @@ __device__ inline float3 estimate_sky(
 		float az = rand(&randstate) * 360.0f;
 		float el = rand(&randstate) * 180.0f;
 
-		wi = degree_to_cartesian(az, el);
-		phase_pdf = isotropic();
+		phase_pdf = draw_sample_from_distribution(kernel_params,randstate,wi);
 		float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
 
-		Ld += sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
-		Ld *= tr / phase_pdf;
+		//Ld += sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
+		Ld = wi;
+		//Ld *= tr * phase_pdf;
 	}
 
 	return Ld;
@@ -550,16 +630,7 @@ __device__ inline float3 vol_integrator(
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	bool mi;
 
-	const float texval = tex2D<float>(
-		kernel_params.env_marginal_func_tex,
-		1.0f,
-		(acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI)) * 360.0f
-		);
-	return make_float3(texval, texval, texval);
-
-
-
-
+	
 	if (!kernel_params.render) {
 
 		L += sample_atmosphere(kernel_params, ray_pos, ray_dir, WHITE*20.0f);

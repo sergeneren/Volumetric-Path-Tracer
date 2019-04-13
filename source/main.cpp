@@ -460,7 +460,7 @@ static void resize_buffers(
 
 
 static bool create_cdf(
-	Kernel_params kernel_params,
+	Kernel_params &kernel_params,
 	cudaTextureObject_t *env_func_tex,
 	cudaTextureObject_t *env_cdf_tex,
 	cudaTextureObject_t *env_marginal_func_tex,
@@ -477,6 +477,8 @@ static bool create_cdf(
 
 	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
 	const unsigned res = 180;
+
+	kernel_params.env_sample_tex_res = res;
 
 	float az = 0; 
 	float el = 0; 
@@ -536,7 +538,7 @@ static bool create_cdf(
 	
 	else {
 		for (int y = 0; y < res; y++, ++marginal_func_p) {
-			printf("\nfunction integral at row %d is %f", y, *marginal_func_p);
+			//printf("\nfunction integral at row %d is %f", y, *marginal_func_p);
 			for (int x = 0; x < res; ++x, ++cdf_p) {
 				*cdf_p /= *marginal_func_p;
 				if (x == res - 1) *cdf_p = 1.0f;//Last element of cdf must be 1
@@ -555,6 +557,7 @@ static bool create_cdf(
 
 	}
 	float marginal_int = *(marginal_cdf_p - 1);
+	kernel_params.env_marginal_int = marginal_int;
 	//printf("\nmarginal distribution integral is %f", marginal_int);
 	
 
@@ -905,6 +908,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.elevation = 30;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
+	kernel_params.env_sample_tex_res = 360;
 	
 	//kernel parameters env data
 	cudaArray_t env_tex_data = 0;
