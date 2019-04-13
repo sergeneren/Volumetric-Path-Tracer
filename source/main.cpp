@@ -32,9 +32,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#ifndef RENDER_ENV_SAMPLE_TEXTURES
-#define RENDER_ENV_SAMPLE_TEXTURES  0;
-#endif 
 
 
 CUmodule		cuCustom;
@@ -834,8 +831,8 @@ int main(const int argc, const char* argv[])
 	kernel_params.density_mult = 1.0f;
 	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.azimuth = 180;
-	kernel_params.elevation = 45;
+	kernel_params.azimuth = 120;
+	kernel_params.elevation = 30;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
 	cudaArray_t env_tex_data = 0;

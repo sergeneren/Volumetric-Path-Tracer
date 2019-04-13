@@ -28,7 +28,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/GVDB_PT/bin)
 
 ##################################################################
 
+##Set env mapping renders variable
 
+set( RENDER_ENV_TEXTURES OFF CACHE BOOL "Render env sampling textures after creation")  
+  if ( RENDER_ENV_TEXTURES )
+	 add_definitions(-DRENDER_ENV_SAMPLE_TEXTURES=1)
+  else()
+	 add_definitions(-DRENDER_ENV_SAMPLE_TEXTURES=0)
+  endif()
+  
 ## Set ASSET_PATH variable to use with VolumeGVDB add path function
 get_filename_component(ASSET_DIR ${CMAKE_SOURCE_DIR}/../assets ABSOLUTE)
 add_definitions(-DASSET_PATH="${ASSET_DIR}/")

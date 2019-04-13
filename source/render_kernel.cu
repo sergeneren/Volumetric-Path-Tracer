@@ -550,6 +550,14 @@ __device__ inline float3 vol_integrator(
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	bool mi;
 
+	const float texval = tex2D<float>(
+		kernel_params.env_cdf_tex,
+		atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
+		acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
+	return make_float3(texval, texval, texval);
+
+
+
 
 	if (!kernel_params.render) {
 
