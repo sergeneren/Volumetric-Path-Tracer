@@ -129,7 +129,7 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 	float t0, t1;
 	float tmin, tmax = FLT_MAX;
 	float3 pos = orig;
-	pos.y += 1000 + 6360e3f;
+	pos.y += 1 + 6360e3f;
 
 	if (raySphereIntersect(pos, dir, earthRadius, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
 	tmin = .0f;
@@ -466,7 +466,9 @@ static bool create_cdf(
 	cudaArray_t *env_marginal_func_data,
 	cudaArray_t *env_marginal_cdf_data)
 {
-	printf("creating cdf and function textures for environment...");
+	if (kernel_params.debug) {
+		printf("\ncreating cdf and function textures for environment...");
+	}
 
 	// Fill the value, function, marginal and cdf values
 	//----------------------------------------------------------------------
@@ -504,7 +506,7 @@ static bool create_cdf(
 
 			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el), sinf(el) * sinf(az)); // polar to cartesian 			
 			*val_p = sample_atmosphere(kernel_params, pos, dir, kernel_params.sky_color);
-			*func_p = length((*val_p));
+			*func_p = length((*val_p)) * length((*val_p)) *length((*val_p)) *length((*val_p));
 			*cdf_p = *(cdf_p - 1) + *(func_p - 1) / (res);
 		}
 
@@ -559,11 +561,11 @@ static bool create_cdf(
 
 	//divide cdf values with total marginal func integral
 	marginal_cdf_p = marginal_cdf;
-	
+
 	if (marginal_int > .0f) {
 		for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
 			*marginal_cdf_p /= max(.000001f, marginal_int);
-			//printf("\n%f", *marginal_cdf_p);
+			printf("\n%f", *marginal_cdf_p);
 		}
 	}
 	*marginal_cdf_p = 1.0f;
@@ -902,8 +904,8 @@ int main(const int argc, const char* argv[])
 	kernel_params.density_mult = 1.0f;
 	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.azimuth = 120;
-	kernel_params.elevation = 30;
+	kernel_params.azimuth = 10;
+	kernel_params.elevation = 89;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
 	kernel_params.env_sample_tex_res = 360;
