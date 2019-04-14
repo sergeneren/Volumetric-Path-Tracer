@@ -210,7 +210,7 @@ __device__ inline float draw_sample_from_distribution(
 	// Calculate marginal pdf
 	float marginal_pdf = tex_lookup_1d(kernel_params.env_marginal_func_tex, v + dv) / kernel_params.env_marginal_int;
 
-	// calculate θ (elevation)
+	// calculate Φ (elevation)
 	float phi = ((float(v) + dv) / float(res)) * M_PI;
 	
 	// v is now our row number. find the conditional value and pdf from v
@@ -218,18 +218,18 @@ __device__ inline float draw_sample_from_distribution(
 	int u;
 	for (int i = 0; i < res; i++) {
 
-		if (zeta <= tex_lookup_2d(kernel_params.env_marginal_cdf_tex, i , v)) u = i;
+		if (zeta <= tex_lookup_2d(kernel_params.env_cdf_tex, i , v)) u = i;
 		else break;
 	}
 
-	float du = zeta - tex_lookup_2d(kernel_params.env_marginal_cdf_tex, u , v);
-	float d_cdf_conditional = tex_lookup_2d(kernel_params.env_marginal_cdf_tex, u + 1, v) - tex_lookup_2d(kernel_params.env_marginal_cdf_tex, u, v);
+	float du = zeta - tex_lookup_2d(kernel_params.env_cdf_tex, u , v);
+	float d_cdf_conditional = tex_lookup_2d(kernel_params.env_cdf_tex, u + 1, v) - tex_lookup_2d(kernel_params.env_cdf_tex, u, v);
 	if (d_cdf_conditional > 0) du /= d_cdf_conditional;
 
 	//Calculate conditional pdf
-	float conditional_pdf = tex_lookup_2d(kernel_params.env_marginal_func_tex, u + du, v) / tex_lookup_1d(kernel_params.env_marginal_func_tex, v);
+	float conditional_pdf = tex_lookup_2d(kernel_params.env_func_tex, u + du, v) / tex_lookup_1d(kernel_params.env_marginal_func_tex, v);
 
-	// Find the Φ (azimuth)
+	// Find the θ (azimuth)
 	float theta = ((float(u) + du) / float(res)) * M_PI * 2.0f;
 
 	float cos_theta = cosf(theta);
@@ -237,7 +237,7 @@ __device__ inline float draw_sample_from_distribution(
 	float sin_phi = sinf(phi);
 	float cos_phi = cosf(phi);
 
-	wo = normalize(degree_to_cartesian(theta, phi));
+	wo = normalize(make_float3(sin_phi * cos_theta, cos_phi, sin_phi * sin_theta));
 
 	return pdf = (marginal_pdf * conditional_pdf) / (2 * M_PI * M_PI * sin_theta);
 }
@@ -521,12 +521,12 @@ __device__ inline float3 estimate_sky(
 		float az = rand(&randstate) * 360.0f;
 		float el = rand(&randstate) * 180.0f;
 
-		phase_pdf = draw_sample_from_distribution(kernel_params,randstate,wi);
+		light_pdf = draw_sample_from_distribution(kernel_params,randstate,wi);
 		float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
 
-		//Ld += sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
-		Ld = wi;
-		//Ld *= tr * phase_pdf;
+		Ld += sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
+		//Ld = wi;
+		Ld *= tr ;
 	}
 
 	return Ld;

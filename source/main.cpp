@@ -48,7 +48,7 @@ VolumeGVDB		gvdb;
 
 
 // Env sampling functions
-static bool solveQuadratic(float a,	float b, float c, float& x1, float& x2)
+static bool solveQuadratic(float a, float b, float c, float& x1, float& x2)
 {
 	if (b == 0) {
 		// Handle special case where the the two vector ray.dir and V are perpendicular
@@ -60,7 +60,7 @@ static bool solveQuadratic(float a,	float b, float c, float& x1, float& x2)
 	float discr = b * b - 4 * a * c;
 
 	if (discr < 0) return false;
-	
+
 	float q = (b < 0.f) ? -0.5f * (b - sqrtf(discr)) : -0.5f * (b + sqrtf(discr));
 	x1 = q / a;
 	x2 = c / q;
@@ -112,7 +112,7 @@ static float3 degree_to_cartesian(float azimuth, float elevation)
 }
 
 // Draw a sample from sky
-static float3 sample_atmosphere(const Kernel_params &kernel_params,	const float3 orig, const float3 dir,const float3 intensity)
+static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3 orig, const float3 dir, const float3 intensity)
 {
 
 	// initial parameters
@@ -364,7 +364,7 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
 		Camera3D* cam = gvdb.getScene()->getCamera();
 		float fov = cam->getFov();
-		
+
 
 		switch (key) {
 		case GLFW_KEY_ESCAPE:
@@ -374,13 +374,13 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 		case GLFW_KEY_LEFT_BRACKET:
 			fov -= 10.0f;
 			cam->setFov(fov);
-			ctx->change=true;
+			ctx->change = true;
 			break;
 		case GLFW_KEY_KP_ADD:
 		case GLFW_KEY_RIGHT_BRACKET:
 			fov += 10.0f;
 			cam->setFov(fov);
-			ctx->change=true;
+			ctx->change = true;
 			break;
 		case GLFW_KEY_SPACE:
 			++ctx->config_type;
@@ -461,7 +461,7 @@ static void resize_buffers(
 
 static bool create_cdf(
 	Kernel_params &kernel_params,
-	cudaArray_t *env_func_data, 
+	cudaArray_t *env_func_data,
 	cudaArray_t *env_cdf_data,
 	cudaArray_t *env_marginal_func_data,
 	cudaArray_t *env_marginal_cdf_data)
@@ -476,12 +476,12 @@ static bool create_cdf(
 
 	kernel_params.env_sample_tex_res = res;
 
-	float az = 0; 
-	float el = 0; 
+	float az = 0;
+	float el = 0;
 
-	float3 *val = new float3[res*res],	*val_p	=	val;							//RGB values of env sky
-	float *func = new float[res*res],	*func_p =	func;							// Luminous power of sky
-	float *cdf	= new float[res*res],	*cdf_p	=	cdf;							// constructed CDF of directions 
+	float3 *val = new float3[res*res], *val_p = val;							//RGB values of env sky
+	float *func = new float[res*res], *func_p = func;							// Luminous power of sky
+	float *cdf = new float[res*res], *cdf_p = cdf;							// constructed CDF of directions 
 	float *marginal_func = new float[res], *marginal_func_p = marginal_func;		// values for marginal distribution
 	float *marginal_cdf = new float[res], *marginal_cdf_p = marginal_cdf;			// cdf for marginal distribution
 
@@ -496,19 +496,19 @@ static bool create_cdf(
 	*cdf_p = .0f;
 
 	for (int y = 0; y < res; ++y, ++marginal_func_p) {
-		el = float(y) / float(res-1) * M_PI;			// elevation goes from 0 to 180 degrees
-		*(cdf_p-1) = .0f;
+		el = float(y) / float(res - 1) * M_PI;			// elevation goes from 0 to 180 degrees
+		*(cdf_p - 1) = .0f;
 		for (int x = 0; x < res; ++x, ++val_p, ++func_p, ++cdf_p) {
 
-			az = float(x) / float(res-1) * M_PI * 2.0f;		// azimuth goes from 0 to 360 degrees 
-			
-			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el) , sinf(el) * sinf(az)); // polar to cartesian 			
+			az = float(x) / float(res - 1) * M_PI * 2.0f;		// azimuth goes from 0 to 360 degrees 
+
+			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el), sinf(el) * sinf(az)); // polar to cartesian 			
 			*val_p = sample_atmosphere(kernel_params, pos, dir, kernel_params.sky_color);
 			*func_p = length((*val_p));
 			*cdf_p = *(cdf_p - 1) + *(func_p - 1) / (res);
 		}
 
-		*marginal_func_p = *(cdf_p-1);
+		*marginal_func_p = *(cdf_p - 1);
 	}
 
 	//reset pointers
@@ -518,8 +518,8 @@ static bool create_cdf(
 	marginal_func_p = marginal_func;
 
 	float total_int = 0.0f;
-	for (int j = 0; j < res; j++) 
-	{ 
+	for (int j = 0; j < res; j++)
+	{
 		total_int += *marginal_func_p;
 	}
 	marginal_func_p = marginal_func;
@@ -531,7 +531,7 @@ static bool create_cdf(
 			}
 		}
 	}
-	
+
 	else {
 		for (int y = 0; y < res; y++, ++marginal_func_p) {
 			//printf("\nfunction integral at row %d is %f", y, *marginal_func_p);
@@ -550,19 +550,21 @@ static bool create_cdf(
 	for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
 
 		*marginal_cdf_p = *(marginal_cdf_p - 1) + *marginal_func_p / res;
-
+		//printf("\n%f", *marginal_func_p);
 	}
 	float marginal_int = *(marginal_cdf_p - 1);
 	kernel_params.env_marginal_int = marginal_int;
 	//printf("\nmarginal distribution integral is %f", marginal_int);
-	
+
 
 	//divide cdf values with total marginal func integral
 	marginal_cdf_p = marginal_cdf;
-	for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
-
-		*marginal_cdf_p /= max(.000001f, marginal_int);
-
+	
+	if (marginal_int > .0f) {
+		for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
+			*marginal_cdf_p /= max(.000001f, marginal_int);
+			//printf("\n%f", *marginal_cdf_p);
+		}
 	}
 	*marginal_cdf_p = 1.0f;
 
@@ -667,18 +669,18 @@ static bool create_cdf(
 	// render texture images if requested
 	//------------------------------------------------------------------------------------------
 #if RENDER_ENV_SAMPLE_TEXTURES
-	
+
 	if (CreateDirectory("./env_sample", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
 	else {
-	
+
 		printf("\nError: unable to create directory for environment sample textures\n");
 		exit(-1);
-	
+
 	};
 
 	std::ofstream ofs_val("./env_sample/val.ppm", std::ios::out | std::ios::binary);
 	ofs_val << "P6\n" << res << " " << res << "\n255\n";
-	
+
 	std::ofstream ofs_func("./env_sample/func.ppm", std::ios::out | std::ios::binary);
 	ofs_func << "P6\n" << res << " " << res << "\n255\n";
 
@@ -697,33 +699,33 @@ static bool create_cdf(
 	marginal_func_p = marginal_func;
 	marginal_cdf_p = marginal_cdf;
 
-	for (unsigned j = 0; j <res ; ++j, ++marginal_func_p, ++marginal_cdf_p)
+	for (unsigned j = 0; j < res; ++j, ++marginal_func_p, ++marginal_cdf_p)
 	{
-		ofs_marginal_func	<< (unsigned char)(min(1.0f, (*marginal_func_p)) * 255)
-							<< (unsigned char)(min(1.0f, (*marginal_func_p)) * 255)
-							<< (unsigned char)(min(1.0f, (*marginal_func_p)) * 255);
+		ofs_marginal_func << (unsigned char)(min(1.0f, (*marginal_func_p)) * 255)
+			<< (unsigned char)(min(1.0f, (*marginal_func_p)) * 255)
+			<< (unsigned char)(min(1.0f, (*marginal_func_p)) * 255);
 
 		ofs_marginal_cdf << (unsigned char)(min(1.0f, (*marginal_cdf_p)) * 255)
-							<< (unsigned char)(min(1.0f, (*marginal_cdf_p)) * 255)
-							<< (unsigned char)(min(1.0f, (*marginal_cdf_p)) * 255);
-			   
+			<< (unsigned char)(min(1.0f, (*marginal_cdf_p)) * 255)
+			<< (unsigned char)(min(1.0f, (*marginal_cdf_p)) * 255);
+
 		for (unsigned i = 0; i < res; ++i, ++val_p, ++func_p, ++cdf_p)
 		{
 			(*val_p).x = (*val_p).x < 1.413f ? pow((*val_p).x * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-(*val_p).x);
 			(*val_p).y = (*val_p).y < 1.413f ? pow((*val_p).y * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-(*val_p).y);
 			(*val_p).z = (*val_p).z < 1.413f ? pow((*val_p).z * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-(*val_p).z);
-					   			
-			ofs_val << (unsigned char)(min(1.0f  , (*val_p).x) * 255)
-					<< (unsigned char)(min(1.0f  , (*val_p).y) * 255)
-					<< (unsigned char)(min(1.0f	 , (*val_p).z) * 255);
+
+			ofs_val << (unsigned char)(min(1.0f, (*val_p).x) * 255)
+				<< (unsigned char)(min(1.0f, (*val_p).y) * 255)
+				<< (unsigned char)(min(1.0f, (*val_p).z) * 255);
 
 			ofs_func << (unsigned char)(min(1.0f, (*func_p)) * 255)
-					<< (unsigned char)(min(1.0f, (*func_p)) * 255)
-					<< (unsigned char)(min(1.0f, (*func_p)) * 255);
+				<< (unsigned char)(min(1.0f, (*func_p)) * 255)
+				<< (unsigned char)(min(1.0f, (*func_p)) * 255);
 
 			ofs_cdf << (unsigned char)(min(1.0f, (*cdf_p)) * 255)
-					<< (unsigned char)(min(1.0f, (*cdf_p)) * 255)
-					<< (unsigned char)(min(1.0f, (*cdf_p)) * 255);
+				<< (unsigned char)(min(1.0f, (*cdf_p)) * 255)
+				<< (unsigned char)(min(1.0f, (*cdf_p)) * 255);
 
 		}
 	}
@@ -791,7 +793,7 @@ static void update_camera(
 	Camera3D* cam = gvdb.getScene()->getCamera();
 	Vector3DF angs = cam->getAng();
 	float dist = cam->getOrbitDist();
-	dist -= zoom_delta*300;
+	dist -= zoom_delta * 300;
 	angs.x -= dx * 0.2f;
 	angs.y -= dy * 0.2f;
 	cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
@@ -860,19 +862,19 @@ int main(const int argc, const char* argv[])
 	}
 	printf("Loading VDB. %s\n", scnpath);
 	gvdb.LoadVDB(scnpath);
-	gvdb.SetTransform(Vector3DF(0,0,0), Vector3DF(1,1,1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
-	
+	gvdb.SetTransform(Vector3DF(0, 0, 0), Vector3DF(1, 1, 1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
+
 	gvdb.Measure(true);
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
-	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(200, 100,0), 100, 1.0);
+	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(200, 100, 0), 100, 1.0);
 	gvdb.getScene()->SetCamera(cam);
-	
+
 	printf("Loading module: render_kernel.ptx\n");
 	cuModuleLoad(&cuCustom, "render_kernel.ptx");
 	cuModuleGetFunction(&cuRaycastKernel, cuCustom, "volume_rt_kernel");
-	
+
 	gvdb.SetModule(cuCustom);
 
 	gvdb.mbProfile = true;
@@ -886,13 +888,13 @@ int main(const int argc, const char* argv[])
 	// Setup initial CUDA kernel parameters.
 	Kernel_params kernel_params;
 	memset(&kernel_params, 0, sizeof(Kernel_params));
-	kernel_params.render = true; 
+	kernel_params.render = true;
 	kernel_params.iteration = 0;
 	kernel_params.max_interactions = 1;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
 	kernel_params.max_extinction = 1.0f;
-	kernel_params.ray_depth = 1; 
+	kernel_params.ray_depth = 1;
 	kernel_params.phase_g1 = 0.0f;
 	kernel_params.phase_g2 = 0.0f;
 	kernel_params.phase_f = 1.0f;
@@ -905,20 +907,20 @@ int main(const int argc, const char* argv[])
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
 	kernel_params.env_sample_tex_res = 360;
-	
+
 	//kernel parameters env data
 	cudaArray_t env_tex_data = 0;
-	cudaArray_t env_func_data = 0; 
+	cudaArray_t env_func_data = 0;
 	cudaArray_t env_cdf_data = 0;
 	cudaArray_t env_marginal_func_data = 0;
 	cudaArray_t env_marginal_cdf_data = 0;
 	bool env_tex = false;
-	
+
 	// Imgui Parameters
-	
-	int max_interaction = 1; 
+
+	int max_interaction = 1;
 	float max_extinction = 0.1f;
-	int ray_depth = 1; 
+	int ray_depth = 1;
 	ImVec4 light_pos = ImVec4(0.0f, 1000.0f, 0.0f, 1.00f);
 	ImVec4 light_energy = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
 	float azimuth = 120.0f;
@@ -927,7 +929,7 @@ int main(const int argc, const char* argv[])
 	bool render = true;
 
 	// End ImGui parameters
-	
+
 	if (argc >= 2)
 		env_tex = create_environment(
 			&kernel_params.env_tex, &env_tex_data, argv[1]);
@@ -939,21 +941,21 @@ int main(const int argc, const char* argv[])
 	// Create env map sampling textures
 
 	create_cdf(
-		kernel_params, 
-		&env_func_data, 
-		&env_cdf_data, 
+		kernel_params,
+		&env_func_data,
+		&env_cdf_data,
 		&env_marginal_func_data,
 		&env_marginal_cdf_data);
 
-	bool debug = false; 
-	int frame = 0; 
+	bool debug = false;
+	int frame = 0;
 
 	while (!glfwWindowShouldClose(window)) {
 
 		// Process events.
 		glfwPollEvents();
 		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
-		
+
 		// Update kernel params
 		kernel_params.exposure_scale = powf(2.0f, ctx->exposure);
 		kernel_params.max_interactions = max_interaction;
@@ -965,7 +967,7 @@ int main(const int argc, const char* argv[])
 
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
-		
+
 		// Draw imgui 
 		//-------------------------------------------------------------------
 
@@ -973,7 +975,7 @@ int main(const int argc, const char* argv[])
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		ImGui::Begin("Parameters window"); 
+		ImGui::Begin("Parameters window");
 		ImGui::Checkbox("Render", &render);
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
@@ -1002,14 +1004,14 @@ int main(const int argc, const char* argv[])
 		//-----------------------------------------------------------------
 
 		if (debug) {
-			
+
 			// Reserved for host side debugging
 
 		}
 
 		// Restart rendering if paused and started back 
 		if (!render) {
-			
+
 			kernel_params.iteration = 0;
 
 		}
@@ -1027,7 +1029,7 @@ int main(const int argc, const char* argv[])
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
 
 			create_cdf(kernel_params, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
-			kernel_params.iteration = 0; 
+			kernel_params.iteration = 0;
 
 		}
 
@@ -1053,8 +1055,8 @@ int main(const int argc, const char* argv[])
 		// Restart render if camera moves 
 		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->move_mx != 0.0 || ctx->move_my != 0.0 || ctx->zoom_delta) {
 
-			
-			update_camera(ctx->move_dx, ctx->move_dy , ctx->move_mx, ctx->move_my, ctx->zoom_delta);
+
+			update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta);
 			ctx->move_dx = ctx->move_dy = ctx->move_mx = ctx->move_my = 0.0;
 			ctx->zoom_delta = 0;
 			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
@@ -1083,7 +1085,7 @@ int main(const int argc, const char* argv[])
 		check_success(cudaGraphicsMapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 		void *p;
 		size_t size_p;
-		
+
 		cudaGraphicsResourceGetMappedPointer(&p, &size_p, display_buffer_cuda);
 		//printf("error in: %s\n", cudaGetErrorString(cudaGetLastError()));
 		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
@@ -1093,7 +1095,7 @@ int main(const int argc, const char* argv[])
 		Vector3DI grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
-		void *params[] = {vdbinfo, &kernel_params };
+		void *params[] = { vdbinfo, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
@@ -1111,7 +1113,7 @@ int main(const int argc, const char* argv[])
 		check_success(glGetError() == GL_NO_ERROR);
 
 		// Render the quad.
-		
+
 		glClear(GL_COLOR_BUFFER_BIT);
 		glBindVertexArray(quad_vao);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
