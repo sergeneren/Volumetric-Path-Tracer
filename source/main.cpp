@@ -461,10 +461,6 @@ static void resize_buffers(
 
 static bool create_cdf(
 	Kernel_params &kernel_params,
-	cudaTextureObject_t *env_func_tex,
-	cudaTextureObject_t *env_cdf_tex,
-	cudaTextureObject_t *env_marginal_func_tex,
-	cudaTextureObject_t *env_marginal_cdf_tex,
 	cudaArray_t *env_func_data, 
 	cudaArray_t *env_cdf_data,
 	cudaArray_t *env_marginal_func_data,
@@ -597,7 +593,7 @@ static bool create_cdf(
 	tex_desc_func.readMode = cudaReadModeElementType;
 	tex_desc_func.normalizedCoords = 0;
 
-	check_success(cudaCreateTextureObject(env_func_tex, &res_desc_func, &tex_desc_func, NULL) == cudaSuccess);
+	check_success(cudaCreateTextureObject(&kernel_params.env_func_tex, &res_desc_func, &tex_desc_func, NULL) == cudaSuccess);
 
 	// Send cdf data 
 
@@ -618,7 +614,7 @@ static bool create_cdf(
 	tex_desc_cdf.readMode = cudaReadModeElementType;
 	tex_desc_cdf.normalizedCoords = 0;
 
-	check_success(cudaCreateTextureObject(env_cdf_tex, &res_desc_cdf, &tex_desc_cdf, NULL) == cudaSuccess);
+	check_success(cudaCreateTextureObject(&kernel_params.env_cdf_tex, &res_desc_cdf, &tex_desc_cdf, NULL) == cudaSuccess);
 
 	// Send Marginal 1D distribution func data
 
@@ -639,7 +635,7 @@ static bool create_cdf(
 	tex_desc_marginal_func.readMode = cudaReadModeElementType;
 	tex_desc_marginal_func.normalizedCoords = 0;
 
-	check_success(cudaCreateTextureObject(env_marginal_func_tex, &res_desc_marginal_func, &tex_desc_marginal_func, NULL) == cudaSuccess);
+	check_success(cudaCreateTextureObject(&kernel_params.env_marginal_func_tex, &res_desc_marginal_func, &tex_desc_marginal_func, NULL) == cudaSuccess);
 
 
 	// Send Marginal 1D distribution cdf data
@@ -661,7 +657,7 @@ static bool create_cdf(
 	tex_desc_marginal_cdf.readMode = cudaReadModeElementType;
 	tex_desc_marginal_cdf.normalizedCoords = 0;
 
-	check_success(cudaCreateTextureObject(env_marginal_cdf_tex, &res_desc_marginal_cdf, &tex_desc_marginal_cdf, NULL) == cudaSuccess);
+	check_success(cudaCreateTextureObject(&kernel_params.env_marginal_cdf_tex, &res_desc_marginal_cdf, &tex_desc_marginal_cdf, NULL) == cudaSuccess);
 
 
 
@@ -925,6 +921,9 @@ int main(const int argc, const char* argv[])
 	int ray_depth = 1; 
 	ImVec4 light_pos = ImVec4(0.0f, 1000.0f, 0.0f, 1.00f);
 	ImVec4 light_energy = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
+	float azimuth = 120.0f;
+	float elevation = 30.0f;
+
 	bool render = true;
 
 	// End ImGui parameters
@@ -941,10 +940,6 @@ int main(const int argc, const char* argv[])
 
 	create_cdf(
 		kernel_params, 
-		&kernel_params.env_func_tex, 
-		&kernel_params.env_cdf_tex,
-		&kernel_params.env_marginal_func_tex, 
-		&kernel_params.env_marginal_cdf_tex, 
 		&env_func_data, 
 		&env_cdf_data, 
 		&env_marginal_func_data,
@@ -964,12 +959,16 @@ int main(const int argc, const char* argv[])
 		kernel_params.max_interactions = max_interaction;
 		kernel_params.ray_depth = ray_depth;
 		kernel_params.render = render;
+		kernel_params.azimuth = azimuth;
+		kernel_params.elevation = elevation;
+		kernel_params.debug = debug;
 
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
 		
 		// Draw imgui 
-		
+		//-------------------------------------------------------------------
+
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
@@ -993,42 +992,45 @@ int main(const int argc, const char* argv[])
 
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
-		ImGui::SliderFloat("Azimuth", &kernel_params.azimuth, 0, 360);
-		ImGui::SliderFloat("Elevation", &kernel_params.elevation, 0, 90);
+		ImGui::SliderFloat("Azimuth", &azimuth, 0, 360);
+		ImGui::SliderFloat("Elevation", &elevation, 0, 90);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		ImGui::End();
 		ImGui::Render();
 
+		//End drawing imgui
+		//-----------------------------------------------------------------
+
 		if (debug) {
-
-			float az = kernel_params.azimuth;
-			float el = kernel_params.elevation;
-			az = az * M_PI / 180.0f;
-			el = el * M_PI / 180.0f;
-
-			float x = sinf(el) * cosf(az);
-			float y = cosf(el);
-			float z = sinf(el) * sinf(az);
-
-			printf("x: %f , y: %f z: %f \n", x, y, z);
-
+			
+			// Reserved for host side debugging
 
 		}
 
-		if (render != kernel_params.render) {
+		// Restart rendering if paused and started back 
+		if (!render) {
 			
 			kernel_params.iteration = 0;
 
 		}
 
-
+		// Restart rendering if there is a change 
 		if (ctx->change || max_interaction != kernel_params.max_interactions || ray_depth != kernel_params.ray_depth) {
 
 			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			kernel_params.iteration = 0;
 			ctx->change = false;
 
-		}	
+		}
+
+		// Recreate environment sampling textures if sun position changes
+		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
+
+			create_cdf(kernel_params, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
+			kernel_params.iteration = 0; 
+
+		}
+
 		// Reallocate buffers if window size changed.
 		int nwidth, nheight;
 		glfwGetFramebufferSize(window, &nwidth, &nheight);
@@ -1048,6 +1050,7 @@ int main(const int argc, const char* argv[])
 			kernel_params.iteration = 0;
 		}
 
+		// Restart render if camera moves 
 		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->move_mx != 0.0 || ctx->move_my != 0.0 || ctx->zoom_delta) {
 
 			
@@ -1058,6 +1061,7 @@ int main(const int argc, const char* argv[])
 
 			kernel_params.iteration = 0;
 		}
+
 		if (ctx->save_image) {
 
 			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
@@ -1093,8 +1097,6 @@ int main(const int argc, const char* argv[])
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
-
-		
 
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);

@@ -6,7 +6,7 @@ struct Kernel_params {
 
 	//Debug
 	bool render;
-
+	bool debug;
 	// Display
 	uint2 resolution;
 	float exposure_scale;
