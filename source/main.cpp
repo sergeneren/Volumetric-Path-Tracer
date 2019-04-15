@@ -129,7 +129,7 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 	float t0, t1;
 	float tmin, tmax = FLT_MAX;
 	float3 pos = orig;
-	pos.y += 1 + 6360e3f;
+	pos.y += 1000 + 6360e3f;
 
 	if (raySphereIntersect(pos, dir, earthRadius, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
 	tmin = .0f;
@@ -506,7 +506,7 @@ static bool create_cdf(
 
 			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el), sinf(el) * sinf(az)); // polar to cartesian 			
 			*val_p = sample_atmosphere(kernel_params, pos, dir, kernel_params.sky_color);
-			*func_p = length((*val_p)) * length((*val_p)) *length((*val_p)) *length((*val_p));
+			*func_p = length((*val_p));
 			*cdf_p = *(cdf_p - 1) + *(func_p - 1) / (res);
 		}
 
@@ -536,7 +536,6 @@ static bool create_cdf(
 
 	else {
 		for (int y = 0; y < res; y++, ++marginal_func_p) {
-			//printf("\nfunction integral at row %d is %f", y, *marginal_func_p);
 			for (int x = 0; x < res; ++x, ++cdf_p) {
 				*cdf_p /= *marginal_func_p;
 				if (x == res - 1) *cdf_p = 1.0f;//Last element of cdf must be 1
@@ -552,20 +551,20 @@ static bool create_cdf(
 	for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
 
 		*marginal_cdf_p = *(marginal_cdf_p - 1) + *marginal_func_p / res;
-		//printf("\n%f", *marginal_func_p);
+		//printf("\n%d	%f",y ,*marginal_func_p);
 	}
 	float marginal_int = *(marginal_cdf_p - 1);
 	kernel_params.env_marginal_int = marginal_int;
 	//printf("\nmarginal distribution integral is %f", marginal_int);
 
-
+	printf("\n");
 	//divide cdf values with total marginal func integral
 	marginal_cdf_p = marginal_cdf;
 
 	if (marginal_int > .0f) {
 		for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
 			*marginal_cdf_p /= max(.000001f, marginal_int);
-			printf("\n%f", *marginal_cdf_p);
+			//printf("\n%d	%f", y, *marginal_cdf_p);
 		}
 	}
 	*marginal_cdf_p = 1.0f;
@@ -622,13 +621,13 @@ static bool create_cdf(
 
 	// Send Marginal 1D distribution func data
 
-	check_success(cudaMallocArray(env_marginal_func_data, &channel_desc, 1, res) == cudaSuccess);
-	check_success(cudaMemcpyToArray(*env_marginal_func_data, 0, 0, marginal_func, 1 * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMallocArray(env_marginal_func_data, &channel_desc, res, 0) == cudaSuccess);
+	check_success(cudaMemcpyToArray(*env_marginal_func_data, 0, 0, marginal_func, res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
 
 	cudaResourceDesc res_desc_marginal_func;
 	memset(&res_desc_marginal_func, 0, sizeof(res_desc_marginal_func));
 	res_desc_marginal_func.resType = cudaResourceTypeArray;
-	res_desc_marginal_func.res.array.array = *env_cdf_data;
+	res_desc_marginal_func.res.array.array = *env_marginal_func_data;
 
 	cudaTextureDesc tex_desc_marginal_func;
 	memset(&tex_desc_marginal_func, 0, sizeof(tex_desc_marginal_func));
@@ -644,19 +643,18 @@ static bool create_cdf(
 
 	// Send Marginal 1D distribution cdf data
 
-	check_success(cudaMallocArray(env_marginal_cdf_data, &channel_desc, 1, res) == cudaSuccess);
-	check_success(cudaMemcpyToArray(*env_marginal_cdf_data, 0, 0, marginal_cdf, 1 * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMallocArray(env_marginal_cdf_data, &channel_desc, res, 0) == cudaSuccess);
+	check_success(cudaMemcpyToArray(*env_marginal_cdf_data, 0, 0, marginal_cdf,  res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
 
 	cudaResourceDesc res_desc_marginal_cdf;
 	memset(&res_desc_marginal_cdf, 0, sizeof(res_desc_marginal_cdf));
 	res_desc_marginal_cdf.resType = cudaResourceTypeArray;
-	res_desc_marginal_cdf.res.array.array = *env_cdf_data;
+	res_desc_marginal_cdf.res.array.array = *env_marginal_cdf_data;
 
 	cudaTextureDesc tex_desc_marginal_cdf;
 	memset(&tex_desc_marginal_cdf, 0, sizeof(tex_desc_marginal_cdf));
 	tex_desc_marginal_cdf.addressMode[0] = cudaAddressModeWrap;
-	tex_desc_marginal_cdf.addressMode[1] = cudaAddressModeClamp;
-	tex_desc_marginal_cdf.addressMode[2] = cudaAddressModeWrap;
+	tex_desc_marginal_cdf.addressMode[1] = cudaAddressModeWrap;
 	tex_desc_marginal_cdf.filterMode = cudaFilterModePoint;
 	tex_desc_marginal_cdf.readMode = cudaReadModeElementType;
 	tex_desc_marginal_cdf.normalizedCoords = 0;
@@ -904,8 +902,8 @@ int main(const int argc, const char* argv[])
 	kernel_params.density_mult = 1.0f;
 	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.azimuth = 10;
-	kernel_params.elevation = 89;
+	kernel_params.azimuth = 120;
+	kernel_params.elevation = 30;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
 	kernel_params.env_sample_tex_res = 360;

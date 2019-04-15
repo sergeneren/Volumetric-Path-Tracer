@@ -168,16 +168,16 @@ __device__ inline float3 degree_to_cartesian(
 }
 
 __device__ inline float tex_lookup_1d(
-	cudaTextureObject_t tex, 
-	float v) 
+	cudaTextureObject_t tex,
+	float v)
 {
-	const float texval = tex1D<float>( tex, v);
+	const float texval = tex1D<float>(tex, v);
 
 	return texval;
 }
 
 __device__ inline float tex_lookup_2d(
-	cudaTextureObject_t tex, 
+	cudaTextureObject_t tex,
 	float u,
 	float v) {
 
@@ -194,17 +194,17 @@ __device__ inline float draw_sample_from_distribution(
 
 	float xi = rand(&rand_state);
 	float zeta = rand(&rand_state);
-	
+
 	float pdf = 1.0f;
 	int v = 0;
 	int res = kernel_params.env_sample_tex_res;
-	
+
 	// Find marginal row number
 
 	// Find interval
-	
+
 	int first = 0, len = res;
-	/*
+	
 	while (len > 0) {
 
 		int half = len >> 1 , middle = first+half;
@@ -217,25 +217,19 @@ __device__ inline float draw_sample_from_distribution(
 
 	}
 	v = clamp(first - 1, 0, res - 2);
-	*/
 
-	for (int i = 0; i < res; i++) {
-		v = i;
-		if (tex_lookup_1d(kernel_params.env_marginal_cdf_tex, float(i)+0.5) >= xi) break;
+	if(kernel_params.debug) printf("\n%d", v);
 
-	}
-
-	if(kernel_params.debug) printf("\n%f", xi);
 	float dv = xi - tex_lookup_1d(kernel_params.env_marginal_cdf_tex, v);
 	float d_cdf_marginal = tex_lookup_1d(kernel_params.env_marginal_cdf_tex, v + 1) - tex_lookup_1d(kernel_params.env_marginal_cdf_tex, v);
 	if (d_cdf_marginal > .0f) dv /= d_cdf_marginal;
 
 	// Calculate marginal pdf
 	float marginal_pdf = tex_lookup_1d(kernel_params.env_marginal_func_tex, v + dv) / kernel_params.env_marginal_int;
-	
+
 	// calculate Φ (elevation)
 	float phi = ((float(v) + dv) / float(res)) * M_PI;
-	
+
 	// v is now our row number. find the conditional value and pdf from v
 
 	int u;
@@ -244,7 +238,7 @@ __device__ inline float draw_sample_from_distribution(
 
 		int half = len >> 1, middle = first + half;
 
-		if (tex_lookup_2d(kernel_params.env_cdf_tex, middle,v) <= xi) {
+		if (tex_lookup_2d(kernel_params.env_cdf_tex, middle, v) <= xi) {
 			first = middle + 1;
 			len -= half + 1;
 		}
@@ -253,13 +247,13 @@ __device__ inline float draw_sample_from_distribution(
 	}
 	u = clamp(first - 1, 0, res - 2);
 
-	float du = zeta - tex_lookup_2d(kernel_params.env_cdf_tex, u , v);
+	float du = zeta - tex_lookup_2d(kernel_params.env_cdf_tex, u, v);
 	float d_cdf_conditional = tex_lookup_2d(kernel_params.env_cdf_tex, u + 1, v) - tex_lookup_2d(kernel_params.env_cdf_tex, u, v);
 	if (d_cdf_conditional > 0) du /= d_cdf_conditional;
 
 	//Calculate conditional pdf
 	float conditional_pdf = tex_lookup_2d(kernel_params.env_func_tex, u + du, v) / tex_lookup_1d(kernel_params.env_marginal_func_tex, v);
-	
+
 	// Find the θ (azimuth)
 	float theta = ((float(u) + du) / float(res)) * M_PI * 2.0f;
 
@@ -268,10 +262,10 @@ __device__ inline float draw_sample_from_distribution(
 	float sin_phi = sinf(phi);
 	float cos_phi = cosf(phi);
 
-	wo = normalize(make_float3(sin_theta * cos_phi,  sin_theta * sin_phi, cos_theta));
+	wo = normalize(make_float3(sin_theta * cos_phi, sin_theta * sin_phi, cos_theta));
 	pdf = (marginal_pdf * conditional_pdf) / (2 * M_PI * M_PI * sin_theta);
-	
-	
+
+
 	return pdf;
 }
 
@@ -576,9 +570,9 @@ __device__ inline float3 estimate_sky(
 	VDBInfo &gvdb)
 {
 	float3 Ld = BLACK;
-	
+
 	for (int i = 0; i < 1; i++) {
-		
+
 		float3 Li = BLACK;
 		float3 wi;
 
@@ -588,8 +582,8 @@ __device__ inline float3 estimate_sky(
 		float el = rand(&randstate) * 180.0f;
 
 		// Sample light source with multiple importance sampling 
-		
-		light_pdf = draw_sample_from_distribution(kernel_params,randstate,wi);
+
+		light_pdf = draw_sample_from_distribution(kernel_params, randstate, wi);
 		Li = sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
 
 		if (light_pdf > .0f && !isBlack(Li)) {
@@ -610,15 +604,15 @@ __device__ inline float3 estimate_sky(
 			}
 
 		}
-		
-		
+
+
 		// Sample BSDF with multiple importance sampling 
 		wi = ray_dir;
 		phase_pdf = sample_hg(wi, randstate, kernel_params.phase_g1);
 		float3 f = make_float3(phase_pdf);
 		if (phase_pdf > .0f) {
 			Li = BLACK;
-			float weight = 1.0f; 
+			float weight = 1.0f;
 			light_pdf = pdf_li(kernel_params, wi);
 			if (light_pdf == 0.0f) return Ld;
 			weight = power_heuristic(1, phase_pdf, 1, light_pdf);
@@ -628,9 +622,9 @@ __device__ inline float3 estimate_sky(
 			Li = sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
 
 			if (!isBlack(Li))
-				Ld +=  Li * tr * weight ;
+				Ld += Li * tr * weight;
 		}
-		
+
 
 	}
 
@@ -654,14 +648,14 @@ __device__ inline float3 estimate_sun(
 
 	//Find sun direction 
 	wi = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
-	
+
 	// find scattering pdf
 	float cos_theta = dot(ray_dir, wi);
 	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 
 	// Check visibility of light source 
 	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
-	
+
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
 	Ld = kernel_params.sun_color * tr  * phase_pdf;
 
@@ -743,7 +737,7 @@ __device__ inline float3 vol_integrator(
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	bool mi;
 
-	
+
 	if (!kernel_params.render) {
 
 		L += sample_atmosphere(kernel_params, ray_pos, ray_dir, WHITE*20.0f);
@@ -760,11 +754,11 @@ __device__ inline float3 vol_integrator(
 			mi = false;
 
 			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb);
-			if(isBlack(beta)) break;
+			if (isBlack(beta)) break;
 
 			if (mi) { // medium interaction 
 
-				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gvdb) ;
+				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gvdb);
 				sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2);
 
 			}
