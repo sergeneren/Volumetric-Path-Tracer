@@ -800,6 +800,17 @@ static void update_camera(
 	cam->moveRelative(float(mx) * dist / 1000, float(my) * dist / 1000, 0);
 }
 
+static void update_debug_buffer(
+	float3 **debug_buffer_cuda,
+	Kernel_params kernel_params)
+{
+
+	if(*debug_buffer_cuda)	check_success(cudaFree(*debug_buffer_cuda) == cudaSuccess);
+	check_success(cudaMalloc(debug_buffer_cuda, 9000 * sizeof(float3)) == cudaSuccess);
+	
+
+}
+
 
 int main(const int argc, const char* argv[])
 {
@@ -835,6 +846,7 @@ int main(const int argc, const char* argv[])
 
 	float3 *accum_buffer = NULL;
 	cudaGraphicsResource_t display_buffer_cuda = NULL;
+	float3 *debug_buffer = NULL;
 
 	// SETUP IMGUI PARAMETERS
 	const char* glsl_version = "#version 330";
@@ -868,7 +880,7 @@ int main(const int argc, const char* argv[])
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
-	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(200, 100, 0), 100, 1.0);
+	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(199, 102, 219), 2000, 1.0);
 	gvdb.getScene()->SetCamera(cam);
 
 	printf("Loading module: render_kernel.ptx\n");
@@ -890,12 +902,12 @@ int main(const int argc, const char* argv[])
 	memset(&kernel_params, 0, sizeof(Kernel_params));
 	kernel_params.render = true;
 	kernel_params.iteration = 0;
-	kernel_params.max_interactions = 1;
+	kernel_params.max_interactions = 100;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
 	kernel_params.max_extinction = 1.0f;
-	kernel_params.ray_depth = 1;
-	kernel_params.phase_g1 = 0.0f;
+	kernel_params.ray_depth = 10;
+	kernel_params.phase_g1 = 0.9f;
 	kernel_params.phase_g2 = 0.0f;
 	kernel_params.phase_f = 1.0f;
 	kernel_params.tr_depth = 1.0f;
@@ -907,6 +919,9 @@ int main(const int argc, const char* argv[])
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
 	kernel_params.env_sample_tex_res = 360;
+
+	update_debug_buffer(&debug_buffer, kernel_params);
+	kernel_params.debug_buffer = debug_buffer;
 
 	//kernel parameters env data
 	cudaArray_t env_tex_data = 0;
@@ -920,7 +935,7 @@ int main(const int argc, const char* argv[])
 
 	int max_interaction = 1;
 	float max_extinction = 0.1f;
-	int ray_depth = 1;
+	int ray_depth = 90;
 	ImVec4 light_pos = ImVec4(0.0f, 1000.0f, 0.0f, 1.00f);
 	ImVec4 light_energy = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
 	float azimuth = 120.0f;
@@ -1019,6 +1034,9 @@ int main(const int argc, const char* argv[])
 		// Restart rendering if there is a change 
 		if (ctx->change || max_interaction != kernel_params.max_interactions || ray_depth != kernel_params.ray_depth) {
 
+			update_debug_buffer(&debug_buffer, kernel_params);
+			kernel_params.debug_buffer = debug_buffer;
+
 			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			kernel_params.iteration = 0;
 			ctx->change = false;
@@ -1040,11 +1058,9 @@ int main(const int argc, const char* argv[])
 		{
 			width = nwidth;
 			height = nheight;
-
 			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			resize_buffers(&accum_buffer, &display_buffer_cuda, width, height, display_buffer);
 			kernel_params.accum_buffer = accum_buffer;
-
 			glViewport(0, 0, width, height);
 
 			kernel_params.resolution.x = width;
@@ -1122,7 +1138,37 @@ int main(const int argc, const char* argv[])
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		glfwSwapBuffers(window);
+
+		break;
 	}
+
+	//Copy debug buffer and print
+
+	printf("ray_depth:%d\n", ray_depth);
+	float3 *c = new float3[9000];
+	memset(c, 0x0, sizeof(float3) * 9000);
+
+	check_success( cudaMemcpy(c, debug_buffer, sizeof(float3)*9000, cudaMemcpyDeviceToHost)== cudaSuccess);
+
+	
+
+	for (int y = 0; y < 100; y++) {
+		char frame_string[100];
+		sprintf(frame_string, "%d", y+1);
+		char file_name[100] = "C:/Users/Admin/Desktop/PT_Plot/ray_pos/ray_pos_";
+		strcat(file_name, frame_string);
+		strcat(file_name, ".txt");
+		std::ofstream ray_pos(file_name, std::ios::out);
+
+		for (int x = 0; x < 90; x++) {
+			
+			int idx = y * 90 + x; 
+			ray_pos << c[idx].x << "	" << c[idx].y << "	" << c[idx].z << "\n";
+		
+		}
+	}
+
+	
 
 	//Cleanup imgui
 	ImGui_ImplOpenGL3_Shutdown();
@@ -1135,7 +1181,7 @@ int main(const int argc, const char* argv[])
 		check_success(cudaFreeArray(env_tex_data) == cudaSuccess);
 	}
 	check_success(cudaFree(accum_buffer) == cudaSuccess);
-
+	check_success(cudaFree(debug_buffer) == cudaSuccess);
 	// Cleanup OpenGL.
 	glDeleteVertexArrays(1, &quad_vao);
 	glDeleteBuffers(1, &quad_vertex_buffer);

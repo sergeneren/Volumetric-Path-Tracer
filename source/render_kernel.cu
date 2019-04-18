@@ -218,7 +218,7 @@ __device__ inline float draw_sample_from_distribution(
 	}
 	v = clamp(first - 1, 0, res - 2);
 
-	if(kernel_params.debug) printf("\n%d", v);
+	
 
 	float dv = xi - tex_lookup_1d(kernel_params.env_marginal_cdf_tex, v);
 	float d_cdf_marginal = tex_lookup_1d(kernel_params.env_marginal_cdf_tex, v + 1) - tex_lookup_1d(kernel_params.env_marginal_cdf_tex, v);
@@ -228,7 +228,7 @@ __device__ inline float draw_sample_from_distribution(
 	float marginal_pdf = tex_lookup_1d(kernel_params.env_marginal_func_tex, v + dv) / kernel_params.env_marginal_int;
 
 	// calculate Φ (elevation)
-	float phi = ((float(v) + dv) / float(res)) * M_PI;
+	float theta = ((float(v) + dv) / float(res)) * M_PI;
 
 	// v is now our row number. find the conditional value and pdf from v
 
@@ -238,7 +238,7 @@ __device__ inline float draw_sample_from_distribution(
 
 		int half = len >> 1, middle = first + half;
 
-		if (tex_lookup_2d(kernel_params.env_cdf_tex, middle, v) <= xi) {
+		if (tex_lookup_2d(kernel_params.env_cdf_tex, middle, v) <= zeta) {
 			first = middle + 1;
 			len -= half + 1;
 		}
@@ -248,6 +248,7 @@ __device__ inline float draw_sample_from_distribution(
 	u = clamp(first - 1, 0, res - 2);
 
 	float du = zeta - tex_lookup_2d(kernel_params.env_cdf_tex, u, v);
+	
 	float d_cdf_conditional = tex_lookup_2d(kernel_params.env_cdf_tex, u + 1, v) - tex_lookup_2d(kernel_params.env_cdf_tex, u, v);
 	if (d_cdf_conditional > 0) du /= d_cdf_conditional;
 
@@ -255,17 +256,22 @@ __device__ inline float draw_sample_from_distribution(
 	float conditional_pdf = tex_lookup_2d(kernel_params.env_func_tex, u + du, v) / tex_lookup_1d(kernel_params.env_marginal_func_tex, v);
 
 	// Find the θ (azimuth)
-	float theta = ((float(u) + du) / float(res)) * M_PI * 2.0f;
+	float phi = ((float(u) + du) / float(res)) * M_PI * 2.0f;
+
+	
 
 	float cos_theta = cosf(theta);
 	float sin_theta = sinf(theta);
 	float sin_phi = sinf(phi);
 	float cos_phi = cosf(phi);
 
+	 float3 sundir = normalize(make_float3(sinf(kernel_params.azimuth) * cosf(kernel_params.elevation),
+		sinf(kernel_params.azimuth) * sinf(kernel_params.elevation), cosf(kernel_params.azimuth)));
+
 	wo = normalize(make_float3(sin_theta * cos_phi, sin_theta * sin_phi, cos_theta));
 	pdf = (marginal_pdf * conditional_pdf) / (2 * M_PI * M_PI * sin_theta);
-
-
+	if (kernel_params.debug) printf("\n%f	%f	%f	%d	%d", ((float(u) + du) / float(res)), ((float(v) + dv) / float(res)), pdf, u ,v);
+	//if (kernel_params.debug) printf("\n%f	%f	%f	%f", wo.x, wo.y,wo.z, dot(wo, sundir));
 	return pdf;
 }
 
@@ -521,6 +527,7 @@ __device__ inline float get_density(
 	}
 
 	return density;
+	
 }
 
 __device__ inline float3 Tr(
@@ -673,9 +680,9 @@ __device__ inline float3 uniform_sample_one_light(
 	Rand_state &randstate,
 	VDBInfo &gvdb)
 {
-	// Only sample sun light for now
+
 	int nLights = 2; // number of lights
-	bool light_num = rand(&randstate) < 0.5f; // prob of 1 of choosing sun light
+	bool light_num = rand(&randstate) < 0.5f; 
 
 	float3 L = BLACK;
 
@@ -729,7 +736,8 @@ __device__ inline float3 vol_integrator(
 	float3 ray_pos,
 	float3 ray_dir,
 	const Kernel_params kernel_params,
-	VDBInfo gvdb)
+	VDBInfo gvdb, 
+	int x,int y)
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
@@ -738,35 +746,30 @@ __device__ inline float3 vol_integrator(
 	bool mi;
 
 
-	if (!kernel_params.render) {
-
-		L += sample_atmosphere(kernel_params, ray_pos, ray_dir, WHITE*20.0f);
-		return L;
-
-	}
-
-
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
 
 
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
+			kernel_params.debug_buffer[((x - 600) * 10 + (y - 700)) * 90 + (depth - 1)] = ray_pos;
 
 			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb);
 			if (isBlack(beta)) break;
 
+			
 			if (mi) { // medium interaction 
-
+				
 				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gvdb);
 				sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2);
-
+				
 			}
-
+						
+			L = RED;
 
 		}
 
-
+		
 	}
 
 
@@ -793,10 +796,9 @@ __device__ inline float3 vol_integrator(
 		}
 	}
 	*/
-
-
+	
 	return L;
-
+	
 }
 
 
@@ -811,6 +813,9 @@ extern "C" __global__ void volume_rt_kernel(
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x >= kernel_params.resolution.x || y >= kernel_params.resolution.y)
 		return;
+	bool debug = false;
+
+	if (x == 600 && y == 700) debug = true;
 
 	// Initialize pseudorandom number generator (PRNG); assume we need no more than 4096 random numbers.
 	const unsigned int idx = y * scn.width + x;
@@ -819,16 +824,20 @@ extern "C" __global__ void volume_rt_kernel(
 
 	float3 ray_dir = normalize(getViewRay((float(scn.width - x) + .5f) / scn.width, (float(scn.height - y) + .5f) / scn.height));
 
-	float3 value = BLACK;
-
-	value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
-
+	float3 value = WHITE;
+	
+	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
+	{
+		if (x >= 600 && x < 610 && y>= 700 && y<710) value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb,x ,y);
+	}
+	
 	// Accumulate.
 	if (kernel_params.iteration == 0)
 		kernel_params.accum_buffer[idx] = value;
-	else
+	else if(kernel_params.iteration < kernel_params.max_interactions){
 		kernel_params.accum_buffer[idx] = kernel_params.accum_buffer[idx] +
 		(value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
+	}
 
 	// Update display buffer (simple Reinhard tonemapper + gamma).
 

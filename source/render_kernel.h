@@ -48,6 +48,11 @@ struct Kernel_params {
 	cudaTextureObject_t env_marginal_func_tex;
 	cudaTextureObject_t env_marginal_cdf_tex;
 	float env_marginal_int;
+
+	// Debug parameters
+
+	float3 *debug_buffer;
+	
 };
  
 extern "C" __global__ void volume_rt_kernel(const VDBInfo gvdb, const Kernel_params kernel_params);
