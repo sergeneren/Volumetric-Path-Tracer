@@ -385,8 +385,6 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			cam->setFov(fov);
 			ctx->change = true;
 			break;
-		case GLFW_KEY_SPACE:
-			++ctx->config_type;
 		case GLFW_KEY_S:
 			ctx->save_image = true;
 		default:
