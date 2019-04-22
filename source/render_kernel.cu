@@ -326,6 +326,19 @@ __device__ inline float double_henyey_greenstein(
 
 //Phase function direction samplers
 
+__device__ inline float sample_spherical(
+	Rand_state rand_state,
+	float3 &wi) 
+{
+	float phi = (float)(2.0f * M_PI) * rand(&rand_state);
+	float cos_theta = 1.0f - 2.0f * rand(&rand_state);
+	float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
+
+	wi = make_float3(cosf(phi) * sin_theta,	sinf(phi) * sin_theta,	cos_theta);
+
+	return isotropic();
+}
+
 __device__ inline float sample_hg(
 	float3 &wo,
 	Rand_state &randstate,
@@ -615,9 +628,8 @@ __device__ inline float3 estimate_sky(
 			Li = sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
 		}
 		else {
-			light_pdf = isotropic();
-			sample_hg(wi, randstate, .0f);
-			Li = sample_env_tex(kernel_params,wi);
+			light_pdf = sample_spherical(randstate, wi);
+			Li = sample_env_tex(kernel_params, wi);
 		}
 
 		if (light_pdf > .0f && !isBlack(Li)) {

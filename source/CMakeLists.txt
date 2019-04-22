@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8.0 FATAL_ERROR)
-project(GVDB_PT LANGUAGES CXX CUDA)
+project(VPT LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 REQUIRED)
@@ -14,17 +14,17 @@ include(${GVDB_DIR}/sample_utils/Helpers.cmake)
 
 ## Set output directories
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/GVDB_PT/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/GVDB_PT/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/GVDB_PT/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/bin)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/GVDB_PT/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/GVDB_PT/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/GVDB_PT/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/vpt/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/vpt/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/vpt/bin)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/GVDB_PT/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/GVDB_PT/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/GVDB_PT/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/bin)
 
 ##################################################################
 
@@ -69,7 +69,7 @@ set(SOURCE_FILES
 source_group(Cuda FILES ${CUDA_SOURCES})
 source_group(Imgui FILES ${IMGUI})
 
-add_executable(gvdb_pt ${SOURCE_FILES})
+add_executable(vpt ${SOURCE_FILES})
 
 ## Add custom build command for cuda files 
 
@@ -87,10 +87,10 @@ message(STATUS "libgvdb path: " ${LIB_GVDB})
 
 ###################################################################
 
-target_link_libraries(gvdb_pt PRIVATE glfw imgui::imgui ${LIB_GVDB} cudart cuda )
+target_link_libraries(vpt PRIVATE glfw imgui::imgui ${LIB_GVDB} cudart cuda )
 
-target_include_directories(gvdb_pt PRIVATE "${GVDB_DIR}/include")
-target_include_directories(gvdb_pt PRIVATE "${GVDB_DIR}/sample_utils")
+target_include_directories(vpt PRIVATE "${GVDB_DIR}/include")
+target_include_directories(vpt PRIVATE "${GVDB_DIR}/sample_utils")
 
 ## Set dlls to be installed to executable directory after build 
 
@@ -99,6 +99,6 @@ set(INSTALL_LIST
 	${DLLS}
 	${LIBS})
 
-add_custom_command(TARGET gvdb_pt POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy  ${INSTALL_LIST} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
+add_custom_command(TARGET vpt POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy  ${INSTALL_LIST} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
 
 ###################################################################
