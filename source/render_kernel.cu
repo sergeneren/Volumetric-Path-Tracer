@@ -71,7 +71,6 @@ __device__ inline void coordinate_system(
 	float3 &v2,
 	float3 &v3)
 {
-	//Hughes-Moeller orthonormal basis 
 	if (fabsf(v1.x) > fabsf(v1.y))	v2 = make_float3(-v1.z, 0.0f, v1.x);
 	else							v2 = make_float3(0.0f, v1.z, -v1.y);
 	v2 = normalize(v2);
@@ -332,10 +331,10 @@ __device__ inline float sample_hg(
 	Rand_state &randstate,
 	float g)
 {
-	wo *= -1.0f;
+
 	float cos_theta;
 
-	if (fabsf(g) < 0.001f) cos_theta = 1 - 2 * rand(&randstate);
+	if (fabsf(g) < EPS) cos_theta = 1 - 2 * rand(&randstate);
 	else {
 		float sqr_term = (1 - g * g) / (1 - g + 2 * g * rand(&randstate));
 		cos_theta = (1 + g * g - sqr_term * sqr_term) / (2 * g);
@@ -343,8 +342,8 @@ __device__ inline float sample_hg(
 	float sin_theta = sqrtf(fmaxf(.0f, 1.0f - cos_theta * cos_theta));
 	float phi = (float)(2.0 * M_PI) * rand(&randstate);
 	float3 v1, v2;
-	coordinate_system(wo, v1, v2);
-	wo = spherical_direction(sin_theta, cos_theta, phi, v1, v2, wo * -1.0f);
+	coordinate_system(wo * -1.0f, v1, v2);
+	wo = spherical_direction(sin_theta, cos_theta, phi, v1, v2, wo );
 	return henyey_greenstein(-cos_theta, g);
 }
 
@@ -545,6 +544,9 @@ __device__ inline float3 Tr(
 	float t = 0.0f;
 	float inv_max_density = 1 / kernel_params.max_extinction;
 
+	//int k = 1;
+	//kernel_params.debug_buffer[0] = WHITE;
+
 	while (true) {
 		if (tr.x < 0.0000001) break;
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth;
@@ -552,12 +554,16 @@ __device__ inline float3 Tr(
 		if (!in_volume_bbox(gvdb, p)) break;
 		float density = get_density(kernel_params, &gvdb, p);
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		//kernel_params.debug_buffer[k] = tr;
+		//k++;
 	}
 	return tr;
 }
 
 
-__device__ inline float pdf_li(Kernel_params kernel_params, float3 wi)
+__device__ inline float pdf_li(
+	Kernel_params kernel_params, 
+	float3 wi)
 {
 	float theta = acosf(clamp(wi.y, -1.0f, 1.0f));
 	float phi = atan2f(wi.z, wi.x);
@@ -661,7 +667,7 @@ __device__ inline float3 estimate_sun(
 	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 
 	// Check visibility of light source 
-	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
+	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb );
 
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
 	Ld = kernel_params.sun_color * tr  * phase_pdf;
@@ -682,7 +688,8 @@ __device__ inline float3 uniform_sample_one_light(
 {
 
 	int nLights = 2; // number of lights
-	bool light_num = rand(&randstate) < 0.5f; 
+	bool light_num = rand(&randstate) < .5f; 
+	//bool light_num = 0; 
 
 	float3 L = BLACK;
 
@@ -712,6 +719,7 @@ __device__ inline float3 sample(
 
 	float t = 0.0f;
 	float inv_max_density = 1.0f / kernel_params.max_extinction;
+	float inv_density_mult = 1.0f / kernel_params.density_mult;
 
 	while (true) {
 
@@ -745,15 +753,15 @@ __device__ inline float3 vol_integrator(
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	bool mi;
 
+	x = x - 600;
+	y = y - 700;
 
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
 
-
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
-			kernel_params.debug_buffer[((x - 600) * 10 + (y - 700)) * 90 + (depth - 1)] = ray_pos;
-
+			
 			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb);
 			if (isBlack(beta)) break;
 
@@ -761,11 +769,10 @@ __device__ inline float3 vol_integrator(
 			if (mi) { // medium interaction 
 				
 				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gvdb);
-				sample_double_hg(ray_dir, rand_state, kernel_params.phase_f, kernel_params.phase_g1, kernel_params.phase_g2);
-				
+				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
-						
-			L = RED;
+
+			
 
 		}
 
@@ -813,9 +820,7 @@ extern "C" __global__ void volume_rt_kernel(
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x >= kernel_params.resolution.x || y >= kernel_params.resolution.y)
 		return;
-	bool debug = false;
 
-	if (x == 600 && y == 700) debug = true;
 
 	// Initialize pseudorandom number generator (PRNG); assume we need no more than 4096 random numbers.
 	const unsigned int idx = y * scn.width + x;
@@ -828,9 +833,11 @@ extern "C" __global__ void volume_rt_kernel(
 	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		if (x >= 600 && x < 610 && y>= 700 && y<710) value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb,x ,y);
+		//if (x == 600 && y==700) value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb,x ,y);
+		value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb, x, y);
+		
 	}
-	
+
 	// Accumulate.
 	if (kernel_params.iteration == 0)
 		kernel_params.accum_buffer[idx] = value;

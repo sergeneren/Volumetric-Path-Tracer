@@ -644,7 +644,7 @@ static bool create_cdf(
 	// Send Marginal 1D distribution cdf data
 
 	check_success(cudaMallocArray(env_marginal_cdf_data, &channel_desc, res, 0) == cudaSuccess);
-	check_success(cudaMemcpyToArray(*env_marginal_cdf_data, 0, 0, marginal_cdf,  res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMemcpyToArray(*env_marginal_cdf_data, 0, 0, marginal_cdf, res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
 
 	cudaResourceDesc res_desc_marginal_cdf;
 	memset(&res_desc_marginal_cdf, 0, sizeof(res_desc_marginal_cdf));
@@ -805,9 +805,9 @@ static void update_debug_buffer(
 	Kernel_params kernel_params)
 {
 
-	if(*debug_buffer_cuda)	check_success(cudaFree(*debug_buffer_cuda) == cudaSuccess);
-	check_success(cudaMalloc(debug_buffer_cuda, 9000 * sizeof(float3)) == cudaSuccess);
-	
+	if (*debug_buffer_cuda)	check_success(cudaFree(*debug_buffer_cuda) == cudaSuccess);
+	check_success(cudaMalloc(debug_buffer_cuda, 1000 * sizeof(float3)) == cudaSuccess);
+
 
 }
 
@@ -906,15 +906,15 @@ int main(const int argc, const char* argv[])
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
 	kernel_params.max_extinction = 1.0f;
-	kernel_params.ray_depth = 10;
-	kernel_params.phase_g1 = 0.9f;
+	kernel_params.ray_depth = 1;
+	kernel_params.phase_g1 = 0.0f;
 	kernel_params.phase_g2 = 0.0f;
 	kernel_params.phase_f = 1.0f;
 	kernel_params.tr_depth = 1.0f;
 	kernel_params.density_mult = 1.0f;
 	kernel_params.albedo = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.azimuth = 120;
+	kernel_params.azimuth = 150;
 	kernel_params.elevation = 30;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
@@ -933,12 +933,12 @@ int main(const int argc, const char* argv[])
 
 	// Imgui Parameters
 
-	int max_interaction = 1;
+	int max_interaction = 100;
 	float max_extinction = 0.1f;
-	int ray_depth = 90;
+	int ray_depth = 1;
 	ImVec4 light_pos = ImVec4(0.0f, 1000.0f, 0.0f, 1.00f);
 	ImVec4 light_energy = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
-	float azimuth = 120.0f;
+	float azimuth = 150.0f;
 	float elevation = 30.0f;
 
 	bool render = true;
@@ -1138,37 +1138,30 @@ int main(const int argc, const char* argv[])
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		glfwSwapBuffers(window);
-
-		break;
+		//break;
 	}
 
 	//Copy debug buffer and print
 
+#ifdef 0
+
 	printf("ray_depth:%d\n", ray_depth);
-	float3 *c = new float3[9000];
-	memset(c, 0x0, sizeof(float3) * 9000);
+	float3 *c = new float3[1000];
+	memset(c, 0x0, sizeof(float3) * 1000);
 
-	check_success( cudaMemcpy(c, debug_buffer, sizeof(float3)*9000, cudaMemcpyDeviceToHost)== cudaSuccess);
+	check_success(cudaMemcpy(c, debug_buffer, sizeof(float3) * 1000, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-	
 
-	for (int y = 0; y < 100; y++) {
-		char frame_string[100];
-		sprintf(frame_string, "%d", y+1);
-		char file_name[100] = "C:/Users/Admin/Desktop/PT_Plot/ray_pos/ray_pos_";
-		strcat(file_name, frame_string);
-		strcat(file_name, ".txt");
-		std::ofstream ray_pos(file_name, std::ios::out);
+	std::ofstream ray_pos("C:/Users/Admin/Desktop/PT_Plot/Ray_tr.txt", std::ios::out);
+	for (int y = 0; y < 1000; y++) {
 
-		for (int x = 0; x < 90; x++) {
-			
-			int idx = y * 90 + x; 
-			ray_pos << c[idx].x << "	" << c[idx].y << "	" << c[idx].z << "\n";
-		
-		}
+		if (c[y].x == .0f) continue;
+		ray_pos << y+1 << "	" << c[y].x <<"\n";
+
+
 	}
 
-	
+#endif
 
 	//Cleanup imgui
 	ImGui_ImplOpenGL3_Shutdown();
