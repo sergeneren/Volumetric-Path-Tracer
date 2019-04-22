@@ -33,7 +33,7 @@ VPT expects [vcpkg](https://github.com/Microsoft/vcpkg), Visual Studio 2017 and 
 
 * Generate and open the VS file. Build VPT with "Release" configuration. This will create a "VPT" folder under build directory and vpt.exe and necessary binaries will be placed here. 
  
-** note: ** Currently only windows GVDB libraries (VS 2017, VC 14) are distributed with the repo. If you wish to use the repo under Linux or Mac please see [GVDB](https://github.com/NVIDIA/gvdb-voxels) and compile the necessary binaries to be used with the renderer.
+**note:** Currently only windows GVDB libraries (VS 2017, VC 14) are distributed with the repo. If you wish to use the repo under Linux or Mac please see [GVDB](https://github.com/NVIDIA/gvdb-voxels) and compile the necessary binaries to be used with the renderer.
 
 ### Usage 
 
