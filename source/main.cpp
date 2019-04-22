@@ -198,6 +198,9 @@ static void init_gvdb()
 		fprintf(stderr, "Could not determine CUDA device for GVDB context\n.");
 		exit(EXIT_FAILURE);
 	}
+	cudaDeviceProp prop;
+	cudaGetDeviceProperties(&prop, cuda_devices[0]);
+	printf("\nMax 3d texture dimensions x:%d y:%d z:%d\n", prop.maxTexture3D[0], prop.maxTexture3D[1], prop.maxTexture3D[2]);
 	gvdb.SetCudaDevice(cuda_devices[0]);
 	gvdb.Initialize();
 
@@ -814,6 +817,7 @@ static void update_debug_buffer(
 
 int main(const int argc, const char* argv[])
 {
+
 	Window_context window_context;
 	memset(&window_context, 0, sizeof(Window_context));
 
@@ -1143,7 +1147,7 @@ int main(const int argc, const char* argv[])
 
 	//Copy debug buffer and print
 
-#ifdef 0
+#if 0
 
 	printf("ray_depth:%d\n", ray_depth);
 	float3 *c = new float3[1000];
