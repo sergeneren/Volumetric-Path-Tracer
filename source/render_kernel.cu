@@ -328,13 +328,13 @@ __device__ inline float double_henyey_greenstein(
 
 __device__ inline float sample_spherical(
 	Rand_state rand_state,
-	float3 &wi) 
+	float3 &wi)
 {
 	float phi = (float)(2.0f * M_PI) * rand(&rand_state);
 	float cos_theta = 1.0f - 2.0f * rand(&rand_state);
 	float sin_theta = sqrtf(1.0f - cos_theta * cos_theta);
 
-	wi = make_float3(cosf(phi) * sin_theta,	sinf(phi) * sin_theta,	cos_theta);
+	wi = make_float3(cosf(phi) * sin_theta, sinf(phi) * sin_theta, cos_theta);
 
 	return isotropic();
 }
@@ -517,7 +517,7 @@ __device__ inline float3 sample_atmosphere(
 
 __device__ inline float3 sample_env_tex(
 	const Kernel_params kernel_params,
-	const float3 wi) 
+	const float3 wi)
 {
 
 	const float4 texval = tex2D<float4>(
@@ -576,7 +576,7 @@ __device__ inline float3 Tr(
 
 	while (true) {
 		if (tr.x < 0.0000001) break;
-		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth;
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		p += dir * t;
 		if (!in_volume_bbox(gvdb, p)) break;
 		float density = get_density(kernel_params, &gvdb, p);
@@ -651,7 +651,7 @@ __device__ inline float3 estimate_sky(
 
 		}
 
-		
+
 		// Sample BSDF with multiple importance sampling 
 		wi = ray_dir;
 		phase_pdf = sample_hg(wi, randstate, kernel_params.phase_g1);
@@ -659,12 +659,12 @@ __device__ inline float3 estimate_sky(
 		if (phase_pdf > .0f) {
 			Li = BLACK;
 			float weight = 1.0f;
-			if(kernel_params.environment_type==0)
+			if (kernel_params.environment_type == 0)
 			{
 				light_pdf = pdf_li(kernel_params, wi);
 			}
 			else light_pdf = isotropic();
-			
+
 			if (light_pdf == 0.0f) return Ld;
 			weight = power_heuristic(1, phase_pdf, 1, light_pdf);
 
@@ -675,12 +675,12 @@ __device__ inline float3 estimate_sky(
 				Li = sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
 			}
 			else Li = sample_env_tex(kernel_params, wi);
-			
+
 
 			if (!isBlack(Li))
 				Ld += Li * tr * weight;
 		}
-		
+
 
 	}
 
@@ -738,11 +738,11 @@ __device__ inline float3 uniform_sample_one_light(
 
 	if (light_num) {
 
-		L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gvdb);
+		L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gvdb) * kernel_params.sun_mult;
 	}
 	else {
 
-		L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gvdb);
+		L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gvdb) * kernel_params.sky_mult;
 	}
 
 	return L * (float)nLights;
@@ -766,14 +766,14 @@ __device__ inline float3 sample(
 
 	while (true) {
 
-		t -= logf(1 - rand(&rand_state)) * inv_max_density;
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
 		if (!in_volume_bbox(gvdb, ray_pos)) break;
-		float density = get_density(kernel_params, &gvdb, ray_pos) * kernel_params.density_mult;
+		float density = get_density(kernel_params, &gvdb, ray_pos);
 		if (density * inv_max_density > rand(&rand_state)) {
 
 			interaction = true;
-			return kernel_params.albedo;
+			return kernel_params.albedo / kernel_params.extinction;
 		}
 	}
 	return WHITE;
@@ -787,17 +787,13 @@ __device__ inline float3 vol_integrator(
 	float3 ray_pos,
 	float3 ray_dir,
 	const Kernel_params kernel_params,
-	VDBInfo gvdb,
-	int x, int y)
+	VDBInfo gvdb)
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
 	bool mi;
-
-	x = x - 600;
-	y = y - 700;
 
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
@@ -822,35 +818,63 @@ __device__ inline float3 vol_integrator(
 
 	}
 
-
-	/*
-	else {		// Lookup environment if no volume bbox intersection.
-
-
-
-		if (kernel_params.environment_type == 0) {
-			float t0, t1, tmax = FLT_MAX;
-			float3 pos = env_pos;
-			pos.y += 1000 + 6360e3f;
-
-			if (raySphereIntersect(pos, ray_dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
-			L += sample_atmosphere(kernel_params, pos, ray_dir, WHITE*20.0f, 0, tmax);
-			return L;
-		}
-		else {
-			const float4 texval = tex2D<float4>(
-				kernel_params.env_tex,
-				atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
-				acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-			return make_float3(texval.x, texval.y, texval.z);
-		}
-	}
-	*/
-
 	return L;
 
 }
 
+
+
+__device__ inline float3 direct_integrator(
+	Rand_state rand_state,
+	float3 ray_pos,
+	float3 ray_dir,
+	const Kernel_params kernel_params,
+	VDBInfo gvdb)
+{
+	float3 L = BLACK;
+	float3 beta = WHITE;
+	float3 env_pos = ray_pos;
+	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
+	bool mi;
+
+	if (t.z != NOHIT) { // found an intersection
+		ray_pos += ray_dir * t.x;
+
+		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
+			mi = false;
+
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb);
+			if (isBlack(beta)) break;
+
+
+			if (mi) { // medium interaction 
+				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
+				L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta;
+			}
+
+		}
+
+
+	}
+
+	//Sample environment
+
+	if (kernel_params.environment_type == 0) {
+
+		
+		L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
+	}
+	else {
+		const float4 texval = tex2D<float4>(
+			kernel_params.env_tex,
+			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
+			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
+		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta;
+	}
+
+	return L;
+
+}
 
 // Main cuda kernels accessor 
 
@@ -876,8 +900,7 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		//if (x == 600 && y==700) value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb,x ,y);
-		value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb, x, y);
+		value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
 
 	}
 

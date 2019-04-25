@@ -1,5 +1,5 @@
 //
-// Small interactive application running the volume path tracer
+// Small interactive application running the volumetric path tracer
 //
 
 #include "imgui.h"
@@ -31,7 +31,6 @@
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
-
 
 
 CUmodule		cuCustom;
@@ -919,7 +918,9 @@ int main(const int argc, const char* argv[])
 	kernel_params.azimuth = 150;
 	kernel_params.elevation = 30;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.sky_color = make_float3(20.0f, 20.0f, 20.0f);
+	kernel_params.sun_mult = 1.0f;
+	kernel_params.sky_color = make_float3(0.1f, 0.1f, 0.1f);
+	kernel_params.sky_mult = 1.0f;
 	kernel_params.env_sample_tex_res = 360;
 
 	update_debug_buffer(&debug_buffer, kernel_params);
@@ -936,11 +937,9 @@ int main(const int argc, const char* argv[])
 	// Imgui Parameters
 
 	int max_interaction = 100;
-	float max_extinction = 0.1f;
+	float max_extinction = 1.0f;
 	int ray_depth = 1;
-	ImVec4 light_pos = ImVec4(0.0f, 1000.0f, 0.0f, 1.00f);
-	ImVec4 light_energy = ImVec4(0.0f, 0.0f, 0.0f, 1.00f);
-	float azimuth = 150.0f;
+	float azimuth = 120.0f;
 	float elevation = 30.0f;
 
 	bool render = true;
@@ -1002,15 +1001,14 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase f", &kernel_params.phase_f, 0.0f, 1.0f);
-
 		ImGui::InputFloat("Density Multiplier", &kernel_params.density_mult);
 		ImGui::InputFloat("Depth Multiplier", &kernel_params.tr_depth);
-
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
-
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
+		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
+		ImGui::InputFloat("Sky Multiplier", &kernel_params.sky_mult, 0.0f, 100.0f);
 		ImGui::SliderFloat("Azimuth", &azimuth, 0, 360);
 		ImGui::SliderFloat("Elevation", &elevation, 0, 90);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);

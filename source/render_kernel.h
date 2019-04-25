@@ -40,6 +40,8 @@ struct Kernel_params {
 	float elevation;
 	float3 sun_color;
 	float3 sky_color;
+	float sun_mult;
+	float sky_mult;
 	cudaTextureObject_t env_tex;
 
 	int env_sample_tex_res;
