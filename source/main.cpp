@@ -201,7 +201,9 @@ static void init_gvdb()
 	cudaGetDeviceProperties(&prop, cuda_devices[0]);
 	printf("\nMax 3d texture dimensions x:%d y:%d z:%d\n", prop.maxTexture3D[0], prop.maxTexture3D[1], prop.maxTexture3D[2]);
 	gvdb.SetCudaDevice(cuda_devices[0]);
+	
 	gvdb.Initialize();
+	gvdb.SetChannelDefault(32, 32, 32);
 
 }
 
@@ -869,12 +871,13 @@ int main(const int argc, const char* argv[])
 	gvdb.AddPath(ASSET_PATH);
 
 	char scnpath[1024];
-	if (!gvdb.FindFile("wdas_cloud_eight_filled.vdb", scnpath)) {
+	if (!gvdb.FindFile("wdas_cloud_quarter_filled.vdb", scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
 	}
 	printf("Loading VDB. %s\n", scnpath);
 	gvdb.LoadVDB(scnpath);
+	
 	gvdb.SetTransform(Vector3DF(0, 0, 0), Vector3DF(1, 1, 1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
 
 	gvdb.Measure(true);
@@ -894,6 +897,9 @@ int main(const int argc, const char* argv[])
 	gvdb.PrepareRender(1200, 1024, gvdb.getScene()->getShading());
 	gvdb.PrepareVDB();
 	char *vdbinfo = gvdb.getVDBInfo();
+	
+	//gvdb.SaveVBX("wdas_cloud_quarter_filled.vbx");
+	
 
 	// END GVDB PARAMETERS
 
@@ -919,7 +925,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.elevation = 30;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sun_mult = 1.0f;
-	kernel_params.sky_color = make_float3(0.1f, 0.1f, 0.1f);
+	kernel_params.sky_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_mult = 1.0f;
 	kernel_params.env_sample_tex_res = 360;
 

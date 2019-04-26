@@ -781,7 +781,7 @@ __device__ inline float3 sample(
 }
 
 
-
+// PBRT Volume Integrator
 __device__ inline float3 vol_integrator(
 	Rand_state rand_state,
 	float3 ray_pos,
@@ -823,7 +823,7 @@ __device__ inline float3 vol_integrator(
 }
 
 
-
+// From Ray Tracing Gems Vol-28
 __device__ inline float3 direct_integrator(
 	Rand_state rand_state,
 	float3 ray_pos,
@@ -835,7 +835,7 @@ __device__ inline float3 direct_integrator(
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
 	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
-	bool mi;
+	bool mi = false;
 
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
@@ -849,11 +849,10 @@ __device__ inline float3 direct_integrator(
 
 			if (mi) { // medium interaction 
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
-				L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta;
+				if (kernel_params.sun_mult > .0f) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta * kernel_params.sun_mult;
 			}
 
 		}
-
 
 	}
 
@@ -861,20 +860,127 @@ __device__ inline float3 direct_integrator(
 
 	if (kernel_params.environment_type == 0) {
 
-		
-		L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
+		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta;
+		else L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
 	}
 	else {
 		const float4 texval = tex2D<float4>(
 			kernel_params.env_tex,
 			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
 			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta;
+
+		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
 
 	return L;
 
 }
+
+
+
+
+
+// From Art-Directable Multiple Volumetric Scattering Wrenninge - 2015
+
+__device__ inline bool density_sample(
+	Rand_state &rand_state,
+	float3 &ray_pos,
+	const float3 &ray_dir,
+	bool &interaction,
+	const Kernel_params &kernel_params,
+	VDBInfo &gvdb)
+{
+
+	float t = 0.0f;
+	float inv_max_density = 1.0f / kernel_params.max_extinction;
+	float inv_density_mult = 1.0f / kernel_params.density_mult;
+
+	while (true) {
+
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
+		ray_pos += ray_dir * t;
+		if (!in_volume_bbox(gvdb, ray_pos)) return false;
+		float density = get_density(kernel_params, &gvdb, ray_pos);
+		if (density * inv_max_density > rand(&rand_state)) {
+			return true;
+		}
+	}
+	return true;
+
+}
+
+__device__ inline bool track_secondary(
+	Rand_state &rand_state,
+	float3 &ray_pos,
+	const float3 ray_dir,
+	bool &interaction,
+	const Kernel_params &kernel_params,
+	VDBInfo &gvdb)
+{
+	float t = 0.0f;
+	float inv_max_density = 1.0f / kernel_params.max_extinction;
+	float inv_density_mult = 1.0f / kernel_params.density_mult;
+
+	while (true) {
+
+		t -= logf(1 - rand(&rand_state)) * inv_density_mult;
+		ray_pos += ray_dir * t;
+		if (!in_volume_bbox(gvdb, ray_pos)) return false;
+		float density = get_density(kernel_params, &gvdb, ray_pos);
+		if (density * inv_max_density > rand(&rand_state)) {
+			return true;
+		}
+	}
+	return true;
+
+}
+
+__device__ inline float3 art_directable_integrator(
+	Rand_state rand_state,
+	float3 ray_pos,
+	float3 ray_dir,
+	const Kernel_params kernel_params,
+	VDBInfo gvdb)
+{
+	float3 L = BLACK;
+	float3 beta = WHITE;
+	float3 env_pos = ray_pos;
+	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
+	bool mi = false;
+
+	float a = 0.5f, b= 0.5f, c = 0.5f;
+	int N = 8;
+
+	if (t.z != NOHIT) { // found an intersection
+		ray_pos += ray_dir * t.x;
+
+		// Find the points inside volume based on density tracking
+		while (density_sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb)) {
+
+			float3 sec_pos = ray_pos;
+			float3 sec_dir = ray_dir;
+
+			for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
+
+				track_secondary(rand_state, sec_pos, sec_dir, mi, kernel_params, gvdb);
+				
+				float phase = sample_hg(sec_dir, rand_state, powf(c, depth)*kernel_params.phase_g1);
+				float3 tr = Tr(rand_state, sec_pos, sec_dir, kernel_params, gvdb) / powf(a, depth);
+				
+				L += kernel_params.albedo * powf(b, depth) * estimate_sun(kernel_params, rand_state, sec_pos, sec_dir, gvdb) * phase * tr;
+			
+			}
+					   			 		  
+		}
+
+	}
+
+	return L;
+
+}
+
+
+
 
 // Main cuda kernels accessor 
 
@@ -900,7 +1006,7 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
+		value = direct_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
 
 	}
 
