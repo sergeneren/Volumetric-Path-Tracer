@@ -197,9 +197,6 @@ static void init_gvdb()
 		fprintf(stderr, "Could not determine CUDA device for GVDB context\n.");
 		exit(EXIT_FAILURE);
 	}
-	cudaDeviceProp prop;
-	cudaGetDeviceProperties(&prop, cuda_devices[0]);
-	printf("\nMax 3d texture dimensions x:%d y:%d z:%d\n", prop.maxTexture3D[0], prop.maxTexture3D[1], prop.maxTexture3D[2]);
 	gvdb.SetCudaDevice(cuda_devices[0]);
 	
 	gvdb.Initialize();
@@ -871,7 +868,7 @@ int main(const int argc, const char* argv[])
 	gvdb.AddPath(ASSET_PATH);
 
 	char scnpath[1024];
-	if (!gvdb.FindFile("wdas_cloud_half_filled.vdb", scnpath)) {
+	if (!gvdb.FindFile("wdas_cloud_quarter_filled.vdb", scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
 	}

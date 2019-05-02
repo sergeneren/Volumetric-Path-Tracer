@@ -1006,7 +1006,7 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		value = direct_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
+		value = vol_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
 
 	}
 
