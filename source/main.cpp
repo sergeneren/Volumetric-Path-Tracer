@@ -203,7 +203,7 @@ static void init_gvdb()
 	gvdb.SetCudaDevice(cuda_devices[0]);
 	
 	gvdb.Initialize();
-	gvdb.SetChannelDefault(32, 32, 32);
+	gvdb.SetChannelDefault(64, 64, 64);
 
 }
 
@@ -795,7 +795,7 @@ static void update_camera(
 	Camera3D* cam = gvdb.getScene()->getCamera();
 	Vector3DF angs = cam->getAng();
 	float dist = cam->getOrbitDist();
-	dist -= zoom_delta * 300;
+	dist -= zoom_delta * 50;
 	angs.x -= dx * 0.2f;
 	angs.y -= dy * 0.2f;
 	cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
@@ -871,13 +871,16 @@ int main(const int argc, const char* argv[])
 	gvdb.AddPath(ASSET_PATH);
 
 	char scnpath[1024];
-	if (!gvdb.FindFile("wdas_cloud_quarter_filled.vdb", scnpath)) {
+	if (!gvdb.FindFile("wdas_cloud_half_filled.vdb", scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
 	}
 	printf("Loading VDB. %s\n", scnpath);
+	gvdb.TimerStart();
 	gvdb.LoadVDB(scnpath);
-	
+	float load_time = gvdb.TimerStop();
+	printf("VDB loaded in %6.3f ms\n" , load_time);
+
 	gvdb.SetTransform(Vector3DF(0, 0, 0), Vector3DF(1, 1, 1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
 
 	gvdb.Measure(true);
@@ -1094,10 +1097,10 @@ int main(const int argc, const char* argv[])
 			char file_name[100] = "./render/pathtrace.";
 			strcat(file_name, frame_string);
 			strcat(file_name, ".tga");
-			unsigned char* image_data = (unsigned char *)malloc((int)(nwidth * nheight * 3));
-			glReadPixels(0, 0, nwidth, nheight, GL_RGB, GL_UNSIGNED_BYTE, image_data);
+			unsigned char* image_data = (unsigned char *)malloc((int)(width * height * 3));
+			glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, image_data);
 			stbi_flip_vertically_on_write(1);
-			stbi_write_tga(file_name, nwidth, nheight, 3, image_data);
+			stbi_write_tga(file_name, width, height, 3, image_data);
 
 			frame++;
 			ctx->save_image = false;
