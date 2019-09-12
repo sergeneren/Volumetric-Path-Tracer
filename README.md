@@ -37,7 +37,7 @@ VPT expects [vcpkg](https://github.com/Microsoft/vcpkg), Visual Studio 2017 and 
 
 ### Usage 
 
-"vpt.exe" can be used with or without an optional environment texture argument. If you wish to use an environment map with VPT just specify the hdri in command line, for example "vpt.exe ../../../assets/Barce_Rooftop_C_3k.hdr". Some maps are provided under assets directory and they are provided by [sIbl Archive](http://www.hdrlabs.com/sibl/archive.html) and [HDRI Skies](https://hdri-skies.com/).
+VPT has two command lines arguments. A vdb file name should be given as first argument a second optional environment texture argument can also be given for skymap. If you wish to use an environment map with VPT just specify the hdri in command line, for example "vpt.exe ../../../assets/dragon.vdb ../../../assets/Barce_Rooftop_C_3k.hdr". Some maps are provided under assets directory and they are provided by [sIbl Archive](http://www.hdrlabs.com/sibl/archive.html) and [HDRI Skies](https://hdri-skies.com/).
 
 The open vdb files to be used is also under assets and can be specified by changing the relative code in main.cpp file. Disney Moana clouds with a slight modification for VPT are provided under assets directory.
 
