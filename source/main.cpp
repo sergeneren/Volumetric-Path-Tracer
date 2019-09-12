@@ -814,6 +814,12 @@ static void update_debug_buffer(
 int main(const int argc, const char* argv[])
 {
 
+
+	if (argc < 2) {
+		printf("Please specify a vdb file!");
+		return 0;
+	}
+
 	Window_context window_context;
 	memset(&window_context, 0, sizeof(Window_context));
 
@@ -867,8 +873,12 @@ int main(const int argc, const char* argv[])
 	init_gvdb();
 	gvdb.AddPath(ASSET_PATH);
 
+	
+	std::string fname;
+	if (argc >= 2) fname = argv[1];
+
 	char scnpath[1024];
-	if (!gvdb.FindFile("wdas_cloud_quarter_filled.vdb", scnpath)) {
+	if (!gvdb.FindFile(fname, scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
 	}
@@ -884,7 +894,7 @@ int main(const int argc, const char* argv[])
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
-	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(199, 102, 219), 2000, 1.0);
+	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(10, 10, 10), 10, 1.0);
 	gvdb.getScene()->SetCamera(cam);
 
 	printf("Loading module: render_kernel.ptx\n");
@@ -952,9 +962,9 @@ int main(const int argc, const char* argv[])
 
 	// End ImGui parameters
 
-	if (argc >= 2)
+	if (argc >= 3)
 		env_tex = create_environment(
-			&kernel_params.env_tex, &env_tex_data, argv[1]);
+			&kernel_params.env_tex, &env_tex_data, argv[2]);
 	if (env_tex) {
 		kernel_params.environment_type = 1;
 		window_context.config_type = 2;
