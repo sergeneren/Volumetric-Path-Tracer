@@ -49,6 +49,9 @@ The interactive camera in application uses left mouse for orbiting, middle mouse
 
 * **Sergen Eren** - [My website](https://sergeneren.com)
 
+## Status
+This project is under active maintenance 
+
 ## License
 This project is licensed under BSD 3-Clause License
 
