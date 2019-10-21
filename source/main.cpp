@@ -1,6 +1,39 @@
+//--------------------------------------------------------------------------------
 //
-// Small interactive application running the volumetric path tracer
+//	Redistribution and use in source and binary forms, with or without
+//	modification, are permitted provided that the following conditions are met :
 //
+//	*Redistributions of source code must retain the above copyright notice, this
+//	list of conditions and the following disclaimer.
+//
+//	* Redistributions in binary form must reproduce the above copyright notice,
+//	this list of conditions and the following disclaimer in the documentation
+//	and/or other materials provided with the distribution.
+//	
+//	* Neither the name of the copyright holder nor the names of its
+//	contributors may be used to endorse or promote products derived from
+//	this software without specific prior written permission.
+//	
+//	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+//	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+//	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+//	DISCLAIMED.IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+//	FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+//	DAMAGES(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+//	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+//	OR TORT(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+//	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
+// Copyright(c) 2019, Sergen Eren
+// All rights reserved.
+//----------------------------------------------------------------------------------
+// 
+//	Version 1.0: Sergen Eren, 21/10/2019
+//
+// File: Main entry point for render kernel. 
+//
+//-----------------------------------------------
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -198,7 +231,7 @@ static void init_gvdb()
 		exit(EXIT_FAILURE);
 	}
 	gvdb.SetCudaDevice(cuda_devices[0]);
-	
+
 	gvdb.Initialize();
 	gvdb.SetChannelDefault(64, 64, 64);
 
@@ -873,7 +906,7 @@ int main(const int argc, const char* argv[])
 	init_gvdb();
 	gvdb.AddPath(ASSET_PATH);
 
-	
+
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
 
@@ -886,7 +919,7 @@ int main(const int argc, const char* argv[])
 	gvdb.TimerStart();
 	gvdb.LoadVDB(scnpath);
 	float load_time = gvdb.TimerStop();
-	printf("VDB loaded in %6.3f ms\n" , load_time);
+	printf("VDB loaded in %6.3f ms\n", load_time);
 
 	gvdb.SetTransform(Vector3DF(0, 0, 0), Vector3DF(1, 1, 1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
 
@@ -907,9 +940,6 @@ int main(const int argc, const char* argv[])
 	gvdb.PrepareRender(1200, 1024, gvdb.getScene()->getShading());
 	gvdb.PrepareVDB();
 	char *vdbinfo = gvdb.getVDBInfo();
-	
-	//gvdb.SaveVBX("wdas_cloud_quarter_filled.vbx");
-	
 
 	// END GVDB PARAMETERS
 
@@ -1038,6 +1068,30 @@ int main(const int argc, const char* argv[])
 
 			// Reserved for host side debugging
 
+				//Copy debug buffer and print
+
+#if 0
+
+			printf("ray_depth:%d\n", ray_depth);
+			float3 *c = new float3[1000];
+			memset(c, 0x0, sizeof(float3) * 1000);
+
+			check_success(cudaMemcpy(c, debug_buffer, sizeof(float3) * 1000, cudaMemcpyDeviceToHost) == cudaSuccess);
+
+
+			std::ofstream ray_pos("C:/Users/Admin/Desktop/PT_Plot/Ray_tr.txt", std::ios::out);
+			for (int y = 0; y < 1000; y++) {
+
+				if (c[y].x == .0f) continue;
+				ray_pos << y + 1 << "	" << c[y].x << "\n";
+
+
+			}
+
+#endif
+
+
+
 		}
 
 		// Restart rendering if paused and started back 
@@ -1156,28 +1210,6 @@ int main(const int argc, const char* argv[])
 		glfwSwapBuffers(window);
 		//break;
 	}
-
-	//Copy debug buffer and print
-
-#if 0
-
-	printf("ray_depth:%d\n", ray_depth);
-	float3 *c = new float3[1000];
-	memset(c, 0x0, sizeof(float3) * 1000);
-
-	check_success(cudaMemcpy(c, debug_buffer, sizeof(float3) * 1000, cudaMemcpyDeviceToHost) == cudaSuccess);
-
-
-	std::ofstream ray_pos("C:/Users/Admin/Desktop/PT_Plot/Ray_tr.txt", std::ios::out);
-	for (int y = 0; y < 1000; y++) {
-
-		if (c[y].x == .0f) continue;
-		ray_pos << y+1 << "	" << c[y].x <<"\n";
-
-
-	}
-
-#endif
 
 	//Cleanup imgui
 	ImGui_ImplOpenGL3_Shutdown();
