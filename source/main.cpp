@@ -928,7 +928,7 @@ int main(const int argc, const char* argv[])
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
-	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(10, 10, 10), 10, 1.0);
+	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(199, 102, 219), 2000, 1.0);
 	gvdb.getScene()->SetCamera(cam);
 
 	printf("Loading module: render_kernel.ptx\n");
