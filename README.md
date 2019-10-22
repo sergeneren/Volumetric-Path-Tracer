@@ -26,6 +26,7 @@ VPT depends on following libraries. They can be installed using ```vcpkg.exe ins
 VPT expects [vcpkg](https://github.com/Microsoft/vcpkg), Visual Studio 2017 and CMake to be installed.  
 
 **Step 1:** With CMake Gui select the "VPT/source" folder as source directory and create a build directory of your choice.
+
 **Step 2:** Choose x64 for optional platform and specify toolchain for cross-compiling
 
 ![platform](https://github.com/sergeneren/Volumetric-Path-Tracer/blob/master/img/platform.JPG)
