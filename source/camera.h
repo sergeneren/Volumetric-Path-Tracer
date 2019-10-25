@@ -40,4 +40,13 @@
 
 
 // camera used for rendering
-class camera{};
+class camera{
+
+
+
+
+
+
+
+
+};

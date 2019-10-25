@@ -4,6 +4,7 @@ project(VPT LANGUAGES CXX CUDA)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(openvdb REQUIRED)
 
 ## Set gvdb library 
 get_filename_component(GVDB_DIR ${CMAKE_SOURCE_DIR}/../thirdparty/gvdb ABSOLUTE)
@@ -87,7 +88,7 @@ message(STATUS "libgvdb path: " ${LIB_GVDB})
 
 ###################################################################
 
-target_link_libraries(vpt PRIVATE glfw imgui::imgui ${LIB_GVDB} cudart cuda )
+target_link_libraries(vpt PRIVATE glfw imgui::imgui ${LIB_GVDB} cudart cuda openvdb)
 
 target_include_directories(vpt PRIVATE "${GVDB_DIR}/include")
 target_include_directories(vpt PRIVATE "${GVDB_DIR}/sample_utils")

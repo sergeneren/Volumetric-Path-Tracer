@@ -1069,7 +1069,7 @@ int main(const int argc, const char* argv[])
 
 			// Reserved for host side debugging
 
-				//Copy debug buffer and print
+			//Copy debug buffer and print
 
 #if 0
 
