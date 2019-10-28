@@ -97,8 +97,14 @@ public:
 class camera
 {
 public:
+	__host__ __device__ camera() {
+		
+		camera(make_float3(10,0,0), make_float3(0, 0, 0), make_float3(0, 1, 0), 45.0f, 1.0f, 1.0f, 10.0f, 0 , 0);
+	
+	}
 
-	__device__ camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1) {
+
+	__host__ __device__ camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1) {
 
 		time0 = t0;
 		time1 = t1;
@@ -126,6 +132,7 @@ public:
 		float time = time0 + curand_uniform(local_rand_state) * (time1 - time0);
 		return ray(origin + offset, lower_left_corner + s * horizontal + t * vertical - origin - offset, time);
 	}
+
 
 	float time1, time0;
 	float3 origin;

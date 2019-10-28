@@ -85,7 +85,11 @@ source_group(Helpers FILES ${COMMON})
 file(GLOB CUDA_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cu *.cuh)
 find_program(CUDA_NVCC_EXECUTABLE nvcc)
 message ( STATUS "Build CUDA kernels: ${CUDA_FILES}" )
-_COMPILEPTX ( SOURCES ${CUDA_FILES} TARGET_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_DIR}/include" OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math --maxrregcount=128 )
+_COMPILEPTX ( SOURCES ${CUDA_FILES} 
+	TARGET_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} 
+	GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS 
+	INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_DIR}/include,${_VCPKG_INCLUDE_DIR},${CMAKE_CURRENT_SOURCE_DIR}/common,${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb" 
+	OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math --maxrregcount=128 )
 
 ###################################################################
 

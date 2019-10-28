@@ -40,7 +40,7 @@
 #include <cmath>
 
 #include <stdio.h>
-#include "cuda_math.cuh"
+#include "helper_math.h"
 #include <float.h>
 #include <cuda_runtime.h> 
 #include <curand_kernel.h>
@@ -53,13 +53,17 @@ typedef unsigned long		ulong;
 typedef unsigned long long	uint64;
 
 //-------------------------------- GVDB Data Structure
-#define CUDA_PATHWAY
-#include "cuda_gvdb_scene.cuh"		// GVDB Scene
-#include "cuda_gvdb_nodes.cuh"		// GVDB Node structure
-#include "cuda_gvdb_geom.cuh"		// GVDB Geom helpers
-#include "cuda_gvdb_dda.cuh"		// GVDB DDA 
+//#define CUDA_PATHWAY
+//#include "cuda_gvdb_scene.cuh"		// GVDB Scene
+//#include "cuda_gvdb_nodes.cuh"		// GVDB Node structure
+//#include "cuda_gvdb_geom.cuh"		// GVDB Geom helpers
+//#include "cuda_gvdb_dda.cuh"		// GVDB DDA 
 
 #include "render_kernel.h"
+
+
+#include "gpu_vdb.h"
+#include "gpu_vdb/camera.h"
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)

@@ -59,16 +59,18 @@
 #include "helper_math.h"
 #undef APIENTRY
 
-#include "gvdb.h"
+//#include "gvdb.h"
 #include "hdr_loader.h"
 #include "render_kernel.h"
 
 // new classes
-#include "gpu_vdb.h"
-#include "camera.h"
+#include "gpu_vdb/gpu_vdb.h"
+#include "gpu_vdb/camera.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+
+#include <Windows.h>
 
 
 CUmodule		cuCustom;
@@ -76,6 +78,7 @@ CUfunction		cuRaycastKernel;
 //VolumeGVDB		gvdb;
 
 GPU_VDB			gpu_vdb;
+camera			cam;
 
 #define check_success(expr) \
     do { \
