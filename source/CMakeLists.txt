@@ -51,14 +51,19 @@ file( GLOB	LIBS
 file( GLOB	PTX 
 		"${GVDB_DIR}/bin/*.ptx")
 
-file( GLOB	HEADERS "*.h")
+file( GLOB	HEADERS 
+	"*.h"
+	"${CMAKE_SOURCE_DIR}/gpu_vdb/*.h")
+
+file ( GLOB COMMON "${CMAKE_SOURCE_DIR}/common/*.h"	)
 
 file( GLOB CUDA_SOURCES 
 	"*.cu"
 	"*.cuh")
 	
 file( GLOB SOURCE_CPP
-	"*.cpp")
+	"*.cpp"
+	"${CMAKE_SOURCE_DIR}/gpu_vdb/*.cpp")
 	
 file( GLOB IMGUI_IMPL_SOURCES 
 	"${CMAKE_SOURCE_DIR}/imgui/*.h"
@@ -69,10 +74,11 @@ set(SOURCE_FILES
 	${CUDA_SOURCES}
 	${SOURCE_CPP}
 	${IMGUI_IMPL_SOURCES}
-	)
+	${COMMON})
 
 source_group(Cuda FILES ${CUDA_SOURCES})
 source_group(Imgui FILES ${IMGUI_IMPL_SOURCES})
+source_group(Helpers FILES ${COMMON})
 
 ## Add custom build command for cuda files 
 
@@ -97,6 +103,8 @@ target_include_directories(vpt PRIVATE "${GVDB_DIR}/sample_utils")
 
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
 
 ## Set dlls to be installed to executable directory after build 
 
