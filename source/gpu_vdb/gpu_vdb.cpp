@@ -42,6 +42,7 @@
 #include <helper_cuda.h>
 #include <helper_math.h>
 
+#include <filesystem>
 
 GPU_VDB::GPU_VDB(){}
 
@@ -131,6 +132,12 @@ void GPU_VDB::fill_texture(openvdb::GridBase::Ptr gridBase, cudaTextureObject_t 
 
 
 bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::string emission_channel){
+
+	if (!std::experimental::filesystem::exists(filename)) {
+
+		return false;
+
+	}
 
 	if (filename.empty())
 	{

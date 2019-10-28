@@ -80,7 +80,7 @@ CUfunction		cuRaycastKernel;
 //VolumeGVDB		gvdb;
 
 GPU_VDB			gpu_vdb;
-camera			cam;
+camera			*cam;
 
 #define check_success(expr) \
     do { \
@@ -918,7 +918,6 @@ int main(const int argc, const char* argv[])
 	// SETUP GVDB PARAMETERS
 
 	ASSET_PATH;
-	printf("Initializing GVDB volume object ");
 	//init_gvdb();
 	//gvdb.AddPath(ASSET_PATH);
 
@@ -930,7 +929,13 @@ int main(const int argc, const char* argv[])
 
 
 	// Setup gpu_vdb
-	gpu_vdb.loadVDB(file_path, "density");
+	if (!gpu_vdb.loadVDB(file_path, "density")) {
+		
+		std::cout << "!Can't load VDB file: " << file_path << std::endl;
+		
+		exit(0);
+	
+	}
 
 	/*
 	char scnpath[1024];

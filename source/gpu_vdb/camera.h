@@ -97,13 +97,7 @@ public:
 class camera
 {
 public:
-	__host__ __device__ camera() {
-		
-		camera(make_float3(10,0,0), make_float3(0, 0, 0), make_float3(0, 1, 0), 45.0f, 1.0f, 1.0f, 10.0f, 0 , 0);
-	
-	}
-
-
+	__host__ __device__ camera(){}
 	__host__ __device__ camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1) {
 
 		time0 = t0;

@@ -63,7 +63,7 @@ typedef unsigned long long	uint64;
 
 
 #include "gpu_vdb.h"
-#include "gpu_vdb/camera.h"
+#include "camera.h"
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)
@@ -1002,6 +1002,7 @@ __device__ inline float3 art_directable_integrator(
 
 
 extern "C" __global__ void volume_rt_kernel(
+	const camera cam,
 	const GPU_VDB gpu_vdb,
 	const Kernel_params kernel_params) {
 	/*
