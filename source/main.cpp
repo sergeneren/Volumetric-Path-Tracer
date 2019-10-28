@@ -80,7 +80,7 @@ CUfunction		cuRaycastKernel;
 //VolumeGVDB		gvdb;
 
 GPU_VDB			gpu_vdb;
-camera			*cam;
+camera			cam(make_float3(10,0,0), make_float3(0, 0, 0), make_float3(0, 1, 0), 45, 1, 1, 10, 0 ,0);
 
 #define check_success(expr) \
     do { \
@@ -915,67 +915,17 @@ int main(const int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-	// SETUP GVDB PARAMETERS
 
-	ASSET_PATH;
-	//init_gvdb();
-	//gvdb.AddPath(ASSET_PATH);
-
+	// Setup gpu_vdb
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
 	
 	std::string file_path = ASSET_PATH;
 	file_path.append(fname);
-
-
-	// Setup gpu_vdb
 	if (!gpu_vdb.loadVDB(file_path, "density")) {
-		
 		std::cout << "!Can't load VDB file: " << file_path << std::endl;
-		
 		exit(0);
-	
 	}
-
-	/*
-	char scnpath[1024];
-	
-	if (!gvdb.FindFile(fname, scnpath)) {
-		printf("Cannot find vdb file.\n");
-		exit(-1);
-	}
-	printf("Loading VDB. %s\n", scnpath);
-	gvdb.TimerStart();
-	gvdb.LoadVDB(scnpath);
-	float load_time = gvdb.TimerStop();
-	printf("VDB loaded in %6.3f ms\n", load_time);
-
-	gvdb.SetTransform(Vector3DF(0, 0, 0), Vector3DF(1, 1, 1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
-
-	gvdb.Measure(true);
-
-
-	
-
-
-	Camera3D* cam = new Camera3D;
-	cam->setFov(35);
-	cam->setOrbit(Vector3DF(98.0f, 0, 0), Vector3DF(199, 102, 219), 2000, 1.0);
-	gvdb.getScene()->SetCamera(cam);
-
-	printf("Loading module: render_kernel.ptx\n");
-	cuModuleLoad(&cuCustom, "render_kernel.ptx");
-	cuModuleGetFunction(&cuRaycastKernel, cuCustom, "volume_rt_kernel");
-
-	gvdb.SetModule(cuCustom);
-
-	gvdb.mbProfile = true;
-	gvdb.PrepareRender(1200, 1024, gvdb.getScene()->getShading());
-	gvdb.PrepareVDB();
-	char *vdbinfo = gvdb.getVDBInfo();
-	*/
-	// END GVDB PARAMETERS
-
 
 	// Setup initial CUDA kernel parameters.
 	Kernel_params kernel_params;
@@ -1210,12 +1160,12 @@ int main(const int argc, const char* argv[])
 		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
 
 		// Launch volume rendering kernel.
-		//Vector3DI block(8, 8, 1);
-		//Vector3DI grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
+		int3 block = make_int3(8, 8, 1);
+		int3 grid = make_int3(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
-		//void *params[] = { vdbinfo, &kernel_params };
-		//cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
+		void *params[] = {&cam, &gpu_vdb, &kernel_params };
+		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
 
