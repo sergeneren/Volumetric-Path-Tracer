@@ -1008,7 +1008,7 @@ extern "C" __global__ void volume_rt_kernel(
 		return;
 
 	// Initialize pseudorandom number generator (PRNG); assume we need no more than 4096 random numbers.
-	const unsigned int idx = y * cam.width + x;
+	const unsigned int idx = y * kernel_params.resolution.x + x;
 	Rand_state rand_state;
 	curand_init(idx, 0, kernel_params.iteration * 4096, &rand_state);
 	

@@ -101,7 +101,7 @@ class camera
 {
 public:
 	__host__ __device__ camera(){}
-	__host__ __device__ camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1, int width, int height) {
+	__host__ __device__ camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1) {
 
 		time0 = t0;
 		time1 = t1;
@@ -121,8 +121,6 @@ public:
 
 		vertical = 2.0f*half_height*focus_dist*v;
 		
-		this->width = width;
-		this->height = height; 
 	}
 
 	__device__ ray get_ray(float s, float t, Rand_state *local_rand_state) const{
@@ -140,7 +138,6 @@ public:
 	float3 vertical;
 	float3 u, v, w;
 	float lens_radius;
-	int width, height;
 };
 
 #endif

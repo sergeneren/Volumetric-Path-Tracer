@@ -80,7 +80,7 @@ CUfunction		cuRaycastKernel;
 //VolumeGVDB		gvdb;
 
 GPU_VDB			gpu_vdb;
-camera			cam(make_float3(10,0,0), make_float3(0, 0, 0), make_float3(0, 1, 0), 45, 1, 1, 10, 0 ,0, -1, -1);
+camera			cam(make_float3(10,0,0), make_float3(0, 0, 0), make_float3(0, 1, 0), 45, 1, 1, 10, 0 ,0);
 
 #define check_success(expr) \
     do { \
@@ -1069,8 +1069,6 @@ int main(const int argc, const char* argv[])
 
 			update_debug_buffer(&debug_buffer, kernel_params);
 			kernel_params.debug_buffer = debug_buffer;
-			cam.width = width;
-			cam.height = height;
 			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			kernel_params.iteration = 0;
 			ctx->change = false;
@@ -1092,9 +1090,6 @@ int main(const int argc, const char* argv[])
 		{
 			width = nwidth;
 			height = nheight;
-
-			cam.width = width;
-			cam.height = height;
 
 			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			resize_buffers(&accum_buffer, &display_buffer_cuda, width, height, display_buffer);
