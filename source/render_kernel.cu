@@ -75,10 +75,10 @@ typedef unsigned long long	uint64;
 #define INV_2_PI		1.0f / (2.0f * M_PI) 
 #define INV_4_PI		1.0f / (4.0f * M_PI) 
 #define INV_PI			1.0f / M_PI 
-
+#define NOHIT			1.0e10f
 
 // Helper functions
-/*
+
 __device__ inline void coordinate_system(
 	float3 v1,
 	float3 &v2,
@@ -151,6 +151,23 @@ __device__ bool raySphereIntersect(
 	}
 	return true;
 }
+
+
+inline __device__ float3 rayBoxIntersect(float3 rpos, float3 rdir, float3 vmin, float3 vmax)
+{
+	register float ht[8];
+	ht[0] = (vmin.x - rpos.x) / rdir.x;
+	ht[1] = (vmax.x - rpos.x) / rdir.x;
+	ht[2] = (vmin.y - rpos.y) / rdir.y;
+	ht[3] = (vmax.y - rpos.y) / rdir.y;
+	ht[4] = (vmin.z - rpos.z) / rdir.z;
+	ht[5] = (vmax.z - rpos.z) / rdir.z;
+	ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
+	ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));
+	ht[6] = (ht[6] < 0) ? 0.0 : ht[6];
+	return make_float3(ht[6], ht[7], (ht[7] < ht[6] || ht[7] < 0) ? NOHIT : 0);
+}
+
 
 __device__ inline float degree_to_radians(
 	float degree)
@@ -410,7 +427,7 @@ __device__ inline float sample_double_hg(
 
 }
 
-
+/*
 // Volume accessors
 __device__ inline bool in_volume_bbox(
 	const VDBInfo gvdb,
@@ -849,9 +866,10 @@ __device__ inline float3 direct_integrator(
 	float3 L = BLACK;
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
-	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
+	float3 t = rayBoxIntersect(ray_pos, ray_dir,gpu_vdb.vdb_info.bmin,gpu_vdb.vdb_info.bmax);
 	bool mi = false;
 
+	/*
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
 
@@ -870,13 +888,14 @@ __device__ inline float3 direct_integrator(
 		}
 
 	}
-
+	*/
 	//Sample environment
 
 	if (kernel_params.environment_type == 0) {
 
-		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta;
-		else L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
+		//if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta;
+		//else L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
+
 	}
 	else {
 		const float4 texval = tex2D<float4>(
