@@ -917,7 +917,7 @@ int main(const int argc, const char* argv[])
 
 	// SETUP GVDB PARAMETERS
 
-
+	ASSET_PATH;
 	printf("Initializing GVDB volume object ");
 	//init_gvdb();
 	//gvdb.AddPath(ASSET_PATH);
@@ -925,6 +925,13 @@ int main(const int argc, const char* argv[])
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
 	
+	std::string file_path = ASSET_PATH;
+	file_path.append(fname);
+
+
+	// Setup gpu_vdb
+	gpu_vdb.loadVDB(file_path, "density");
+
 	/*
 	char scnpath[1024];
 	
@@ -943,8 +950,7 @@ int main(const int argc, const char* argv[])
 	gvdb.Measure(true);
 
 
-	// Setup gpu_vdb
-	gpu_vdb.loadVDB(fname, "density");
+	
 
 
 	Camera3D* cam = new Camera3D;

@@ -6,12 +6,7 @@ find_package(glfw3 REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 set(_VCPKG_INCLUDE_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/")
 
-
-## Set gvdb library 
-get_filename_component(GVDB_DIR ${CMAKE_SOURCE_DIR}/../thirdparty/gvdb ABSOLUTE)
-get_filename_component(STB_DIR ${CMAKE_SOURCE_DIR}/../thirdparty/stb_image ABSOLUTE)
-
-include(${GVDB_DIR}/sample_utils/Helpers.cmake)
+include(${CMAKE_SOURCE_DIR}/Helpers.cmake)
 ##################################################################
 
 ## Set output directories
@@ -44,13 +39,6 @@ get_filename_component(ASSET_DIR ${CMAKE_SOURCE_DIR}/../assets ABSOLUTE)
 add_definitions(-DASSET_PATH="${ASSET_DIR}/")
 ###################################################################
 
-file( GLOB	DLLS 
-		"${GVDB_DIR}/bin/*.dll")
-file( GLOB	LIBS 
-		"${GVDB_DIR}/bin/*.lib")
-file( GLOB	PTX 
-		"${GVDB_DIR}/bin/*.ptx")
-
 file( GLOB	HEADERS 
 	"*.h"
 	"${CMAKE_SOURCE_DIR}/gpu_vdb/*.h")
@@ -82,41 +70,21 @@ source_group(Helpers FILES ${COMMON})
 
 ## Add custom build command for cuda files 
 
-file(GLOB CUDA_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cu *.cuh)
 find_program(CUDA_NVCC_EXECUTABLE nvcc)
-message ( STATUS "Build CUDA kernels: ${CUDA_FILES}" )
-_COMPILEPTX ( SOURCES ${CUDA_FILES} 
+message ( STATUS "Build CUDA kernels: ${CUDA_SOURCES}" )
+_COMPILEPTX ( SOURCES ${CUDA_SOURCES} 
 	TARGET_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} 
 	GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS 
-	INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_DIR}/include,${_VCPKG_INCLUDE_DIR},${CMAKE_CURRENT_SOURCE_DIR}/common,${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb" 
+	INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${_VCPKG_INCLUDE_DIR},${CMAKE_CURRENT_SOURCE_DIR}/common,${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb" 
 	OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math --maxrregcount=128 )
 
 ###################################################################
 
-## Find gvdb library 
-
-find_file(LIB_GVDB NAME "libgvdb.lib" HINTS ${GVDB_DIR}/lib)
-message(STATUS "libgvdb path: " ${LIB_GVDB})
-
 ###################################################################
 add_executable(vpt ${SOURCE_FILES})
-target_link_libraries(vpt PRIVATE glfw imgui::imgui ${LIB_GVDB} cudart cuda openvdb)
-
-target_include_directories(vpt PRIVATE "${GVDB_DIR}/include")
-target_include_directories(vpt PRIVATE "${GVDB_DIR}/sample_utils")
+target_link_libraries(vpt PRIVATE glfw imgui::imgui cudart cuda openvdb)
 
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
-
-## Set dlls to be installed to executable directory after build 
-
-set(INSTALL_LIST
-	${PTX}
-	${DLLS}
-	${LIBS})
-
-add_custom_command(TARGET vpt POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy  ${INSTALL_LIST} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
-
-###################################################################
