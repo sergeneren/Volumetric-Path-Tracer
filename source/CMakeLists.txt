@@ -4,7 +4,8 @@ project(VPT LANGUAGES CXX CUDA)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 REQUIRED)
 find_package(imgui CONFIG REQUIRED)
-find_package(openvdb REQUIRED)
+set(_VCPKG_INCLUDE_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/")
+
 
 ## Set gvdb library 
 get_filename_component(GVDB_DIR ${CMAKE_SOURCE_DIR}/../thirdparty/gvdb ABSOLUTE)
@@ -50,34 +51,45 @@ file( GLOB	LIBS
 file( GLOB	PTX 
 		"${GVDB_DIR}/bin/*.ptx")
 
-file( GLOB	HEADERS "*.h")
+file( GLOB	HEADERS 
+	"*.h"
+	"${CMAKE_SOURCE_DIR}/gpu_vdb/*.h")
 
-file( GLOB	IMGUI "imgui_*")
+file ( GLOB COMMON "${CMAKE_SOURCE_DIR}/common/*.h"	)
 
 file( GLOB CUDA_SOURCES 
 	"*.cu"
 	"*.cuh")
 	
 file( GLOB SOURCE_CPP
-	"*.cpp")
+	"*.cpp"
+	"${CMAKE_SOURCE_DIR}/gpu_vdb/*.cpp")
+	
+file( GLOB IMGUI_IMPL_SOURCES 
+	"${CMAKE_SOURCE_DIR}/imgui/*.h"
+	"${CMAKE_SOURCE_DIR}/imgui/*.cpp")
 	
 set(SOURCE_FILES
 	${HEADERS}
 	${CUDA_SOURCES}
 	${SOURCE_CPP}
-	)
+	${IMGUI_IMPL_SOURCES}
+	${COMMON})
 
 source_group(Cuda FILES ${CUDA_SOURCES})
-source_group(Imgui FILES ${IMGUI})
-
-add_executable(vpt ${SOURCE_FILES})
+source_group(Imgui FILES ${IMGUI_IMPL_SOURCES})
+source_group(Helpers FILES ${COMMON})
 
 ## Add custom build command for cuda files 
 
 file(GLOB CUDA_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cu *.cuh)
 find_program(CUDA_NVCC_EXECUTABLE nvcc)
 message ( STATUS "Build CUDA kernels: ${CUDA_FILES}" )
-_COMPILEPTX ( SOURCES ${CUDA_FILES} TARGET_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_DIR}/include" OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math --maxrregcount=128 )
+_COMPILEPTX ( SOURCES ${CUDA_FILES} 
+	TARGET_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} 
+	GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS 
+	INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_DIR}/include,${_VCPKG_INCLUDE_DIR},${CMAKE_CURRENT_SOURCE_DIR}/common,${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb" 
+	OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math --maxrregcount=128 )
 
 ###################################################################
 
@@ -87,11 +99,16 @@ find_file(LIB_GVDB NAME "libgvdb.lib" HINTS ${GVDB_DIR}/lib)
 message(STATUS "libgvdb path: " ${LIB_GVDB})
 
 ###################################################################
-
+add_executable(vpt ${SOURCE_FILES})
 target_link_libraries(vpt PRIVATE glfw imgui::imgui ${LIB_GVDB} cudart cuda openvdb)
 
 target_include_directories(vpt PRIVATE "${GVDB_DIR}/include")
 target_include_directories(vpt PRIVATE "${GVDB_DIR}/sample_utils")
+
+include_directories(${_VCPKG_INCLUDE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
 
 ## Set dlls to be installed to executable directory after build 
 

@@ -34,6 +34,8 @@
 // File: Main entry point for render kernel. 
 //
 //-----------------------------------------------
+#define NOMINMAX
+#define _CRT_SECURE_NO_WARNINGS
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -45,6 +47,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
+#include <driver_types.h>
 //#include <vector_functions.h>
 
 #define _USE_MATH_DEFINES
@@ -55,20 +58,29 @@
 #include <algorithm>
 #include <fstream>
 #include <sys/stat.h>
-#include "cuda_math.cuh"
+#include "helper_math.h"
 #undef APIENTRY
 
-#include "gvdb.h"
+//#include "gvdb.h"
 #include "hdr_loader.h"
 #include "render_kernel.h"
+
+// new classes
+#include "gpu_vdb/gpu_vdb.h"
+#include "gpu_vdb/camera.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include <Windows.h>
+
 
 CUmodule		cuCustom;
 CUfunction		cuRaycastKernel;
-VolumeGVDB		gvdb;
+//VolumeGVDB		gvdb;
+
+GPU_VDB			gpu_vdb;
+camera			cam;
 
 #define check_success(expr) \
     do { \
@@ -122,7 +134,7 @@ static bool raySphereIntersect(const float3& orig, const float3& dir, const floa
 static float degree_to_radians(float degree)
 {
 
-	return degree * M_PI / 180.0f;
+	return degree * float(M_PI) / 180.0f;
 
 }
 
@@ -179,10 +191,10 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 
 	float opticalDepthR = 0, opticalDepthM = 0;
 	float mu = dot(dir, sunDirection); // mu in the paper which is the cosine of the angle between the sun direction and the ray direction
-	float phaseR = 3.f / (16.f * M_PI) * (1 + mu * mu);
+	float phaseR = 3.f / (16.f * float(M_PI)) * (1 + mu * mu);
 	float g = 0.76f;
 
-	float phaseM = 3.f / (8.f * M_PI) * ((1.f - g * g) * (1.f + mu * mu)) / ((2.f + g * g) * pow(1.f + g * g - 2.f * g * mu, 1.5f));
+	float phaseM = 3.f / (8.f * float(M_PI)) * ((1.f - g * g) * (1.f + mu * mu)) / ((2.f + g * g) * pow(1.f + g * g - 2.f * g * mu, 1.5f));
 
 	for (uint i = 0; i < numSamples; ++i) {
 		float3 samplePosition = pos + (tCurrent + segmentLength * 0.5f) * dir;
@@ -220,6 +232,7 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 }
 
 // Initialize gvdb volume 
+/*
 static void init_gvdb()
 {
 
@@ -236,6 +249,7 @@ static void init_gvdb()
 	gvdb.SetChannelDefault(64, 64, 64);
 
 }
+*/
 
 // Initialize GLFW and GLEW.
 static GLFWwindow *init_opengl()
@@ -396,9 +410,9 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 {
 	if (action == GLFW_PRESS) {
 		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
-		Camera3D* cam = gvdb.getScene()->getCamera();
-		float fov = cam->getFov();
-
+		//Camera3D* cam = gvdb.getScene()->getCamera();
+		//float fov = cam->getFov();
+		float fov = 50.0f;
 
 		switch (key) {
 		case GLFW_KEY_ESCAPE:
@@ -407,13 +421,13 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 		case GLFW_KEY_KP_SUBTRACT:
 		case GLFW_KEY_LEFT_BRACKET:
 			fov -= 10.0f;
-			cam->setFov(fov);
+			//cam->setFov(fov);
 			ctx->change = true;
 			break;
 		case GLFW_KEY_KP_ADD:
 		case GLFW_KEY_RIGHT_BRACKET:
 			fov += 10.0f;
-			cam->setFov(fov);
+			//cam->setFov(fov);
 			ctx->change = true;
 			break;
 		case GLFW_KEY_S:
@@ -531,11 +545,11 @@ static bool create_cdf(
 	*cdf_p = .0f;
 
 	for (int y = 0; y < res; ++y, ++marginal_func_p) {
-		el = float(y) / float(res - 1) * M_PI;			// elevation goes from 0 to 180 degrees
+		el = float(y) / float(res - 1) * float(M_PI);			// elevation goes from 0 to 180 degrees
 		*(cdf_p - 1) = .0f;
 		for (int x = 0; x < res; ++x, ++val_p, ++func_p, ++cdf_p) {
 
-			az = float(x) / float(res - 1) * M_PI * 2.0f;		// azimuth goes from 0 to 360 degrees 
+			az = float(x) / float(res - 1) * float(M_PI) * 2.0f;		// azimuth goes from 0 to 360 degrees 
 
 			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el), sinf(el) * sinf(az)); // polar to cartesian 			
 			*val_p = sample_atmosphere(kernel_params, pos, dir, kernel_params.sky_color);
@@ -596,7 +610,7 @@ static bool create_cdf(
 
 	if (marginal_int > .0f) {
 		for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
-			*marginal_cdf_p /= max(.000001f, marginal_int);
+			*marginal_cdf_p /= fmaxf(.000001f, marginal_int);
 			//printf("\n%d	%f", y, *marginal_cdf_p);
 		}
 	}
@@ -635,7 +649,7 @@ static bool create_cdf(
 
 	check_success(cudaMallocArray(env_cdf_data, &channel_desc, res, res) == cudaSuccess);
 	check_success(cudaMemcpyToArray(*env_cdf_data, 0, 0, cdf, res * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
-
+	
 	cudaResourceDesc res_desc_cdf;
 	memset(&res_desc_cdf, 0, sizeof(res_desc_cdf));
 	res_desc_cdf.resType = cudaResourceTypeArray;
@@ -814,7 +828,7 @@ static bool create_environment(
 	return true;
 }
 
-
+/*
 // Process camera movement.
 static void update_camera(
 	double dx,
@@ -832,6 +846,7 @@ static void update_camera(
 	cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
 	cam->moveRelative(float(mx) * dist / 1000, float(my) * dist / 1000, 0);
 }
+*/
 
 static void update_debug_buffer(
 	float3 **debug_buffer_cuda,
@@ -904,14 +919,15 @@ int main(const int argc, const char* argv[])
 
 
 	printf("Initializing GVDB volume object ");
-	init_gvdb();
-	gvdb.AddPath(ASSET_PATH);
-
+	//init_gvdb();
+	//gvdb.AddPath(ASSET_PATH);
 
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
-
+	
+	/*
 	char scnpath[1024];
+	
 	if (!gvdb.FindFile(fname, scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
@@ -925,6 +941,11 @@ int main(const int argc, const char* argv[])
 	gvdb.SetTransform(Vector3DF(0, 0, 0), Vector3DF(1, 1, 1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
 
 	gvdb.Measure(true);
+
+
+	// Setup gpu_vdb
+	gpu_vdb.loadVDB(fname, "density");
+
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
@@ -941,7 +962,7 @@ int main(const int argc, const char* argv[])
 	gvdb.PrepareRender(1200, 1024, gvdb.getScene()->getShading());
 	gvdb.PrepareVDB();
 	char *vdbinfo = gvdb.getVDBInfo();
-
+	*/
 	// END GVDB PARAMETERS
 
 
@@ -1108,7 +1129,7 @@ int main(const int argc, const char* argv[])
 			update_debug_buffer(&debug_buffer, kernel_params);
 			kernel_params.debug_buffer = debug_buffer;
 
-			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
+			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			kernel_params.iteration = 0;
 			ctx->change = false;
 
@@ -1129,7 +1150,7 @@ int main(const int argc, const char* argv[])
 		{
 			width = nwidth;
 			height = nheight;
-			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
+			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			resize_buffers(&accum_buffer, &display_buffer_cuda, width, height, display_buffer);
 			kernel_params.accum_buffer = accum_buffer;
 			glViewport(0, 0, width, height);
@@ -1143,22 +1164,22 @@ int main(const int argc, const char* argv[])
 		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->move_mx != 0.0 || ctx->move_my != 0.0 || ctx->zoom_delta) {
 
 
-			update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta);
+			//update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta);
 			ctx->move_dx = ctx->move_dy = ctx->move_mx = ctx->move_my = 0.0;
 			ctx->zoom_delta = 0;
-			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
+			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 
 			kernel_params.iteration = 0;
 		}
 
 		if (ctx->save_image) {
 
-			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) continue;
 			char frame_string[100];
-			sprintf(frame_string, "%d", frame);
+			sprintf_s(frame_string, "%d", frame);
 			char file_name[100] = "./render/pathtrace.";
-			strcat(file_name, frame_string);
-			strcat(file_name, ".tga");
+			strcat_s(file_name, frame_string);
+			strcat_s(file_name, ".tga");
 			unsigned char* image_data = (unsigned char *)malloc((int)(width * height * 3));
 			glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, image_data);
 			stbi_flip_vertically_on_write(1);
@@ -1178,12 +1199,12 @@ int main(const int argc, const char* argv[])
 		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
 
 		// Launch volume rendering kernel.
-		Vector3DI block(8, 8, 1);
-		Vector3DI grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
+		//Vector3DI block(8, 8, 1);
+		//Vector3DI grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
-		void *params[] = { vdbinfo, &kernel_params };
-		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
+		//void *params[] = { vdbinfo, &kernel_params };
+		//cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
 

@@ -40,7 +40,7 @@
 #include <cmath>
 
 #include <stdio.h>
-#include "cuda_math.cuh"
+#include "helper_math.h"
 #include <float.h>
 #include <cuda_runtime.h> 
 #include <curand_kernel.h>
@@ -53,13 +53,17 @@ typedef unsigned long		ulong;
 typedef unsigned long long	uint64;
 
 //-------------------------------- GVDB Data Structure
-#define CUDA_PATHWAY
-#include "cuda_gvdb_scene.cuh"		// GVDB Scene
-#include "cuda_gvdb_nodes.cuh"		// GVDB Node structure
-#include "cuda_gvdb_geom.cuh"		// GVDB Geom helpers
-#include "cuda_gvdb_dda.cuh"		// GVDB DDA 
+//#define CUDA_PATHWAY
+//#include "cuda_gvdb_scene.cuh"		// GVDB Scene
+//#include "cuda_gvdb_nodes.cuh"		// GVDB Node structure
+//#include "cuda_gvdb_geom.cuh"		// GVDB Geom helpers
+//#include "cuda_gvdb_dda.cuh"		// GVDB DDA 
 
 #include "render_kernel.h"
+
+
+#include "gpu_vdb.h"
+#include "gpu_vdb/camera.h"
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)
@@ -77,7 +81,7 @@ typedef curandStatePhilox4_32_10_t Rand_state;
 #define rand(state) curand_uniform(state)
 
 // Helper functions
-
+/*
 __device__ inline void coordinate_system(
 	float3 v1,
 	float3 &v2,
@@ -992,15 +996,15 @@ __device__ inline float3 art_directable_integrator(
 }
 
 
-
+*/
 
 // Main cuda kernels accessor 
 
 
 extern "C" __global__ void volume_rt_kernel(
-	VDBInfo gvdb,
+	const GPU_VDB gpu_vdb,
 	const Kernel_params kernel_params) {
-
+	/*
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x >= kernel_params.resolution.x || y >= kernel_params.resolution.y)
@@ -1041,5 +1045,5 @@ extern "C" __global__ void volume_rt_kernel(
 	const unsigned int g = (unsigned int)(255.0f * fminf(powf(fmaxf(val.y, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 	const unsigned int b = (unsigned int)(255.0f * fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 	kernel_params.display_buffer[idx] = 0xff000000 | (r << 16) | (g << 8) | b;
-
+	*/
 }

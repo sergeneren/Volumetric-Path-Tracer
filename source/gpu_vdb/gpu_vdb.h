@@ -29,68 +29,95 @@
 // All rights reserved.
 //----------------------------------------------------------------------------------
 // 
-//	Version 1.0: Sergen Eren, 26/3/2019
+//	Version 1.0: Sergen Eren, 25/10/2019
 //
-// File: Custom path trace kernel header: 
-//       Performs custom path tracing
+// File: This is the header file for GPU_VDB that converts and loads
+//		 a vdb file to CUDA 3d texture and loads it into gpu
 //
 //-----------------------------------------------
 
-class GPU_VDB;
+#ifndef _GPU_VDB_H_
+#define _GPU_VDB_H_
 
-struct Kernel_params {
+#include "cuda_runtime_api.h"
+#include "texture_types.h"
+#include "matrix_math.h"
+#include <string>
 
-	//Debug
-	bool render;
-	bool debug;
-	// Display
-	uint2 resolution;
-	float exposure_scale;
-	unsigned int *display_buffer;
 
-	// Progressive rendering state
-	unsigned int iteration;
-	float3 *accum_buffer;
+//#ifdef max
+//	#undef max
+//	#ifdef min
+//		#undef min
+//	#endif
+//#endif
 
-	// Limit on path length
-	unsigned int max_interactions;		// Accumulation buffer count
-	int ray_depth;						// Max number of bounces 
 
-	//Volume parameters ( No absorbtion coefficient)
 
-	float max_extinction;	// Extinction majorant
-	float min_extinction;	// Extinction minorant (for residual ratio tracking)
-	float phase_g1;			// Phase function anisotropy (.0f means isotropic phase function)
-	float phase_g2;			// Phase function anisotropy for double lobe phase functions
-	float phase_f;			// Anistropy factor for double henyey_greeinstein
 
-	float3 albedo;			// sigma_s / sigma_t
-	float3 extinction;		// sigma_t
-	float3 transmittance;	// At which depth transmittance gets this value 
-	float tr_depth;			// Multiply transmittance density factor (transmittance step size regulator)
-	float density_mult;		// Tracking density multiplier
+#include <openvdb/openvdb.h>
+#include <openvdb/tools/Dense.h>
+#include <openvdb/Metadata.h>
 
-	// Environment
-	unsigned int environment_type;
-	float azimuth;
-	float elevation;
-	float3 sun_color;
-	float3 sky_color;
-	float sun_mult;
-	float sky_mult;
-	cudaTextureObject_t env_tex;
+#define ALIGN(x)	__align__(x)
 
-	int env_sample_tex_res;
-	cudaTextureObject_t env_func_tex;
-	cudaTextureObject_t env_cdf_tex;
-	cudaTextureObject_t env_marginal_func_tex;
-	cudaTextureObject_t env_marginal_cdf_tex;
-	float env_marginal_int;
+// Transform matrix for gpu_vdb instance
 
-	// Debug parameters
+struct ALIGN(16) VDB_INFO {
 
-	float3 *debug_buffer;
-	
+	float	voxelsize;
+	int		dim[3];
+	float	epsilon;
+	float3	bmin;
+	float3	bmax;
+
+	cudaTextureObject_t density_texture; 
+	cudaTextureObject_t emission_texture;
+
 };
- 
-extern "C" __global__ void volume_rt_kernel(const GPU_VDB gpu_vdb, const Kernel_params kernel_params);
+
+
+class GPU_VDB {
+
+public:
+	~GPU_VDB();
+	GPU_VDB();
+	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");
+	
+	__host__ VDB_INFO * get_vdb_info();
+	
+	VDB_INFO vdb_info;
+
+	__host__ __device__ mat4 get_xform() { return this->xform; }
+
+private:
+
+	__host__ void fill_texture(openvdb::GridBase::Ptr gridBase, cudaTextureObject_t &texture);
+	
+	mat4 xform;
+
+	__host__ inline void set_vec3s(float3 &fl, openvdb::Vec3s vec) {
+
+		fl.x = vec[0];
+		fl.y = vec[1];
+		fl.z = vec[2];
+	}
+	__host__ inline void set_vec3i(int *dim, openvdb::Vec3i vec) {
+
+		dim[0] = vec[0];
+		dim[1] = vec[1];
+		dim[2] = vec[2];
+	}
+
+	__host__ inline void set_xform(mat4 &xform, openvdb::Mat4R matrix) {
+
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				xform[i][j] = float(matrix(i,j));
+			}
+		}
+
+	}
+};
+
+#endif //endif _GPU_VDB_H_
