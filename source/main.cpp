@@ -62,6 +62,8 @@
 #include "hdr_loader.h"
 #include "render_kernel.h"
 
+#include "gpu_vdb.h"
+
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
