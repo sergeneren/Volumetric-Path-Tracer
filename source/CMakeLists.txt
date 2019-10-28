@@ -4,7 +4,8 @@ project(VPT LANGUAGES CXX CUDA)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 REQUIRED)
 find_package(imgui CONFIG REQUIRED)
-find_package(openvdb REQUIRED)
+set(_VCPKG_INCLUDE_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/")
+
 
 ## Set gvdb library 
 get_filename_component(GVDB_DIR ${CMAKE_SOURCE_DIR}/../thirdparty/gvdb ABSOLUTE)
@@ -52,8 +53,6 @@ file( GLOB	PTX
 
 file( GLOB	HEADERS "*.h")
 
-file( GLOB	IMGUI "imgui_*")
-
 file( GLOB CUDA_SOURCES 
 	"*.cu"
 	"*.cuh")
@@ -61,16 +60,19 @@ file( GLOB CUDA_SOURCES
 file( GLOB SOURCE_CPP
 	"*.cpp")
 	
+file( GLOB IMGUI_IMPL_SOURCES 
+	"${CMAKE_SOURCE_DIR}/imgui/*.h"
+	"${CMAKE_SOURCE_DIR}/imgui/*.cpp")
+	
 set(SOURCE_FILES
 	${HEADERS}
 	${CUDA_SOURCES}
 	${SOURCE_CPP}
+	${IMGUI_IMPL_SOURCES}
 	)
 
 source_group(Cuda FILES ${CUDA_SOURCES})
-source_group(Imgui FILES ${IMGUI})
-
-add_executable(vpt ${SOURCE_FILES})
+source_group(Imgui FILES ${IMGUI_IMPL_SOURCES})
 
 ## Add custom build command for cuda files 
 
@@ -87,11 +89,14 @@ find_file(LIB_GVDB NAME "libgvdb.lib" HINTS ${GVDB_DIR}/lib)
 message(STATUS "libgvdb path: " ${LIB_GVDB})
 
 ###################################################################
-
+add_executable(vpt ${SOURCE_FILES})
 target_link_libraries(vpt PRIVATE glfw imgui::imgui ${LIB_GVDB} cudart cuda openvdb)
 
 target_include_directories(vpt PRIVATE "${GVDB_DIR}/include")
 target_include_directories(vpt PRIVATE "${GVDB_DIR}/sample_utils")
+
+include_directories(${_VCPKG_INCLUDE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 
 ## Set dlls to be installed to executable directory after build 
 
