@@ -14,6 +14,14 @@ Either download the source as a zip file or right click to a desired location an
 ```
 git clone https://github.com/sergeneren/Volumetric-Path-Tracer
 ```
+
+**!!!Warning: Master branch of VPT is now unstable and under development for custom gpu_vdb classes. Please use the stable_v0.1 branch with the command below**
+
+```
+git clone -b custom-gpu-vdb --single-branch https://github.com/sergeneren/Volumetric-Path-Tracer
+```
+
+
 ### Dependencies
 
 VPT depends on following libraries. They can be installed using ```vcpkg.exe install 'package name'``` command. 
