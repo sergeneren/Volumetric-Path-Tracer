@@ -80,7 +80,7 @@ CUfunction		cuRaycastKernel;
 //VolumeGVDB		gvdb;
 
 GPU_VDB			gpu_vdb;
-camera			cam(make_float3(10,0,0), make_float3(0, 0, 0), make_float3(0, 1, 0), 45, 1, 1, 10, 0 ,0);
+camera			cam(make_float3(10,0,0), make_float3(0, 0, 0), make_float3(0, 1, 0), 45, 1, 1, 10, 0 ,0, -1, -1);
 
 #define check_success(expr) \
     do { \
@@ -230,26 +230,6 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
 }
-
-// Initialize gvdb volume 
-/*
-static void init_gvdb()
-{
-
-	int cuda_devices[1];
-	unsigned int num_cuda_devices;
-	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
-	if (num_cuda_devices == 0) {
-		fprintf(stderr, "Could not determine CUDA device for GVDB context\n.");
-		exit(EXIT_FAILURE);
-	}
-	gvdb.SetCudaDevice(cuda_devices[0]);
-
-	gvdb.Initialize();
-	gvdb.SetChannelDefault(64, 64, 64);
-
-}
-*/
 
 // Initialize GLFW and GLEW.
 static GLFWwindow *init_opengl()
@@ -1089,7 +1069,8 @@ int main(const int argc, const char* argv[])
 
 			update_debug_buffer(&debug_buffer, kernel_params);
 			kernel_params.debug_buffer = debug_buffer;
-
+			cam.width = width;
+			cam.height = height;
 			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			kernel_params.iteration = 0;
 			ctx->change = false;
@@ -1111,6 +1092,10 @@ int main(const int argc, const char* argv[])
 		{
 			width = nwidth;
 			height = nheight;
+
+			cam.width = width;
+			cam.height = height;
+
 			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			resize_buffers(&accum_buffer, &display_buffer_cuda, width, height, display_buffer);
 			kernel_params.accum_buffer = accum_buffer;

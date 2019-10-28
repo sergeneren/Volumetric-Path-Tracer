@@ -44,7 +44,7 @@
 #include <float.h>
 #include <cuda_runtime.h> 
 #include <curand_kernel.h>
-
+#include <device_launch_parameters.h>
 
 typedef unsigned char		uchar;
 typedef unsigned int		uint;
@@ -76,9 +76,6 @@ typedef unsigned long long	uint64;
 #define INV_4_PI		1.0f / (4.0f * M_PI) 
 #define INV_PI			1.0f / M_PI 
 
-#include <curand_kernel.h>
-typedef curandStatePhilox4_32_10_t Rand_state;
-#define rand(state) curand_uniform(state)
 
 // Helper functions
 /*
@@ -838,6 +835,8 @@ __device__ inline float3 vol_integrator(
 
 }
 
+*/
+
 
 // From Ray Tracing Gems Vol-28
 __device__ inline float3 direct_integrator(
@@ -845,7 +844,7 @@ __device__ inline float3 direct_integrator(
 	float3 ray_pos,
 	float3 ray_dir,
 	const Kernel_params kernel_params,
-	VDBInfo gvdb)
+	GPU_VDB gpu_vdb)
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
@@ -891,10 +890,7 @@ __device__ inline float3 direct_integrator(
 	return L;
 
 }
-
-
-
-
+/*
 
 // From Art-Directable Multiple Volumetric Scattering Wrenninge - 2015
 
@@ -1005,28 +1001,32 @@ extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
 	const GPU_VDB gpu_vdb,
 	const Kernel_params kernel_params) {
-	/*
+	
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x >= kernel_params.resolution.x || y >= kernel_params.resolution.y)
 		return;
 
-
 	// Initialize pseudorandom number generator (PRNG); assume we need no more than 4096 random numbers.
-	const unsigned int idx = y * scn.width + x;
+	const unsigned int idx = y * cam.width + x;
 	Rand_state rand_state;
 	curand_init(idx, 0, kernel_params.iteration * 4096, &rand_state);
-
-	float3 ray_dir = normalize(getViewRay((float(scn.width - x) + .5f) / scn.width, (float(scn.height - y) + .5f) / scn.height));
-
+	
+	float u = float(x + vanDerCorput(&rand_state)) / float(kernel_params.resolution.x);
+	float v = float(y + vanDerCorput(&rand_state, 3)) / float(kernel_params.resolution.y);
+	ray camera_ray = cam.get_ray(u, v, &rand_state);
+	float3 ray_dir = camera_ray.direction();
+	float3 ray_pos = camera_ray.origin();
 	float3 value = WHITE;
-
+		
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		value = direct_integrator(rand_state, scn.campos, ray_dir, kernel_params, gvdb);
+		value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
 
 	}
-
+	
+	
+	
 	// Accumulate.
 	if (kernel_params.iteration == 0)
 		kernel_params.accum_buffer[idx] = value;
@@ -1046,5 +1046,5 @@ extern "C" __global__ void volume_rt_kernel(
 	const unsigned int g = (unsigned int)(255.0f * fminf(powf(fmaxf(val.y, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 	const unsigned int b = (unsigned int)(255.0f * fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 	kernel_params.display_buffer[idx] = 0xff000000 | (r << 16) | (g << 8) | b;
-	*/
+	
 }

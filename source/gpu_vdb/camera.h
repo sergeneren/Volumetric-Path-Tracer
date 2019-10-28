@@ -48,24 +48,27 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+typedef curandStatePhilox4_32_10_t Rand_state;
+#define rand(state) curand_uniform(state)
 
-__device__ float vanDerCorput(curandState *local_rand_state, int base = 2) {
 
-	int n = int(curand_uniform(local_rand_state) * 100);
-	float rand = 0, denom = 1, invBase = 1.f / base;
+__device__ float vanDerCorput(Rand_state *local_rand_state, int base = 2) {
+
+	int n = int(rand(local_rand_state) * 100);
+	float rand_int = 0, denom = 1, invBase = 1.f / base;
 
 	while (n) {
 
 		denom *= base;
-		rand += (n%base) / denom;
+		rand_int += (n%base) / denom;
 		n *= invBase;
 
 	}
-	return rand;
+	return rand_int;
 }
 
 
-__device__ float3 random_in_unit_disk(curandState *local_rand_state) {
+__device__ float3 random_in_unit_disk(Rand_state *local_rand_state) {
 
 	float3 p;
 	do {
@@ -98,7 +101,7 @@ class camera
 {
 public:
 	__host__ __device__ camera(){}
-	__host__ __device__ camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1) {
+	__host__ __device__ camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1, int width, int height) {
 
 		time0 = t0;
 		time1 = t1;
@@ -117,10 +120,12 @@ public:
 		horizontal = 2.0f*half_width*focus_dist*u;
 
 		vertical = 2.0f*half_height*focus_dist*v;
-
+		
+		this->width = width;
+		this->height = height; 
 	}
 
-	__device__ ray get_ray(float s, float t, curandState *local_rand_state) {
+	__device__ ray get_ray(float s, float t, Rand_state *local_rand_state) const{
 		float3 rd = lens_radius * random_in_unit_disk(local_rand_state);
 		float3 offset = u * rd.x + v * rd.y;
 		float time = time0 + curand_uniform(local_rand_state) * (time1 - time0);
@@ -135,6 +140,7 @@ public:
 	float3 vertical;
 	float3 u, v, w;
 	float lens_radius;
+	int width, height;
 };
 
 #endif
