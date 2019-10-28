@@ -35,6 +35,7 @@
 //
 //-----------------------------------------------
 #define NOMINMAX
+#define _CRT_SECURE_NO_WARNINGS
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -46,6 +47,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
+#include <driver_types.h>
 //#include <vector_functions.h>
 
 #define _USE_MATH_DEFINES
@@ -132,7 +134,7 @@ static bool raySphereIntersect(const float3& orig, const float3& dir, const floa
 static float degree_to_radians(float degree)
 {
 
-	return degree * M_PI / 180.0f;
+	return degree * float(M_PI) / 180.0f;
 
 }
 
@@ -189,10 +191,10 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 
 	float opticalDepthR = 0, opticalDepthM = 0;
 	float mu = dot(dir, sunDirection); // mu in the paper which is the cosine of the angle between the sun direction and the ray direction
-	float phaseR = 3.f / (16.f * M_PI) * (1 + mu * mu);
+	float phaseR = 3.f / (16.f * float(M_PI)) * (1 + mu * mu);
 	float g = 0.76f;
 
-	float phaseM = 3.f / (8.f * M_PI) * ((1.f - g * g) * (1.f + mu * mu)) / ((2.f + g * g) * pow(1.f + g * g - 2.f * g * mu, 1.5f));
+	float phaseM = 3.f / (8.f * float(M_PI)) * ((1.f - g * g) * (1.f + mu * mu)) / ((2.f + g * g) * pow(1.f + g * g - 2.f * g * mu, 1.5f));
 
 	for (uint i = 0; i < numSamples; ++i) {
 		float3 samplePosition = pos + (tCurrent + segmentLength * 0.5f) * dir;
@@ -543,11 +545,11 @@ static bool create_cdf(
 	*cdf_p = .0f;
 
 	for (int y = 0; y < res; ++y, ++marginal_func_p) {
-		el = float(y) / float(res - 1) * M_PI;			// elevation goes from 0 to 180 degrees
+		el = float(y) / float(res - 1) * float(M_PI);			// elevation goes from 0 to 180 degrees
 		*(cdf_p - 1) = .0f;
 		for (int x = 0; x < res; ++x, ++val_p, ++func_p, ++cdf_p) {
 
-			az = float(x) / float(res - 1) * M_PI * 2.0f;		// azimuth goes from 0 to 360 degrees 
+			az = float(x) / float(res - 1) * float(M_PI) * 2.0f;		// azimuth goes from 0 to 360 degrees 
 
 			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el), sinf(el) * sinf(az)); // polar to cartesian 			
 			*val_p = sample_atmosphere(kernel_params, pos, dir, kernel_params.sky_color);
@@ -647,7 +649,7 @@ static bool create_cdf(
 
 	check_success(cudaMallocArray(env_cdf_data, &channel_desc, res, res) == cudaSuccess);
 	check_success(cudaMemcpyToArray(*env_cdf_data, 0, 0, cdf, res * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
-
+	
 	cudaResourceDesc res_desc_cdf;
 	memset(&res_desc_cdf, 0, sizeof(res_desc_cdf));
 	res_desc_cdf.resType = cudaResourceTypeArray;
@@ -922,9 +924,10 @@ int main(const int argc, const char* argv[])
 
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
-
-	char scnpath[1024];
+	
 	/*
+	char scnpath[1024];
+	
 	if (!gvdb.FindFile(fname, scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
@@ -1171,12 +1174,12 @@ int main(const int argc, const char* argv[])
 
 		if (ctx->save_image) {
 
-			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) continue;
 			char frame_string[100];
-			sprintf(frame_string, "%d", frame);
+			sprintf_s(frame_string, "%d", frame);
 			char file_name[100] = "./render/pathtrace.";
-			strcat(file_name, frame_string);
-			strcat(file_name, ".tga");
+			strcat_s(file_name, frame_string);
+			strcat_s(file_name, ".tga");
 			unsigned char* image_data = (unsigned char *)malloc((int)(width * height * 3));
 			glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, image_data);
 			stbi_flip_vertically_on_write(1);

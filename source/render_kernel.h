@@ -36,6 +36,8 @@
 //
 //-----------------------------------------------
 
+class GPU_VDB;
+
 struct Kernel_params {
 
 	//Debug
