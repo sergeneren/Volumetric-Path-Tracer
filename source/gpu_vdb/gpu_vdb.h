@@ -36,7 +36,6 @@
 //
 //-----------------------------------------------
 
-
 #ifndef _GPU_VDB_H_
 #define _GPU_VDB_H_
 
@@ -44,6 +43,17 @@
 #include "texture_types.h"
 #include "matrix_math.h"
 #include <string>
+
+
+//#ifdef max
+//	#undef max
+//	#ifdef min
+//		#undef min
+//	#endif
+//#endif
+
+
+
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Dense.h>
@@ -72,7 +82,7 @@ class GPU_VDB {
 public:
 	~GPU_VDB();
 	GPU_VDB();
-	__host__ bool loadVDB(char *filename, std::string density_channel, std::string emission_channel="");
+	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");
 	
 	__host__ VDB_INFO * get_vdb_info();
 	

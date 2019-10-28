@@ -130,9 +130,9 @@ void GPU_VDB::fill_texture(openvdb::GridBase::Ptr gridBase, cudaTextureObject_t 
 }
 
 
-bool GPU_VDB::loadVDB(char *filename, std::string density_channel, std::string emission_channel){
+bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::string emission_channel){
 
-	if (filename == 0)
+	if (filename.empty())
 	{
 		printf("Error finding file '%s'\n", filename);
 		return false;

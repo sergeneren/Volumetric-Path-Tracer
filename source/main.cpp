@@ -34,6 +34,7 @@
 // File: Main entry point for render kernel. 
 //
 //-----------------------------------------------
+#define NOMINMAX
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -55,14 +56,16 @@
 #include <algorithm>
 #include <fstream>
 #include <sys/stat.h>
-#include "cuda_math.cuh"
+#include "helper_math.h"
 #undef APIENTRY
 
 #include "gvdb.h"
 #include "hdr_loader.h"
 #include "render_kernel.h"
 
+// new classes
 #include "gpu_vdb.h"
+#include "camera.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -70,7 +73,9 @@
 
 CUmodule		cuCustom;
 CUfunction		cuRaycastKernel;
-VolumeGVDB		gvdb;
+//VolumeGVDB		gvdb;
+
+GPU_VDB			gpu_vdb;
 
 #define check_success(expr) \
     do { \
@@ -222,6 +227,7 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 }
 
 // Initialize gvdb volume 
+/*
 static void init_gvdb()
 {
 
@@ -238,6 +244,7 @@ static void init_gvdb()
 	gvdb.SetChannelDefault(64, 64, 64);
 
 }
+*/
 
 // Initialize GLFW and GLEW.
 static GLFWwindow *init_opengl()
@@ -398,9 +405,9 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 {
 	if (action == GLFW_PRESS) {
 		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
-		Camera3D* cam = gvdb.getScene()->getCamera();
-		float fov = cam->getFov();
-
+		//Camera3D* cam = gvdb.getScene()->getCamera();
+		//float fov = cam->getFov();
+		float fov = 50.0f;
 
 		switch (key) {
 		case GLFW_KEY_ESCAPE:
@@ -409,13 +416,13 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 		case GLFW_KEY_KP_SUBTRACT:
 		case GLFW_KEY_LEFT_BRACKET:
 			fov -= 10.0f;
-			cam->setFov(fov);
+			//cam->setFov(fov);
 			ctx->change = true;
 			break;
 		case GLFW_KEY_KP_ADD:
 		case GLFW_KEY_RIGHT_BRACKET:
 			fov += 10.0f;
-			cam->setFov(fov);
+			//cam->setFov(fov);
 			ctx->change = true;
 			break;
 		case GLFW_KEY_S:
@@ -598,7 +605,7 @@ static bool create_cdf(
 
 	if (marginal_int > .0f) {
 		for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
-			*marginal_cdf_p /= max(.000001f, marginal_int);
+			*marginal_cdf_p /= fmaxf(.000001f, marginal_int);
 			//printf("\n%d	%f", y, *marginal_cdf_p);
 		}
 	}
@@ -816,7 +823,7 @@ static bool create_environment(
 	return true;
 }
 
-
+/*
 // Process camera movement.
 static void update_camera(
 	double dx,
@@ -834,6 +841,7 @@ static void update_camera(
 	cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
 	cam->moveRelative(float(mx) * dist / 1000, float(my) * dist / 1000, 0);
 }
+*/
 
 static void update_debug_buffer(
 	float3 **debug_buffer_cuda,
@@ -906,14 +914,14 @@ int main(const int argc, const char* argv[])
 
 
 	printf("Initializing GVDB volume object ");
-	init_gvdb();
-	gvdb.AddPath(ASSET_PATH);
-
+	//init_gvdb();
+	//gvdb.AddPath(ASSET_PATH);
 
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
 
 	char scnpath[1024];
+	/*
 	if (!gvdb.FindFile(fname, scnpath)) {
 		printf("Cannot find vdb file.\n");
 		exit(-1);
@@ -927,6 +935,11 @@ int main(const int argc, const char* argv[])
 	gvdb.SetTransform(Vector3DF(0, 0, 0), Vector3DF(1, 1, 1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
 
 	gvdb.Measure(true);
+
+
+	// Setup gpu_vdb
+	gpu_vdb.loadVDB(fname, "density");
+
 
 	Camera3D* cam = new Camera3D;
 	cam->setFov(35);
@@ -943,7 +956,7 @@ int main(const int argc, const char* argv[])
 	gvdb.PrepareRender(1200, 1024, gvdb.getScene()->getShading());
 	gvdb.PrepareVDB();
 	char *vdbinfo = gvdb.getVDBInfo();
-
+	*/
 	// END GVDB PARAMETERS
 
 
@@ -1110,7 +1123,7 @@ int main(const int argc, const char* argv[])
 			update_debug_buffer(&debug_buffer, kernel_params);
 			kernel_params.debug_buffer = debug_buffer;
 
-			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
+			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			kernel_params.iteration = 0;
 			ctx->change = false;
 
@@ -1131,7 +1144,7 @@ int main(const int argc, const char* argv[])
 		{
 			width = nwidth;
 			height = nheight;
-			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
+			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			resize_buffers(&accum_buffer, &display_buffer_cuda, width, height, display_buffer);
 			kernel_params.accum_buffer = accum_buffer;
 			glViewport(0, 0, width, height);
@@ -1145,10 +1158,10 @@ int main(const int argc, const char* argv[])
 		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->move_mx != 0.0 || ctx->move_my != 0.0 || ctx->zoom_delta) {
 
 
-			update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta);
+			//update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta);
 			ctx->move_dx = ctx->move_dy = ctx->move_mx = ctx->move_my = 0.0;
 			ctx->zoom_delta = 0;
-			gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
+			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 
 			kernel_params.iteration = 0;
 		}
@@ -1180,12 +1193,12 @@ int main(const int argc, const char* argv[])
 		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
 
 		// Launch volume rendering kernel.
-		Vector3DI block(8, 8, 1);
-		Vector3DI grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
+		//Vector3DI block(8, 8, 1);
+		//Vector3DI grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
-		void *params[] = { vdbinfo, &kernel_params };
-		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
+		//void *params[] = { vdbinfo, &kernel_params };
+		//cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
 
