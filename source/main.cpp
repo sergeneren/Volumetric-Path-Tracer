@@ -46,6 +46,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
 #include <cuda_gl_interop.h>
 #include <driver_types.h>
 //#include <vector_functions.h>
@@ -75,8 +76,11 @@
 #include <Windows.h>
 
 
+
 CUmodule		cuCustom;
 CUfunction		cuRaycastKernel;
+
+
 //VolumeGVDB		gvdb;
 
 GPU_VDB			gpu_vdb;
@@ -902,10 +906,42 @@ int main(const int argc, const char* argv[])
 	
 	std::string file_path = ASSET_PATH;
 	file_path.append(fname);
+	/*
 	if (!gpu_vdb.loadVDB(file_path, "density")) {
 		std::cout << "!Can't load VDB file: " << file_path << std::endl;
 		exit(0);
 	}
+	*/
+	const char * module_name = "render_kernel.ptx";
+	const char * kernel_name = "volume_rt_kernel";
+
+	int cuda_devices[1];
+	unsigned int num_cuda_devices;
+	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
+	if (num_cuda_devices == 0) {
+		fprintf(stderr, "Could not determine CUDA device for context\n.");
+		exit(EXIT_FAILURE);
+	}
+
+	CUresult error;
+	CUdevice cuDevice;
+	CUcontext cuContext;
+	CUmodule cuModule;
+	CUfunction testkernel;
+	// Initialize
+	error = cuInit(0);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuInit, %i\n", error);
+	error = cuDeviceGet(&cuDevice, 0);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuInit, %i\n", error);
+	error = cuCtxCreate(&cuContext, 0, cuDevice);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuCtxCreate, %i\n", error);
+	error = cuModuleLoad(&cuModule, "render_kernel.ptx");
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+	error = cuModuleGetFunction(&cuRaycastKernel, cuModule, kernel_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
+
+	cuCtxSynchronize();
+
 
 	// Setup initial CUDA kernel parameters.
 	Kernel_params kernel_params;
@@ -955,9 +991,14 @@ int main(const int argc, const char* argv[])
 
 	// End ImGui parameters
 
-	if (argc >= 3)
-		env_tex = create_environment(
-			&kernel_params.env_tex, &env_tex_data, argv[2]);
+
+	//Create env texture 
+	if (argc >= 3) {
+
+		std::string env_tex_name = ASSET_PATH;
+		env_tex_name.append(argv[2]);
+		env_tex = create_environment(&kernel_params.env_tex, &env_tex_data, env_tex_name.c_str());
+	}
 	if (env_tex) {
 		kernel_params.environment_type = 1;
 		window_context.config_type = 2;
@@ -1140,8 +1181,8 @@ int main(const int argc, const char* argv[])
 		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
 
 		// Launch volume rendering kernel.
-		int3 block = make_int3(8, 8, 1);
-		int3 grid = make_int3(int(width / block.x) + 1, int(height / block.y) + 1, 1);
+		dim3 block(8, 8, 1);
+		dim3 grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 		void *params[] = {&cam, &gpu_vdb, &kernel_params };

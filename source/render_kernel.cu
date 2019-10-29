@@ -861,9 +861,11 @@ __device__ inline float3 direct_integrator(
 	float3 ray_pos,
 	float3 ray_dir,
 	const Kernel_params kernel_params,
-	GPU_VDB gpu_vdb)
+	const GPU_VDB &gpu_vdb)
 {
 	float3 L = BLACK;
+	
+
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
 	float3 t = rayBoxIntersect(ray_pos, ray_dir,gpu_vdb.vdb_info.bmin,gpu_vdb.vdb_info.bmax);
@@ -905,7 +907,7 @@ __device__ inline float3 direct_integrator(
 
 		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
-
+	
 	return L;
 
 }
@@ -1037,15 +1039,15 @@ extern "C" __global__ void volume_rt_kernel(
 	float3 ray_dir = camera_ray.direction();
 	float3 ray_pos = camera_ray.origin();
 	float3 value = WHITE;
-		
+	
+	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
 
 	}
 	
-	
-	
+
 	// Accumulate.
 	if (kernel_params.iteration == 0)
 		kernel_params.accum_buffer[idx] = value;

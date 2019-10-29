@@ -76,7 +76,7 @@ _COMPILEPTX ( SOURCES ${CUDA_SOURCES}
 	TARGET_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} 
 	GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS 
 	INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${_VCPKG_INCLUDE_DIR},${CMAKE_CURRENT_SOURCE_DIR}/common,${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb" 
-	OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math --maxrregcount=128 )
+	OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math --maxrregcount=128)
 
 ###################################################################
 
