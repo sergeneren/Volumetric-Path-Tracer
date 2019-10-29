@@ -80,8 +80,8 @@ struct ALIGN(16) VDB_INFO {
 class GPU_VDB {
 
 public:
-	~GPU_VDB();
-	GPU_VDB();
+	__host__ __device__ ~GPU_VDB();
+	__host__ __device__ GPU_VDB();
 	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");
 	
 	__host__ VDB_INFO * get_vdb_info();
