@@ -454,7 +454,7 @@ __device__ inline float get_extinction(
 
 	return density;
 }
-
+*/
 
 // Light Samplers 
 
@@ -536,7 +536,7 @@ __device__ inline float3 sample_atmosphere(
 
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
 }
-*/
+
 __device__ inline float3 sample_env_tex(
 	const Kernel_params kernel_params,
 	const float3 wi)
@@ -628,7 +628,7 @@ __device__ inline float3 Tr(
 }
 
 
-/*
+
 __device__ inline float pdf_li(
 	Kernel_params kernel_params,
 	float3 wi)
@@ -648,7 +648,7 @@ __device__ inline float3 estimate_sky(
 	Rand_state &randstate,
 	const float3 &ray_pos,
 	float3 &ray_dir,
-	VDBInfo &gvdb)
+	const GPU_VDB &gpu_vdb)
 {
 	float3 Ld = BLACK;
 
@@ -679,7 +679,7 @@ __device__ inline float3 estimate_sky(
 			phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 
 			if (phase_pdf > .0f) {
-				float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
+				float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb);
 				Li *= tr;
 
 				if (!isBlack(Li)) {
@@ -709,7 +709,7 @@ __device__ inline float3 estimate_sky(
 			if (light_pdf == 0.0f) return Ld;
 			weight = power_heuristic(1, phase_pdf, 1, light_pdf);
 
-			float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
+			float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb);
 
 			if (kernel_params.environment_type == 0)
 			{
@@ -728,7 +728,7 @@ __device__ inline float3 estimate_sky(
 	return Ld;
 
 }
-*/
+
 
 __device__ inline float3 estimate_sun(
 	Kernel_params kernel_params,
@@ -812,7 +812,10 @@ __device__ inline float3 sample(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
 		
-		if (!gpu_vdb.inVolumeBbox(ray_pos)) break;
+		if (!gpu_vdb.inVolumeBbox(ray_pos)) {
+			return RED;
+			break;
+		}
 		
 		float density = get_density(ray_pos, gpu_vdb);
 		if (density * inv_max_density > rand(&rand_state)) {
@@ -889,11 +892,9 @@ __device__ inline float3 direct_integrator(
 	
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
-		
-		
+
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
-			
 			
 			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gpu_vdb);
 			if (isBlack(beta)) break;
@@ -908,15 +909,16 @@ __device__ inline float3 direct_integrator(
 	}
 	
 	//Sample environment
+	ray_dir = normalize(ray_dir);
 
 	if (kernel_params.environment_type == 0) {
 
-		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta;
+		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta;
 		else L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
 
 	}
 	else {
-		ray_dir = normalize(ray_dir);
+		
 		const float4 texval = tex2D<float4>(
 			kernel_params.env_tex,
 			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
@@ -961,7 +963,6 @@ extern "C" __global__ void volume_rt_kernel(
 
 	}
 	
-
 	// Accumulate.
 	if (kernel_params.iteration == 0)
 		kernel_params.accum_buffer[idx] = value;
