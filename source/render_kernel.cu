@@ -75,7 +75,7 @@ typedef unsigned long long	uint64;
 #define INV_2_PI		1.0f / (2.0f * M_PI) 
 #define INV_4_PI		1.0f / (4.0f * M_PI) 
 #define INV_PI			1.0f / M_PI 
-#define NOHIT			1.0e10f
+
 
 // Helper functions
 

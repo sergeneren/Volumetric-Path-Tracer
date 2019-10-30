@@ -49,7 +49,7 @@ GPU_VDB::GPU_VDB(){}
 GPU_VDB::~GPU_VDB() {}
 
 
-__host__ VDB_INFO* GPU_VDB::get_vdb_info() {
+VDB_INFO* GPU_VDB::get_vdb_info() {
 
 	return &vdb_info;
 
@@ -129,7 +129,6 @@ void GPU_VDB::fill_texture(openvdb::GridBase::Ptr gridBase, cudaTextureObject_t 
 	checkCudaErrors(cudaCreateTextureObject(&texture, &texRes, &texDescr, NULL));
 	   	  
 }
-
 
 bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::string emission_channel){
 
@@ -246,3 +245,20 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	return true;
 }
 
+float3 GPU_VDB::rayBoxIntersect(float3 ray_pos, float3 ray_dir) {
+	
+	
+
+	register float ht[8];
+	ht[0] = (vdb_info.bmin.x - ray_pos.x) / ray_dir.x;
+	ht[1] = (vdb_info.bmax.x - ray_pos.x) / ray_dir.x;
+	ht[2] = (vdb_info.bmin.y - ray_pos.y) / ray_dir.y;
+	ht[3] = (vdb_info.bmax.y - ray_pos.y) / ray_dir.y;
+	ht[4] = (vdb_info.bmin.z - ray_pos.z) / ray_dir.z;
+	ht[5] = (vdb_info.bmax.z - ray_pos.z) / ray_dir.z;
+	ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
+	ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));
+	ht[6] = (ht[6] < 0) ? 0.0 : ht[6];
+	return make_float3(ht[6], ht[7], (ht[7] < ht[6] || ht[7] < 0) ? NOHIT : 0);
+
+}

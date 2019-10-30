@@ -61,6 +61,9 @@
 
 #define ALIGN(x)	__align__(x)
 
+#define NOHIT			1.0e10f
+
+
 // Transform matrix for gpu_vdb instance
 
 struct ALIGN(16) VDB_INFO {
@@ -82,13 +85,19 @@ class GPU_VDB {
 public:
 	__host__ __device__ ~GPU_VDB();
 	__host__ __device__ GPU_VDB();
-	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");
+
+	// Device functions
+	inline __device__ float3 rayBoxIntersect(float3 ray_pos, float3 ray_dir);
 	
+	// Host functions
+	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");
 	__host__ VDB_INFO * get_vdb_info();
 	
-	VDB_INFO vdb_info;
-
+	// Host and device functions
 	__host__ __device__ mat4 get_xform() { return this->xform; }
+
+
+	VDB_INFO vdb_info;
 
 private:
 
