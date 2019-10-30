@@ -825,18 +825,25 @@ static void update_camera(
 	double my,
 	int zoom_delta)
 {
+	float rot_speed = 1; 
+	float zoom_speed = 50;
 
-	cam.vertical -= float(dy) * 0.1;
-	cam.horizontal -= float(dx) * 0.1;
+	// Rotation
+	lookfrom -= cam.u * dx * rot_speed;
+	lookfrom += cam.v * dy * rot_speed;
 
-	//Camera3D* cam = gvdb.getScene()->getCamera();
-	//Vector3DF angs = cam->getAng();
-	//float dist = cam->getOrbitDist();
-	//dist -= zoom_delta * 50;
-	//angs.x -= dx * 0.2f;
-	//angs.y -= dy * 0.2f;
-	//cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
-	//cam->moveRelative(float(mx) * dist / 1000, float(my) * dist / 1000, 0);
+	//Pan
+	lookfrom -= cam.u * mx * rot_speed;
+	lookfrom += cam.v * my * rot_speed;
+	lookat -= cam.u * mx * rot_speed;
+	lookat += cam.v * my * rot_speed;
+	
+	// Zoom 
+
+	lookfrom -= cam.w * zoom_delta * zoom_speed;
+
+	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
+	
 }
 
 
@@ -949,7 +956,7 @@ int main(const int argc, const char* argv[])
 
 
 	// Setup initial camera 
-	lookfrom = make_float3(100.0f, .0f, .0f);
+	lookfrom = make_float3(1.0f, .0f, .0f);
 	lookat = make_float3(.0f, .0f, .0f);
 	vup = make_float3(.0f, 1.0f, .0f);
 	fov = 50.0f;

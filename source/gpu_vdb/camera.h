@@ -102,7 +102,7 @@ class camera
 public:
 	__host__ __device__ camera():
 		time0(.0f), time1(1.0f), 
-		origin(make_float3(10.0f, .0f, .0f)),
+		origin(make_float3(.0f, .0f, .0f)),
 		lower_left_corner(make_float3(.0f, .0f, .0f)),
 		horizontal(make_float3(-1.0f, .0f, .0f)),
 		vertical(make_float3(.0f, 1.0f, .0f)),

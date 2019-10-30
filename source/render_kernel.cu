@@ -871,8 +871,13 @@ __device__ inline float3 direct_integrator(
 	float3 t = rayBoxIntersect(ray_pos, ray_dir,gpu_vdb.vdb_info.bmin,gpu_vdb.vdb_info.bmax);
 	bool mi = false;
 
-	/*
+	
 	if (t.z != NOHIT) { // found an intersection
+		
+		L = RED; 
+		return L; 
+
+		/*
 		ray_pos += ray_dir * t.x;
 
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
@@ -888,9 +893,9 @@ __device__ inline float3 direct_integrator(
 			}
 
 		}
-
+		*/
 	}
-	*/
+	
 	//Sample environment
 
 	if (kernel_params.environment_type == 0) {
@@ -900,6 +905,7 @@ __device__ inline float3 direct_integrator(
 
 	}
 	else {
+		ray_dir = normalize(ray_dir);
 		const float4 texval = tex2D<float4>(
 			kernel_params.env_tex,
 			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
