@@ -29,7 +29,7 @@
 // All rights reserved.
 //----------------------------------------------------------------------------------
 // 
-//	Version 1.0: Sergen Eren, 26/3/2019
+//	Version 1.0.1: Sergen Eren, 30/10/2019
 //
 // File: Custom path trace kernel: 
 //       Performs custom path tracing
@@ -52,16 +52,7 @@ typedef unsigned short		ushort;
 typedef unsigned long		ulong;
 typedef unsigned long long	uint64;
 
-//-------------------------------- GVDB Data Structure
-//#define CUDA_PATHWAY
-//#include "cuda_gvdb_scene.cuh"		// GVDB Scene
-//#include "cuda_gvdb_nodes.cuh"		// GVDB Node structure
-//#include "cuda_gvdb_geom.cuh"		// GVDB Geom helpers
-//#include "cuda_gvdb_dda.cuh"		// GVDB DDA 
-
 #include "render_kernel.h"
-
-
 #include "gpu_vdb.h"
 #include "camera.h"
 
@@ -151,6 +142,24 @@ __device__ bool raySphereIntersect(
 	}
 	return true;
 }
+
+
+inline __device__ float3 rayBoxIntersect(float3 rpos, float3 rdir, float3 vmin, float3 vmax, mat4 xform)
+{
+	register float ht[8];
+	ht[0] = (vmin.x - rpos.x) / rdir.x;
+	ht[1] = (vmax.x - rpos.x) / rdir.x;
+	ht[2] = (vmin.y - rpos.y) / rdir.y;
+	ht[3] = (vmax.y - rpos.y) / rdir.y;
+	ht[4] = (vmin.z - rpos.z) / rdir.z;
+	ht[5] = (vmax.z - rpos.z) / rdir.z;
+	ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
+	ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));
+	ht[6] = (ht[6] < 0) ? 0.0 : ht[6];
+	return make_float3(ht[6], ht[7], (ht[7] < ht[6] || ht[7] < 0) ? NOHIT : 0);
+}
+
+
 
 __device__ inline float degree_to_radians(
 	float degree)
@@ -852,7 +861,6 @@ __device__ inline float3 direct_integrator(
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
 	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
-	bool mi = false;
 
 	
 	if (t.z != NOHIT) { // found an intersection

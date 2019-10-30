@@ -829,6 +829,7 @@ static void update_camera(
 	float zoom_speed = 50;
 
 	// Rotation
+	
 	lookfrom -= cam.u * float(dx) * rot_speed;
 	lookfrom += cam.v * float(dy) * rot_speed;
 
@@ -916,6 +917,7 @@ int main(const int argc, const char* argv[])
 
 
 	// Setup gpu_vdb
+
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
 	
@@ -1207,7 +1209,8 @@ int main(const int argc, const char* argv[])
 		dim3 grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
-		void *params[] = {&cam, &gpu_vdb, &kernel_params };
+
+		void *params[] = { &cam, &gpu_vdb, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 

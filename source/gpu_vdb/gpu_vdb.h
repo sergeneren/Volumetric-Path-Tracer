@@ -44,20 +44,11 @@
 #include "matrix_math.h"
 #include <string>
 
-
-//#ifdef max
-//	#undef max
-//	#ifdef min
-//		#undef min
-//	#endif
-//#endif
-
-
-
-
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Dense.h>
 #include <openvdb/Metadata.h>
+
+#include "helper_math.h"
 
 #define ALIGN(x)	__align__(x)
 
@@ -87,23 +78,44 @@ public:
 	__host__ __device__ GPU_VDB();
 
 	// Device functions
-	inline __device__ float3 rayBoxIntersect(float3 ray_pos, float3 ray_dir) const;
+	__device__ float3 rayBoxIntersect(float3 ray_pos, float3 ray_dir) const {
+
+		ray_pos = xform.inverse() * ray_pos;
+		ray_dir = normalize(xform.inverse() * ray_dir);
+
+		
+		
+
+		register float ht[8];
+		ht[0] = (vdb_info.bmin.x - ray_pos.x) / ray_dir.x;
+		ht[1] = (vdb_info.bmax.x - ray_pos.x) / ray_dir.x;
+		ht[2] = (vdb_info.bmin.y - ray_pos.y) / ray_dir.y;
+		ht[3] = (vdb_info.bmax.y - ray_pos.y) / ray_dir.y;
+		ht[4] = (vdb_info.bmin.z - ray_pos.z) / ray_dir.z;
+		ht[5] = (vdb_info.bmax.z - ray_pos.z) / ray_dir.z;
+		ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
+		ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));
+		ht[6] = (ht[6] < 0) ? 0.0 : ht[6];
+		return make_float3(ht[6], ht[7], (ht[7] < ht[6] || ht[7] < 0) ? NOHIT : 0);	
+	}
 	
 	// Host functions
 	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");
 	__host__ VDB_INFO * get_vdb_info();
 	
 	// Host and device functions
-	__host__ __device__ mat4 get_xform() { return this->xform; }
+	__host__ __device__ mat4 get_xform() const { return this->xform; }
 
 
 	VDB_INFO vdb_info;
+	
+
 
 private:
 
 	__host__ void fill_texture(openvdb::GridBase::Ptr gridBase, cudaTextureObject_t &texture);
 	
-	mat4 xform;
+	
 
 	__host__ inline void set_vec3s(float3 &fl, openvdb::Vec3s vec) {
 
@@ -120,13 +132,16 @@ private:
 
 	__host__ inline void set_xform(mat4 &xform, openvdb::Mat4R matrix) {
 
-		for (int i = 0; i < 4; i++) {
-			for (int j = 0; j < 4; j++) {
-				xform[i][j] = float(matrix(i,j));
+		for (int j = 0; j < 4; j++) {
+			for (int i = 0; i < 4; i++) {
+				xform[i][j] = float(matrix(j,i));
 			}
 		}
 
 	}
+	
+	mat4 xform;
+
 };
 
 #endif //endif _GPU_VDB_H_
