@@ -96,6 +96,13 @@ public:
 		ht[6] = (ht[6] < 0) ? 0.0f : ht[6];
 		return make_float3(ht[6], ht[7], (ht[7] < ht[6] || ht[7] < 0) ? NOHIT : 0);	
 	}
+
+	__device__ bool inVolumeBbox(float3 ray_pos) const {
+
+		
+		return ray_pos.x >= vdb_info.bmin.x && ray_pos.y >= vdb_info.bmin.y && ray_pos.z >= vdb_info.bmin.z && ray_pos.x < vdb_info.bmax.x && ray_pos.y < vdb_info.bmax.y && ray_pos.z < vdb_info.bmax.z;
+
+	}
 	
 	// Host functions
 	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");

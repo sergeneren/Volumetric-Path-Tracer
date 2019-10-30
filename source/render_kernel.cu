@@ -204,7 +204,7 @@ __device__ inline float tex_lookup_2d(
 
 
 	const float texval = tex2D<float>(tex, u, v);
-
+	
 	return texval;
 }
 
@@ -536,7 +536,7 @@ __device__ inline float3 sample_atmosphere(
 
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
 }
-
+*/
 __device__ inline float3 sample_env_tex(
 	const Kernel_params kernel_params,
 	const float3 wi)
@@ -553,7 +553,7 @@ __device__ inline float3 sample_env_tex(
 
 __device__ inline float get_density(
 	const Kernel_params &kernel_params,
-	VDBInfo *gvdb,
+	const GPU_VDB &gpu_vdb,
 	const float3 &p)
 {
 
@@ -583,7 +583,7 @@ __device__ inline float3 Tr(
 	float3 pos,
 	float3 dir,
 	const Kernel_params &kernel_params,
-	VDBInfo &gvdb)
+	const GPU_VDB &gpu_vdb)
 {
 
 	// Run ratio tracking to estimate transmittance
@@ -600,8 +600,8 @@ __device__ inline float3 Tr(
 		if (tr.x < 0.0000001) break;
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		p += dir * t;
-		if (!in_volume_bbox(gvdb, p)) break;
-		float density = get_density(kernel_params, &gvdb, p);
+		if (!gpu_vdb.inVolumeBbox(p)) break;
+		float density = get_density(kernel_params, gpu_vdb, p);
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
 		//kernel_params.debug_buffer[k] = tr;
 		//k++;
@@ -610,6 +610,7 @@ __device__ inline float3 Tr(
 }
 
 
+/*
 __device__ inline float pdf_li(
 	Kernel_params kernel_params,
 	float3 wi)
@@ -709,14 +710,14 @@ __device__ inline float3 estimate_sky(
 	return Ld;
 
 }
-
+*/
 
 __device__ inline float3 estimate_sun(
 	Kernel_params kernel_params,
 	Rand_state &randstate,
 	const float3 &ray_pos,
 	float3 &ray_dir,
-	VDBInfo &gvdb)
+	const GPU_VDB &gpu_vdb)
 {
 	float3 Ld = BLACK;
 	float3 wi;
@@ -732,7 +733,7 @@ __device__ inline float3 estimate_sun(
 	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 
 	// Check visibility of light source 
-	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gvdb);
+	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb);
 
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
 	Ld = kernel_params.sun_color * tr  * phase_pdf;
@@ -744,6 +745,7 @@ __device__ inline float3 estimate_sun(
 
 }
 
+/*
 __device__ inline float3 uniform_sample_one_light(
 	Kernel_params kernel_params,
 	const float3 &ray_pos,
@@ -782,24 +784,28 @@ __device__ inline float3 sample(
 	const GPU_VDB &gpu_vdb)
 {
 	// Run delta tracking 
-	/*
+	
 	float t = 0.0f;
 	float inv_max_density = 1.0f / kernel_params.max_extinction;
 	float inv_density_mult = 1.0f / kernel_params.density_mult;
-
+	
 	while (true) {
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
-		if (!in_volume_bbox(gvdb, ray_pos)) break;
+		
+		if (!gpu_vdb.inVolumeBbox(ray_pos)) break;
+		
+		/*
 		float density = get_density(kernel_params, &gvdb, ray_pos);
 		if (density * inv_max_density > rand(&rand_state)) {
 
 			interaction = true;
 			return kernel_params.albedo / kernel_params.extinction;
 		}
+		*/
 	}
-	*/
+	
 	return WHITE;
 
 }
@@ -873,14 +879,13 @@ __device__ inline float3 direct_integrator(
 			
 			
 			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gpu_vdb);
-			
 			if (isBlack(beta)) break;
-			/*
+			
 			if (mi) { // medium interaction 
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
-				if (kernel_params.sun_mult > .0f) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta * kernel_params.sun_mult;
+				if (kernel_params.sun_mult > .0f) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta * kernel_params.sun_mult;
 			}
-			*/
+		
 		}
 		
 	}
@@ -906,109 +911,6 @@ __device__ inline float3 direct_integrator(
 	return L;
 
 }
-/*
-
-// From Art-Directable Multiple Volumetric Scattering Wrenninge - 2015
-
-__device__ inline bool density_sample(
-	Rand_state &rand_state,
-	float3 &ray_pos,
-	const float3 &ray_dir,
-	bool &interaction,
-	const Kernel_params &kernel_params,
-	VDBInfo &gvdb)
-{
-
-	float t = 0.0f;
-	float inv_max_density = 1.0f / kernel_params.max_extinction;
-	float inv_density_mult = 1.0f / kernel_params.density_mult;
-
-	while (true) {
-
-		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
-		ray_pos += ray_dir * t;
-		if (!in_volume_bbox(gvdb, ray_pos)) return false;
-		float density = get_density(kernel_params, &gvdb, ray_pos);
-		if (density * inv_max_density > rand(&rand_state)) {
-			return true;
-		}
-	}
-	return true;
-
-}
-
-__device__ inline bool track_secondary(
-	Rand_state &rand_state,
-	float3 &ray_pos,
-	const float3 ray_dir,
-	bool &interaction,
-	const Kernel_params &kernel_params,
-	VDBInfo &gvdb)
-{
-	float t = 0.0f;
-	float inv_max_density = 1.0f / kernel_params.max_extinction;
-	float inv_density_mult = 1.0f / kernel_params.density_mult;
-
-	while (true) {
-
-		t -= logf(1 - rand(&rand_state)) * inv_density_mult;
-		ray_pos += ray_dir * t;
-		if (!in_volume_bbox(gvdb, ray_pos)) return false;
-		float density = get_density(kernel_params, &gvdb, ray_pos);
-		if (density * inv_max_density > rand(&rand_state)) {
-			return true;
-		}
-	}
-	return true;
-
-}
-
-__device__ inline float3 art_directable_integrator(
-	Rand_state rand_state,
-	float3 ray_pos,
-	float3 ray_dir,
-	const Kernel_params kernel_params,
-	VDBInfo gvdb)
-{
-	float3 L = BLACK;
-	float3 beta = WHITE;
-	float3 env_pos = ray_pos;
-	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
-	bool mi = false;
-
-	float a = 0.5f, b= 0.5f, c = 0.5f;
-	int N = 8;
-
-	if (t.z != NOHIT) { // found an intersection
-		ray_pos += ray_dir * t.x;
-
-		// Find the points inside volume based on density tracking
-		while (density_sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb)) {
-
-			float3 sec_pos = ray_pos;
-			float3 sec_dir = ray_dir;
-
-			for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
-
-				track_secondary(rand_state, sec_pos, sec_dir, mi, kernel_params, gvdb);
-				
-				float phase = sample_hg(sec_dir, rand_state, powf(c, depth)*kernel_params.phase_g1);
-				float3 tr = Tr(rand_state, sec_pos, sec_dir, kernel_params, gvdb) / powf(a, depth);
-				
-				L += kernel_params.albedo * powf(b, depth) * estimate_sun(kernel_params, rand_state, sec_pos, sec_dir, gvdb) * phase * tr;
-			
-			}
-					   			 		  
-		}
-
-	}
-
-	return L;
-
-}
-
-
-*/
 
 // Main cuda kernels accessor 
 
