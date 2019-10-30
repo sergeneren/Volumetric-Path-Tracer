@@ -829,14 +829,14 @@ static void update_camera(
 	float zoom_speed = 50;
 
 	// Rotation
-	lookfrom -= cam.u * dx * rot_speed;
-	lookfrom += cam.v * dy * rot_speed;
+	lookfrom -= cam.u * float(dx) * rot_speed;
+	lookfrom += cam.v * float(dy) * rot_speed;
 
 	//Pan
-	lookfrom -= cam.u * mx * rot_speed;
-	lookfrom += cam.v * my * rot_speed;
-	lookat -= cam.u * mx * rot_speed;
-	lookat += cam.v * my * rot_speed;
+	lookfrom -= cam.u * float(mx) * rot_speed;
+	lookfrom += cam.v * float(my) * rot_speed;
+	lookat -= cam.u * float(mx) * rot_speed;
+	lookat += cam.v * float(my) * rot_speed;
 	
 	// Zoom 
 

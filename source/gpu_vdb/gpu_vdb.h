@@ -87,7 +87,7 @@ public:
 	__host__ __device__ GPU_VDB();
 
 	// Device functions
-	inline __device__ float3 rayBoxIntersect(float3 ray_pos, float3 ray_dir);
+	inline __device__ float3 rayBoxIntersect(float3 ray_pos, float3 ray_dir) const;
 	
 	// Host functions
 	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");

@@ -245,7 +245,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	return true;
 }
 
-float3 GPU_VDB::rayBoxIntersect(float3 ray_pos, float3 ray_dir) {
+float3 GPU_VDB::rayBoxIntersect(float3 ray_pos, float3 ray_dir) const {
 	
 	
 

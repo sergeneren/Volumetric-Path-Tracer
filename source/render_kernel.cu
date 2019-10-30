@@ -152,23 +152,6 @@ __device__ bool raySphereIntersect(
 	return true;
 }
 
-
-inline __device__ float3 rayBoxIntersect(float3 rpos, float3 rdir, float3 vmin, float3 vmax)
-{
-	register float ht[8];
-	ht[0] = (vmin.x - rpos.x) / rdir.x;
-	ht[1] = (vmax.x - rpos.x) / rdir.x;
-	ht[2] = (vmin.y - rpos.y) / rdir.y;
-	ht[3] = (vmax.y - rpos.y) / rdir.y;
-	ht[4] = (vmin.z - rpos.z) / rdir.z;
-	ht[5] = (vmax.z - rpos.z) / rdir.z;
-	ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
-	ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));
-	ht[6] = (ht[6] < 0) ? 0.0 : ht[6];
-	return make_float3(ht[6], ht[7], (ht[7] < ht[6] || ht[7] < 0) ? NOHIT : 0);
-}
-
-
 __device__ inline float degree_to_radians(
 	float degree)
 {
@@ -868,7 +851,7 @@ __device__ inline float3 direct_integrator(
 
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
-	float3 t = rayBoxIntersect(ray_pos, ray_dir,gpu_vdb.vdb_info.bmin,gpu_vdb.vdb_info.bmax);
+	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
 	bool mi = false;
 
 	
