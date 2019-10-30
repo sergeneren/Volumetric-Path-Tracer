@@ -35,6 +35,9 @@ typedef unsigned short ushort;
 #ifndef __CUDACC__
 #include <math.h>
 
+#define _USE_MATH_DEFINES
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // host implementations of CUDA functions
 ////////////////////////////////////////////////////////////////////////////////
@@ -1453,5 +1456,17 @@ inline __device__ __host__ float4 smoothstep(float4 a, float4 b, float4 x)
     float4 y = clamp((x - a) / (b - a), 0.0f, 1.0f);
     return (y*y*(make_float4(3.0f) - (make_float4(2.0f)*y)));
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+// comparisons
+////////////////////////////////////////////////////////////////////////////////
+
+inline __host__ __device__ bool isBlack(float3 v)
+
+{
+	return length(v) < FLT_EPSILON;
+}
+
 
 #endif

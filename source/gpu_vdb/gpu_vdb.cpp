@@ -44,6 +44,7 @@
 
 #include <filesystem>
 
+
 GPU_VDB::GPU_VDB(){}
 
 GPU_VDB::~GPU_VDB(){}
@@ -237,7 +238,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	set_vec3i(vdb_info.dim, bbox.dim().asVec3i());
 
 	vdb_info.epsilon = FLT_EPSILON;
-	vdb_info.voxelsize = grid->voxelSize()[0];
+	vdb_info.voxelsize = float(grid->voxelSize()[0]);
 
 	openvdb::Mat4R ref_xform = grid->transform().baseMap()->getAffineMap()->getMat4();
 	

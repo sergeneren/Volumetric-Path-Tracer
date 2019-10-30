@@ -631,7 +631,7 @@ static bool create_cdf(
 	// Send func data
 	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float>();
 	check_success(cudaMallocArray(env_func_data, &channel_desc, res, res) == cudaSuccess);
-	check_success(cudaMemcpyToArray(*env_func_data, 0, 0, func, res * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMemcpy2DToArray(*env_func_data, 0, 0, func, res * sizeof(float), res * sizeof(float), res, cudaMemcpyHostToDevice) == cudaSuccess);
 
 	cudaResourceDesc res_desc_func;
 	memset(&res_desc_func, 0, sizeof(res_desc_func));
@@ -652,7 +652,7 @@ static bool create_cdf(
 	// Send cdf data 
 
 	check_success(cudaMallocArray(env_cdf_data, &channel_desc, res, res) == cudaSuccess);
-	check_success(cudaMemcpyToArray(*env_cdf_data, 0, 0, cdf, res * res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMemcpy2DToArray(*env_cdf_data, 0, 0, cdf, res * sizeof(float), res * sizeof(float), res, cudaMemcpyHostToDevice) == cudaSuccess);
 	
 	cudaResourceDesc res_desc_cdf;
 	memset(&res_desc_cdf, 0, sizeof(res_desc_cdf));
@@ -673,7 +673,7 @@ static bool create_cdf(
 	// Send Marginal 1D distribution func data
 
 	check_success(cudaMallocArray(env_marginal_func_data, &channel_desc, res, 0) == cudaSuccess);
-	check_success(cudaMemcpyToArray(*env_marginal_func_data, 0, 0, marginal_func, res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMemcpy2DToArray(*env_marginal_func_data, 0, 0, marginal_func, res * sizeof(float), res * sizeof(float), 1, cudaMemcpyHostToDevice) == cudaSuccess);
 
 	cudaResourceDesc res_desc_marginal_func;
 	memset(&res_desc_marginal_func, 0, sizeof(res_desc_marginal_func));
@@ -695,7 +695,7 @@ static bool create_cdf(
 	// Send Marginal 1D distribution cdf data
 
 	check_success(cudaMallocArray(env_marginal_cdf_data, &channel_desc, res, 0) == cudaSuccess);
-	check_success(cudaMemcpyToArray(*env_marginal_cdf_data, 0, 0, marginal_cdf, res * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMemcpy2DToArray(*env_marginal_cdf_data, 0, 0, marginal_cdf, res * sizeof(float), res * sizeof(float), 1, cudaMemcpyHostToDevice) == cudaSuccess);
 
 	cudaResourceDesc res_desc_marginal_cdf;
 	memset(&res_desc_marginal_cdf, 0, sizeof(res_desc_marginal_cdf));
@@ -810,9 +810,7 @@ static bool create_environment(
 	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float4>();
 	check_success(cudaMallocArray(env_tex_data, &channel_desc, rx, ry) == cudaSuccess);
 
-	check_success(cudaMemcpyToArray(
-		*env_tex_data, 0, 0, pixels,
-		rx * ry * sizeof(float4), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMemcpy2DToArray(*env_tex_data, 0, 0, pixels, rx * sizeof(float4), rx * sizeof(float4), ry, cudaMemcpyHostToDevice) == cudaSuccess);
 
 	cudaResourceDesc res_desc;
 	memset(&res_desc, 0, sizeof(res_desc));
@@ -857,7 +855,7 @@ static void update_camera(
 	
 	// Zoom 
 
-	lookfrom -= cam.w * zoom_delta * zoom_speed;
+	lookfrom -= cam.w * float(zoom_delta) * zoom_speed;
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 	
@@ -974,7 +972,7 @@ int main(const int argc, const char* argv[])
 
 
 	// Setup initial camera 
-	lookfrom = make_float3(1.0f, .0f, .0f);
+	lookfrom = make_float3(10.0f, .0f, .0f);
 	lookat = make_float3(.0f, .0f, .0f);
 	vup = make_float3(.0f, 1.0f, .0f);
 	fov = 50.0f;

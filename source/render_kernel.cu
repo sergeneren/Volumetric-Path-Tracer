@@ -771,6 +771,7 @@ __device__ inline float3 uniform_sample_one_light(
 
 }
 
+*/
 
 __device__ inline float3 sample(
 	Rand_state &rand_state,
@@ -778,10 +779,10 @@ __device__ inline float3 sample(
 	const float3 &ray_dir,
 	bool &interaction,
 	const Kernel_params &kernel_params,
-	VDBInfo &gvdb)
+	const GPU_VDB &gpu_vdb)
 {
 	// Run delta tracking 
-
+	/*
 	float t = 0.0f;
 	float inv_max_density = 1.0f / kernel_params.max_extinction;
 	float inv_density_mult = 1.0f / kernel_params.density_mult;
@@ -798,10 +799,12 @@ __device__ inline float3 sample(
 			return kernel_params.albedo / kernel_params.extinction;
 		}
 	}
+	*/
 	return WHITE;
 
 }
 
+/*
 
 // PBRT Volume Integrator
 __device__ inline float3 vol_integrator(
@@ -856,35 +859,30 @@ __device__ inline float3 direct_integrator(
 	const GPU_VDB &gpu_vdb)
 {
 	float3 L = BLACK;
-	
-
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
 	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
-
+	bool mi = false;
 	
 	if (t.z != NOHIT) { // found an intersection
-		
-		L = RED; 
-		return L; 
-
-		/*
 		ray_pos += ray_dir * t.x;
-
+		
+		
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
-
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb);
+			
+			
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gpu_vdb);
+			
 			if (isBlack(beta)) break;
-
-
+			/*
 			if (mi) { // medium interaction 
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 				if (kernel_params.sun_mult > .0f) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta * kernel_params.sun_mult;
 			}
-
+			*/
 		}
-		*/
+		
 	}
 	
 	//Sample environment
