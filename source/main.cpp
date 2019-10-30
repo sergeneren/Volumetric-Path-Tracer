@@ -34,6 +34,8 @@
 // File: Main entry point for render kernel. 
 //
 //-----------------------------------------------
+
+
 #define NOMINMAX
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -400,6 +402,8 @@ static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset)
 // GLFW keyboard callback.
 static void handle_key(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+	float dist = 0;
+
 	if (action == GLFW_PRESS) {
 		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
 		switch (key) {
@@ -420,6 +424,18 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			break;
 		case GLFW_KEY_S:
 			ctx->save_image = true;
+		case GLFW_KEY_F: // Frame camera to include objects
+			 
+			float3 min = gpu_vdb.get_xform() * gpu_vdb.vdb_info.bmin;
+			float3 max = gpu_vdb.get_xform() * gpu_vdb.vdb_info.bmax;
+			float3 center = (max + min) / 2;
+			dist = length(max - min); // diagonal length of gpu_vdb object
+
+			lookat = center; 
+			lookfrom = make_float3(center.x+(dist*5), center.y + (dist * 2), center.z + (dist * 5));
+			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
+
+			ctx->change = true;
 		default:
 			break;
 		}
