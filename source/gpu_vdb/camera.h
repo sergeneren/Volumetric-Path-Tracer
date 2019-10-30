@@ -100,11 +100,22 @@ public:
 class camera
 {
 public:
-	__host__ __device__ camera(){}
-	__host__ __device__ camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture, float focus_dist, float t0, float t1) {
+	__host__ __device__ camera():
+		time0(.0f), time1(1.0f), 
+		origin(make_float3(10.0f, .0f, .0f)),
+		lower_left_corner(make_float3(.0f, .0f, .0f)),
+		horizontal(make_float3(-1.0f, .0f, .0f)),
+		vertical(make_float3(.0f, 1.0f, .0f)),
+		u(make_float3(1.0f, .0f, .0f)),
+		v(make_float3(.0f, 1.0f, .0f)),
+		w(make_float3(.0f, .0f, 1.0f)),
+		lens_radius(25.0f){}
 
-		time0 = t0;
-		time1 = t1;
+
+
+	__host__ __device__ void update_camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture) {
+
+		float focus_dist = length(lookfrom - lookat);
 		lens_radius = aperture / 2.0f;
 		float theta = vfov * float(M_PI) / 180.0f;
 		float half_height = tan(theta / 2.0f);

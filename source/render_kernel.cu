@@ -896,8 +896,7 @@ __device__ inline float3 direct_integrator(
 	if (kernel_params.environment_type == 0) {
 
 		//if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta;
-		if (0);
-		else L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
+		//else L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
 
 	}
 	else {

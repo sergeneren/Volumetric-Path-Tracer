@@ -77,14 +77,22 @@
 
 
 
-CUmodule		cuCustom;
-CUfunction		cuRaycastKernel;
+CUmodule cuCustom;
+CUfunction cuRaycastKernel;
 
 
 //VolumeGVDB		gvdb;
 
-GPU_VDB			gpu_vdb;
-camera			cam(make_float3(10,0,0), make_float3(0, 0, 0), make_float3(0, 1, 0), 45, 1, 1, 10, 0 ,0);
+GPU_VDB	gpu_vdb;
+
+// Cam parameters 
+camera	cam;
+float3	lookfrom;
+float3	lookat;
+float3	vup;
+float	fov;
+float	aspect; 
+float	aperture;
 
 #define check_success(expr) \
     do { \
@@ -394,10 +402,6 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 {
 	if (action == GLFW_PRESS) {
 		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
-		//Camera3D* cam = gvdb.getScene()->getCamera();
-		//float fov = cam->getFov();
-		float fov = 50.0f;
-
 		switch (key) {
 		case GLFW_KEY_ESCAPE:
 			glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -405,13 +409,13 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 		case GLFW_KEY_KP_SUBTRACT:
 		case GLFW_KEY_LEFT_BRACKET:
 			fov -= 10.0f;
-			//cam->setFov(fov);
+			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 			ctx->change = true;
 			break;
 		case GLFW_KEY_KP_ADD:
 		case GLFW_KEY_RIGHT_BRACKET:
 			fov += 10.0f;
-			//cam->setFov(fov);
+			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 			ctx->change = true;
 			break;
 		case GLFW_KEY_S:
@@ -812,7 +816,7 @@ static bool create_environment(
 	return true;
 }
 
-/*
+
 // Process camera movement.
 static void update_camera(
 	double dx,
@@ -821,16 +825,20 @@ static void update_camera(
 	double my,
 	int zoom_delta)
 {
-	Camera3D* cam = gvdb.getScene()->getCamera();
-	Vector3DF angs = cam->getAng();
-	float dist = cam->getOrbitDist();
-	dist -= zoom_delta * 50;
-	angs.x -= dx * 0.2f;
-	angs.y -= dy * 0.2f;
-	cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
-	cam->moveRelative(float(mx) * dist / 1000, float(my) * dist / 1000, 0);
+
+	cam.vertical -= float(dy) * 0.1;
+	cam.horizontal -= float(dx) * 0.1;
+
+	//Camera3D* cam = gvdb.getScene()->getCamera();
+	//Vector3DF angs = cam->getAng();
+	//float dist = cam->getOrbitDist();
+	//dist -= zoom_delta * 50;
+	//angs.x -= dx * 0.2f;
+	//angs.y -= dy * 0.2f;
+	//cam->setOrbit(angs, cam->getToPos(), dist, cam->getDolly());
+	//cam->moveRelative(float(mx) * dist / 1000, float(my) * dist / 1000, 0);
 }
-*/
+
 
 static void update_debug_buffer(
 	float3 **debug_buffer_cuda,
@@ -906,12 +914,12 @@ int main(const int argc, const char* argv[])
 	
 	std::string file_path = ASSET_PATH;
 	file_path.append(fname);
-	/*
+	
 	if (!gpu_vdb.loadVDB(file_path, "density")) {
 		std::cout << "!Can't load VDB file: " << file_path << std::endl;
 		exit(0);
 	}
-	*/
+	
 	const char * module_name = "render_kernel.ptx";
 	const char * kernel_name = "volume_rt_kernel";
 
@@ -927,8 +935,7 @@ int main(const int argc, const char* argv[])
 	CUdevice cuDevice;
 	CUcontext cuContext;
 	CUmodule cuModule;
-	CUfunction testkernel;
-	// Initialize
+
 	error = cuInit(0);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuInit, %i\n", error);
 	error = cuDeviceGet(&cuDevice, 0);
@@ -940,10 +947,20 @@ int main(const int argc, const char* argv[])
 	error = cuModuleGetFunction(&cuRaycastKernel, cuModule, kernel_name);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
 
-	cuCtxSynchronize();
+
+	// Setup initial camera 
+	lookfrom = make_float3(100.0f, .0f, .0f);
+	lookat = make_float3(.0f, .0f, .0f);
+	vup = make_float3(.0f, 1.0f, .0f);
+	fov = 50.0f;
+	aspect = 1.0f; 
+	aperture = 0.0f; 
+
+	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
 
-	// Setup initial CUDA kernel parameters.
+
+	// Setup initial render kernel parameters.
 	Kernel_params kernel_params;
 	memset(&kernel_params, 0, sizeof(Kernel_params));
 	kernel_params.render = true;
@@ -1110,7 +1127,6 @@ int main(const int argc, const char* argv[])
 
 			update_debug_buffer(&debug_buffer, kernel_params);
 			kernel_params.debug_buffer = debug_buffer;
-			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
 			kernel_params.iteration = 0;
 			ctx->change = false;
 
@@ -1132,7 +1148,8 @@ int main(const int argc, const char* argv[])
 			width = nwidth;
 			height = nheight;
 
-			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
+			aspect = float(width) / float(height);
+			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 			resize_buffers(&accum_buffer, &display_buffer_cuda, width, height, display_buffer);
 			kernel_params.accum_buffer = accum_buffer;
 			glViewport(0, 0, width, height);
@@ -1145,13 +1162,11 @@ int main(const int argc, const char* argv[])
 		// Restart render if camera moves 
 		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->move_mx != 0.0 || ctx->move_my != 0.0 || ctx->zoom_delta) {
 
-
-			//update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta);
+			update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta);
 			ctx->move_dx = ctx->move_dy = ctx->move_mx = ctx->move_my = 0.0;
 			ctx->zoom_delta = 0;
-			//gvdb.PrepareRender(width, height, gvdb.getScene()->getShading());
-
 			kernel_params.iteration = 0;
+
 		}
 
 		if (ctx->save_image) {
