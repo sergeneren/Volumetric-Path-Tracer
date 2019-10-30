@@ -40,6 +40,7 @@
 #define _GPU_VDB_H_
 
 #include "cuda_runtime_api.h"
+
 #include "texture_types.h"
 #include "matrix_math.h"
 #include <string>
@@ -61,7 +62,7 @@
 struct ALIGN(16) VDB_INFO {
 
 	float	voxelsize;
-	int		dim[3];
+	int3	dim;
 	float	epsilon;
 	float3	bmin;
 	float3	bmax;
@@ -98,23 +99,19 @@ public:
 	}
 
 	__device__ bool inVolumeBbox(float3 ray_pos) const {
-
-		
-		return ray_pos.x >= vdb_info.bmin.x && ray_pos.y >= vdb_info.bmin.y && ray_pos.z >= vdb_info.bmin.z && ray_pos.x < vdb_info.bmax.x && ray_pos.y < vdb_info.bmax.y && ray_pos.z < vdb_info.bmax.z;
-
+		return ray_pos.x >= vdb_info.bmin.x && ray_pos.y >= vdb_info.bmin.y && 
+			ray_pos.z >= vdb_info.bmin.z && ray_pos.x < vdb_info.bmax.x && 
+			ray_pos.y < vdb_info.bmax.y && ray_pos.z < vdb_info.bmax.z;
 	}
-	
+
 	// Host functions
 	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");
 	__host__ VDB_INFO * get_vdb_info();
 	
 	// Host and device functions
 	__host__ __device__ mat4 get_xform() const { return this->xform; }
-
-
-	VDB_INFO vdb_info;
 	
-
+	VDB_INFO vdb_info;
 
 private:
 
@@ -128,11 +125,11 @@ private:
 		fl.y = vec[1];
 		fl.z = vec[2];
 	}
-	__host__ inline void set_vec3i(int *dim, openvdb::Vec3i vec) {
+	__host__ inline void set_vec3i(int3 &dim, openvdb::Vec3i vec) {
 
-		dim[0] = vec[0];
-		dim[1] = vec[1];
-		dim[2] = vec[2];
+		dim.x = vec[0];
+		dim.y = vec[1];
+		dim.z = vec[2];
 	}
 
 	__host__ inline void set_xform(mat4 &xform, openvdb::Mat4R matrix) {

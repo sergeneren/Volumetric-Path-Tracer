@@ -551,6 +551,7 @@ __device__ inline float3 sample_env_tex(
 
 }
 
+/*
 __device__ inline float get_density(
 	const Kernel_params &kernel_params,
 	const GPU_VDB &gpu_vdb,
@@ -573,6 +574,23 @@ __device__ inline float get_density(
 		float3 atlas_pos = make_float3(brick_node->mValue);
 		density = tex3D<float>(gvdb->volIn[0], brick_pos.x + atlas_pos.x, brick_pos.y + atlas_pos.y, brick_pos.z + atlas_pos.z);
 	}
+
+	return density;
+
+}
+*/
+
+__device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
+	
+	// world position to local index position
+	pos = gpu_vdb.get_xform().inverse() * pos;
+	
+	// index position to [0-1] position
+	pos.x /= float(gpu_vdb.vdb_info.dim.x);
+	pos.y /= float(gpu_vdb.vdb_info.dim.y);
+	pos.z /= float(gpu_vdb.vdb_info.dim.z);
+
+	float density = tex3D<float>(gpu_vdb.vdb_info.density_texture, pos.x, pos.y, pos.z);
 
 	return density;
 
@@ -601,7 +619,7 @@ __device__ inline float3 Tr(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		p += dir * t;
 		if (!gpu_vdb.inVolumeBbox(p)) break;
-		float density = get_density(kernel_params, gpu_vdb, p);
+		float density = get_density(p, gpu_vdb);
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
 		//kernel_params.debug_buffer[k] = tr;
 		//k++;
@@ -796,14 +814,13 @@ __device__ inline float3 sample(
 		
 		if (!gpu_vdb.inVolumeBbox(ray_pos)) break;
 		
-		/*
-		float density = get_density(kernel_params, &gvdb, ray_pos);
+		float density = get_density(ray_pos, gpu_vdb);
 		if (density * inv_max_density > rand(&rand_state)) {
 
 			interaction = true;
 			return kernel_params.albedo / kernel_params.extinction;
 		}
-		*/
+		
 	}
 	
 	return WHITE;
@@ -894,8 +911,8 @@ __device__ inline float3 direct_integrator(
 
 	if (kernel_params.environment_type == 0) {
 
-		//if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta;
-		//else L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
+		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gvdb) * beta;
+		else L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
 
 	}
 	else {
