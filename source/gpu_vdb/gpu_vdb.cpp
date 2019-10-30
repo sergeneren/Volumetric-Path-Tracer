@@ -135,13 +135,14 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 
 	if (!std::experimental::filesystem::exists(filename)) {
 
+		printf("!File doesn't exists '%s'\n", filename.c_str());
 		return false;
 
 	}
 
 	if (filename.empty())
 	{
-		printf("Error finding file '%s'\n", filename);
+		printf("Error finding file '%s'\n", filename.c_str());
 		return false;
 	}
 
