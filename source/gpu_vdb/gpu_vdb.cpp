@@ -237,8 +237,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	set_vec3s(vdb_info.bmax, bbox.max().asVec3s());
 	set_vec3i(vdb_info.dim, bbox.dim().asVec3i());
 
-	std::cout << "dimensions: x: " << vdb_info.dim.x << " y: " << vdb_info.dim.y << " z: " << vdb_info.dim.z << "\n";
- 
+	
 	vdb_info.epsilon = FLT_EPSILON;
 	vdb_info.voxelsize = float(grid->voxelSize()[0]);
 

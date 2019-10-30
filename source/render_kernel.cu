@@ -812,14 +812,10 @@ __device__ inline float3 sample(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
 		
-		if (!gpu_vdb.inVolumeBbox(ray_pos)) {
-			return RED;
-			break;
-		}
-		
+		if (!gpu_vdb.inVolumeBbox(ray_pos))	return RED;
+				
 		float density = get_density(ray_pos, gpu_vdb);
 		if (density * inv_max_density > rand(&rand_state)) {
-
 			interaction = true;
 			return kernel_params.albedo / kernel_params.extinction;
 		}

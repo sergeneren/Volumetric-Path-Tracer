@@ -99,9 +99,11 @@ public:
 	}
 
 	__device__ bool inVolumeBbox(float3 ray_pos) const {
-		return ray_pos.x >= vdb_info.bmin.x && ray_pos.y >= vdb_info.bmin.y && 
-			ray_pos.z >= vdb_info.bmin.z && ray_pos.x < vdb_info.bmax.x && 
-			ray_pos.y < vdb_info.bmax.y && ray_pos.z < vdb_info.bmax.z;
+
+		float3 min = xform * vdb_info.bmin;
+		float3 max = xform * vdb_info.bmax;
+
+		return ray_pos.x >= min.x && ray_pos.y >= min.y && ray_pos.z >= min.z && ray_pos.x < max.x && ray_pos.y < max.y && ray_pos.z < max.z;
 	}
 
 	// Host functions
