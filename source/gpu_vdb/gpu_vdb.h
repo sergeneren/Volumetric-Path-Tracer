@@ -100,8 +100,10 @@ public:
 
 	__device__ bool inVolumeBbox(float3 ray_pos) const {
 
-		float3 min = xform * vdb_info.bmin;
-		float3 max = xform * vdb_info.bmax;
+		ray_pos = xform.inverse() * ray_pos;
+
+		float3 min =  vdb_info.bmin;
+		float3 max =  vdb_info.bmax;
 
 		return ray_pos.x >= min.x && ray_pos.y >= min.y && ray_pos.z >= min.z && ray_pos.x < max.x && ray_pos.y < max.y && ray_pos.z < max.z;
 	}

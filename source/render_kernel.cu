@@ -812,7 +812,7 @@ __device__ inline float3 sample(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
 		
-		if (!gpu_vdb.inVolumeBbox(ray_pos))	return RED;
+		if (!gpu_vdb.inVolumeBbox(ray_pos))	break;
 				
 		float density = get_density(ray_pos, gpu_vdb);
 		if (density * inv_max_density > rand(&rand_state)) {
@@ -886,9 +886,12 @@ __device__ inline float3 direct_integrator(
 	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
 	bool mi = false;
 	
+	
+
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
-
+		L = make_float3(t.x / 10.0f);
+		return L;
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 			
