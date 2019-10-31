@@ -50,7 +50,7 @@ GPU_VDB::GPU_VDB(){}
 GPU_VDB::~GPU_VDB(){}
 
 
-VDB_INFO* GPU_VDB::get_vdb_info() {
+VDB_INFO* GPU_VDB::get_vdb_info(){
 
 	return &vdb_info;
 

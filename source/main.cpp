@@ -77,7 +77,7 @@
 
 #include <Windows.h>
 
-
+extern "C" void render_kernel(dim3 gridSize, dim3 blockSize, const camera cam, const GPU_VDB gpu_vdb, const Kernel_params kernel_params);
 
 CUmodule cuCustom;
 CUfunction cuRaycastKernel;

@@ -588,10 +588,10 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	pos += gpu_vdb.vdb_info.bmax;
 
 	// index position to [0-1] position
-	//pos.x = float(gpu_vdb.vdb_info.dim.x) / pos.x;
-	//pos.y = float(gpu_vdb.vdb_info.dim.y) / pos.y;
-	//pos.z = float(gpu_vdb.vdb_info.dim.z) / pos.z;
-
+	pos.x /= float(gpu_vdb.vdb_info.dim.x);
+	pos.y /= float(gpu_vdb.vdb_info.dim.y);
+	pos.z /= float(gpu_vdb.vdb_info.dim.z);
+	
 	float density = tex3D<float>(gpu_vdb.vdb_info.density_texture, pos.x, pos.y, pos.z);
 
 	return density;
@@ -982,4 +982,11 @@ extern "C" __global__ void volume_rt_kernel(
 	const unsigned int b = (unsigned int)(255.0f * fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 	kernel_params.display_buffer[idx] = 0xff000000 | (r << 16) | (g << 8) | b;
 	
+}
+
+
+extern "C" void render_kernel(dim3 gridSize, dim3 blockSize, const camera cam, const GPU_VDB gpu_vdb, const Kernel_params kernel_params) {
+
+	volume_rt_kernel << <<gridSize, blockSize>> > (cam, gpu_vdb, kernel_params);
+
 }
