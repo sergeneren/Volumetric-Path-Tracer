@@ -583,12 +583,14 @@ __device__ inline float get_density(
 __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	
 	// world position to local index position
-	pos = gpu_vdb.get_xform().inverse() * pos;
+	//pos = gpu_vdb.get_xform().inverse() * pos;
 	
+	pos += gpu_vdb.vdb_info.bmax;
+
 	// index position to [0-1] position
-	pos.x /= float(gpu_vdb.vdb_info.dim.x);
-	pos.y /= float(gpu_vdb.vdb_info.dim.y);
-	pos.z /= float(gpu_vdb.vdb_info.dim.z);
+	//pos.x = float(gpu_vdb.vdb_info.dim.x) / pos.x;
+	//pos.y = float(gpu_vdb.vdb_info.dim.y) / pos.y;
+	//pos.z = float(gpu_vdb.vdb_info.dim.z) / pos.z;
 
 	float density = tex3D<float>(gpu_vdb.vdb_info.density_texture, pos.x, pos.y, pos.z);
 
@@ -812,7 +814,7 @@ __device__ inline float3 sample(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
 		
-		if (!gpu_vdb.inVolumeBbox(ray_pos))	return RED;
+		if (!gpu_vdb.inVolumeBbox(ray_pos))	break;
 				
 		float density = get_density(ray_pos, gpu_vdb);
 		if (density * inv_max_density > rand(&rand_state)) {
