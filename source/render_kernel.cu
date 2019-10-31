@@ -588,13 +588,16 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	pos += gpu_vdb.vdb_info.bmax;
 
 	// index position to [0-1] position
-	pos.x /= float(gpu_vdb.vdb_info.dim.x);
-	pos.y /= float(gpu_vdb.vdb_info.dim.y);
-	pos.z /= float(gpu_vdb.vdb_info.dim.z);
-	
-	float density = tex3D<float>(gpu_vdb.vdb_info.density_texture, pos.x, pos.y, pos.z);
+	pos.x /= gpu_vdb.vdb_info.dim.x;
+	pos.y /= gpu_vdb.vdb_info.dim.y;
+	pos.z /= gpu_vdb.vdb_info.dim.z;
 
-	return density;
+	printf("pos x: %f, y: %f, z: %f \n", pos.x, pos.y, pos.z);
+
+
+	float density = tex3D<float>(gpu_vdb.density_texture, pos.x, pos.y, pos.z);
+
+	return pos.y;
 
 }
 
@@ -958,7 +961,7 @@ extern "C" __global__ void volume_rt_kernel(
 	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
+		if(x<2 && y<2) value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
 
 	}
 	
