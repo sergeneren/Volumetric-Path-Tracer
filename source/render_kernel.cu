@@ -983,10 +983,3 @@ extern "C" __global__ void volume_rt_kernel(
 	kernel_params.display_buffer[idx] = 0xff000000 | (r << 16) | (g << 8) | b;
 	
 }
-
-
-extern "C" void render_kernel(dim3 gridSize, dim3 blockSize, const camera cam, const GPU_VDB gpu_vdb, const Kernel_params kernel_params) {
-
-	volume_rt_kernel << <<gridSize, blockSize>> > (cam, gpu_vdb, kernel_params);
-
-}
