@@ -906,8 +906,8 @@ __device__ inline float3 direct_integrator(
 	}
 	
 	//Sample environment
+	//ray_dir = normalize(gpu_vdb.get_xform().transform_vector(ray_dir));
 	ray_dir = normalize(ray_dir);
-
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta;
@@ -949,7 +949,7 @@ extern "C" __global__ void volume_rt_kernel(
 	float u = float(x + vanDerCorput(&rand_state)) / float(kernel_params.resolution.x);
 	float v = float(y + vanDerCorput(&rand_state, 3)) / float(kernel_params.resolution.y);
 	ray camera_ray = cam.get_ray(u, v, &rand_state);
-	float3 ray_dir = camera_ray.direction();
+	float3 ray_dir = normalize(camera_ray.direction());
 	float3 ray_pos = camera_ray.origin();
 	float3 value = WHITE;
 	

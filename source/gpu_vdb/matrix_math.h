@@ -276,12 +276,12 @@ struct mat4 {
 		printf("\n");
 	}
 
-	__host__ __device__ __forceinline__ float3 transform_point(const float3 &pt) {
+	__host__ __device__ __forceinline__ float3 transform_point(const float3 &pt) const {
 		float4 temp = make_float4(pt.x, pt.y, pt.z, 1.0f);
 		temp = *this * temp;
 		return make_float3(temp.x, temp.y, temp.z);
 	}
-	__host__ __device__ __forceinline__ float3 transform_vector(const float3 &pt) {
+	__host__ __device__ __forceinline__ float3 transform_vector(const float3 &pt) const {
 		float4 temp = make_float4(pt.x, pt.y, pt.z, 0.0f);
 		temp = *this * temp;
 		return make_float3(temp.x, temp.y, temp.z);

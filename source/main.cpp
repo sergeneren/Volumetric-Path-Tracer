@@ -1031,7 +1031,6 @@ int main(const int argc, const char* argv[])
 
 	// End ImGui parameters
 
-
 	//Create env texture 
 	if (argc >= 3) {
 
