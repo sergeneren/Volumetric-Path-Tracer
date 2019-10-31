@@ -89,17 +89,6 @@ struct mat4 {
 
 		return ret;
 	}
-	__host__ __device__ __forceinline__ float3 operator*=(const float3 &v) const {
-
-		float3 ret;
-
-		ret.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0];
-		ret.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1];
-		ret.z = m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2];
-
-		return ret;
-	}
-
 
 	__host__ __device__ __forceinline__ mat4 operator*(const float f) const {
 		mat4 ret;
@@ -285,6 +274,17 @@ struct mat4 {
 			printf("\n");
 		}
 		printf("\n");
+	}
+
+	__host__ __device__ __forceinline__ float3 transform_point(const float3 &pt) {
+		float4 temp = make_float4(pt.x, pt.y, pt.z, 1.0f);
+		temp = *this * temp;
+		return make_float3(temp.x, temp.y, temp.z);
+	}
+	__host__ __device__ __forceinline__ float3 transform_vector(const float3 &pt) {
+		float4 temp = make_float4(pt.x, pt.y, pt.z, 0.0f);
+		temp = *this * temp;
+		return make_float3(temp.x, temp.y, temp.z);
 	}
 
 	__host__ __device__ __forceinline__ mat4 &operator*=(const float f) { return *this = *this * f; }

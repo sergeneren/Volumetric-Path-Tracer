@@ -82,8 +82,10 @@ public:
 	// Device functions
 	__device__ float3 rayBoxIntersect(float3 ray_pos, float3 ray_dir) const {
 
-		ray_pos = xform.inverse() * ray_pos;
-		ray_dir = normalize(xform.inverse() * ray_dir);
+		
+
+		ray_pos = xform.inverse().transform_point(ray_pos);
+		ray_dir = normalize(xform.inverse().transform_vector(ray_dir));
 
 		register float ht[8];
 		ht[0] = (vdb_info.bmin.x - ray_pos.x) / ray_dir.x;
@@ -95,12 +97,18 @@ public:
 		ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
 		ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));
 		ht[6] = (ht[6] < 0) ? 0.0f : ht[6];
-		return make_float3(ht[6], ht[7], (ht[7] < ht[6] || ht[7] < 0) ? NOHIT : 0);	
+		
+		float3 ret = make_float3(ht[6], ht[7], (ht[7] < ht[6] || ht[7] < 0) ? NOHIT : 0);
+		
+
+		
+		return ret;
+			
 	}
 
 	__device__ bool inVolumeBbox(float3 ray_pos) const {
 
-		ray_pos = xform.inverse() * ray_pos;
+		ray_pos = xform.inverse().transform_point(ray_pos);
 
 		float3 min =  vdb_info.bmin;
 		float3 max =  vdb_info.bmax;
