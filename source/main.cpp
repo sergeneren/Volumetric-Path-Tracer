@@ -953,19 +953,10 @@ int main(const int argc, const char* argv[])
 	}
 
 	CUresult error;
-	CUdevice cuDevice;
-	CUcontext cuContext;
-	CUmodule cuModule;
 
-	error = cuInit(0);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuInit, %i\n", error);
-	error = cuDeviceGet(&cuDevice, 0);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuInit, %i\n", error);
-	error = cuCtxGetCurrent(&cuContext);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuCtxCreate, %i\n", error);
-	error = cuModuleLoad(&cuModule, "render_kernel.ptx");
+	error = cuModuleLoad(&cuCustom, module_name);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
-	error = cuModuleGetFunction(&cuRaycastKernel, cuModule, kernel_name);
+	error = cuModuleGetFunction(&cuRaycastKernel, cuCustom, kernel_name);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
 
 
