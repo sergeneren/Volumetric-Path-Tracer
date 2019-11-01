@@ -80,8 +80,9 @@ public:
 	__host__ __device__ GPU_VDB();
 
 	// Device functions
-	__device__ float3 rayBoxIntersect(float3 &ray_pos, float3 &ray_dir) const {
+	__device__ float3 rayBoxIntersect(float3 ray_pos, float3 ray_dir) const {
 
+		// World space to object space
 		ray_pos = xform.transpose().inverse().transform_point(ray_pos);
 		ray_dir = xform.transpose().inverse().transform_vector(ray_dir);
 
@@ -101,6 +102,9 @@ public:
 	}
 
 	__device__ bool inVolumeBbox(float3 ray_pos) const {
+
+		// World space to object space
+		ray_pos = xform.transpose().inverse().transform_point(ray_pos);
 
 		float3 min = vdb_info.bmin;
 		float3 max = vdb_info.bmax;

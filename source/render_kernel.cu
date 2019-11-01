@@ -502,7 +502,10 @@ __device__ inline float3 sample_env_tex(
 
 __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	
-	// world position to local index position
+	// world space to object space
+	pos = gpu_vdb.get_xform().transpose().inverse().transform_point(pos);
+
+	// object space position to index position
 	pos -= gpu_vdb.vdb_info.bmin;
 	
 	// index position to [0-1] position
@@ -510,15 +513,8 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	pos.y /= float(gpu_vdb.vdb_info.dim.y);
 	pos.z /= float(gpu_vdb.vdb_info.dim.z);
 
-	//printf("pos x: %f, y: %f, z: %f \n", pos.x, pos.y, pos.z);
-	
-	//pos.x = 1.0f - pos.x;
-	//pos.z = 1.0f - pos.z;
-
 	float density = tex3D<float>(gpu_vdb.density_texture, pos.x, pos.y, pos.z);
-	//printf("density: %f\n", density);
 	return density;
-
 }
 
 __device__ inline float3 Tr(
@@ -760,7 +756,7 @@ __device__ inline float3 vol_integrator(
 	float3 L = BLACK;
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
-	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir); // Note ray is now in object space
+	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
 	bool mi;
 
 	if (t.z != NOHIT) { // found an intersection
@@ -800,13 +796,13 @@ __device__ inline float3 direct_integrator(
 	float3 L = BLACK;
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
-	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir); // Ray is now in object space
+	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
 	bool mi = false;
 
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
 
-#if 1
+#if 0
 		// Draw bbox
 		float width = 2.0f;
 		float3 min = gpu_vdb.vdb_info.bmin + make_float3(width);
@@ -814,7 +810,6 @@ __device__ inline float3 direct_integrator(
 		if (ray_pos<min || ray_pos>max ) return RED;
 #endif
 		
-		//printf("pos x: %f, y: %f, z: %f \n", ray_pos.x, ray_pos.y, ray_pos.z);
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 			
@@ -829,10 +824,6 @@ __device__ inline float3 direct_integrator(
 		}
 		
 	}
-	
-	//Sample environment
-	ray_dir = normalize(gpu_vdb.get_xform().transpose().transform_vector(ray_dir)); // Ray is now in world space
-	ray_pos = gpu_vdb.get_xform().transpose().transform_point(ray_pos);
 
 	if (kernel_params.environment_type == 0) {
 
