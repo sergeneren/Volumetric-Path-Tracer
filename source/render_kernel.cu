@@ -56,6 +56,8 @@ typedef unsigned long long	uint64;
 #include "gpu_vdb.h"
 #include "camera.h"
 
+
+
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)
 #define RED				make_float3(1.0f, 0.0f, 0.0f)
@@ -593,10 +595,10 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	pos.z /= gpu_vdb.vdb_info.dim.z;
 
 	//printf("pos x: %f, y: %f, z: %f \n", pos.x, pos.y, pos.z);
-
+	
 
 	float density = tex3D<float>(gpu_vdb.density_texture, pos.x, pos.y, pos.z);
-
+	//printf("density: %f\n", density);
 	return density;
 
 }
@@ -954,15 +956,15 @@ extern "C" __global__ void volume_rt_kernel(
 	float u = float(x + vanDerCorput(&rand_state)) / float(kernel_params.resolution.x);
 	float v = float(y + vanDerCorput(&rand_state, 3)) / float(kernel_params.resolution.y);
 	ray camera_ray = cam.get_ray(u, v, &rand_state);
-	float3 ray_dir = normalize(camera_ray.direction());
-	float3 ray_pos = camera_ray.origin();
+	float3 ray_dir = normalize(camera_ray.B);
+	float3 ray_pos = camera_ray.A;
 	float3 value = WHITE;
 	
 	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
+		//if(x<2&&y<2) value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb); // Debugging
 		value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
-
 	}
 	
 	// Accumulate.
