@@ -422,10 +422,11 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			break;
 		case GLFW_KEY_S:
 			ctx->save_image = true;
+			break;
 		case GLFW_KEY_F: // Frame camera to include objects
 			 
-			float3 min = gpu_vdb.get_xform() * gpu_vdb.vdb_info.bmin;
-			float3 max = gpu_vdb.get_xform() * gpu_vdb.vdb_info.bmax;
+			float3 min = gpu_vdb.get_xform().transform_point(gpu_vdb.vdb_info.bmin);
+			float3 max = gpu_vdb.get_xform().transform_point(gpu_vdb.vdb_info.bmax);
 			float3 center = (max + min) / 2;
 			dist = length(max - min); // diagonal length of gpu_vdb object
 
@@ -434,6 +435,7 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
 			ctx->change = true;
+			break;
 		default:
 			break;
 		}
@@ -1182,7 +1184,7 @@ int main(const int argc, const char* argv[])
 
 		if (ctx->save_image) {
 
-			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) continue;
+			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
 			char frame_string[100];
 			sprintf_s(frame_string, "%d", frame);
 			char file_name[100] = "./render/pathtrace.";

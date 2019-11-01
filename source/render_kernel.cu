@@ -587,17 +587,15 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	// world position to local index position
 	//pos = gpu_vdb.get_xform().inverse() * pos;
 	
-	pos += gpu_vdb.vdb_info.bmax;
-
 	// index position to [0-1] position
-	pos.x /= gpu_vdb.vdb_info.dim.x;
-	pos.y /= gpu_vdb.vdb_info.dim.y;
-	pos.z /= gpu_vdb.vdb_info.dim.z;
+	pos.x /= float(gpu_vdb.vdb_info.dim.x);
+	pos.y /= float(gpu_vdb.vdb_info.dim.y);
+	pos.z /= float(gpu_vdb.vdb_info.dim.z);
 
 	//printf("pos x: %f, y: %f, z: %f \n", pos.x, pos.y, pos.z);
 	
 
-	float density = tex3D<float>(gpu_vdb.density_texture, pos.x, pos.y, pos.z);
+	float density = tex3D<float>(gpu_vdb.density_texture, pos.x*0.5 + 0.5, pos.y*0.5+0.5, pos.z*0.5+0.5);
 	//printf("density: %f\n", density);
 	return density;
 
@@ -890,13 +888,12 @@ __device__ inline float3 direct_integrator(
 	float3 L = BLACK;
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
-	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
+	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir); // Note ray is now in object space
 	bool mi = false;
-	
-	
 
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
+		//printf("pos x: %f, y: %f, z: %f \n", ray_pos.x, ray_pos.y, ray_pos.z);
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 			
@@ -913,8 +910,7 @@ __device__ inline float3 direct_integrator(
 	}
 	
 	//Sample environment
-	//ray_dir = normalize(gpu_vdb.get_xform().transform_vector(ray_dir));
-	ray_dir = normalize(ray_dir);
+	ray_dir = normalize(gpu_vdb.get_xform().transform_vector(ray_dir));
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta;
