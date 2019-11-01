@@ -692,7 +692,7 @@ __device__ inline float3 uniform_sample_one_light(
 	const float3 &ray_pos,
 	float3 &ray_dir,
 	Rand_state &randstate,
-	GPU_VDB &gpu_vdb)
+	const GPU_VDB &gpu_vdb)
 {
 
 	int nLights = 2; // number of lights
@@ -755,7 +755,7 @@ __device__ inline float3 vol_integrator(
 	float3 ray_pos,
 	float3 ray_dir,
 	const Kernel_params kernel_params,
-	GPU_VDB &gpu_vdb)
+	const GPU_VDB &gpu_vdb)
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
@@ -774,7 +774,6 @@ __device__ inline float3 vol_integrator(
 
 
 			if (mi) { // medium interaction 
-
 				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gpu_vdb);
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
@@ -875,7 +874,7 @@ extern "C" __global__ void volume_rt_kernel(
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		//if(x<2&&y<2) value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb); // Debugging
-		value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
+		value = vol_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
 	}
 	
 	// Accumulate.
