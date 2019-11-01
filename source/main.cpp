@@ -66,7 +66,7 @@
 
 //#include "gvdb.h"
 #include "hdr_loader.h"
-#include "render_kernel.h"
+#include "kernel_params.h"
 
 // new classes
 #include "gpu_vdb/gpu_vdb.h"

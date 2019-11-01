@@ -52,7 +52,7 @@ typedef unsigned short		ushort;
 typedef unsigned long		ulong;
 typedef unsigned long long	uint64;
 
-#include "render_kernel.h"
+#include "kernel_params.h"
 #include "gpu_vdb.h"
 #include "camera.h"
 
