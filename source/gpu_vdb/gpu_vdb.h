@@ -102,8 +102,6 @@ public:
 
 	__device__ bool inVolumeBbox(float3 ray_pos) const {
 
-		//ray_pos = xform.transform_point(ray_pos);
-
 		float3 min = vdb_info.bmin;
 		float3 max = vdb_info.bmax;
 

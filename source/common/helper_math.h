@@ -1460,6 +1460,21 @@ inline __device__ __host__ float4 smoothstep(float4 a, float4 b, float4 x)
 // comparisons
 ////////////////////////////////////////////////////////////////////////////////
 
+
+inline __host__ __device__ bool operator<(float3 &u, float3 v)
+
+{
+	return abs(u.x) < abs(v.x) && abs(u.y) < abs(v.y) && abs(u.z) < abs(v.z);
+}
+
+inline __host__ __device__ bool operator>(float3 &u, float3 v)
+
+{
+	
+	return abs(u.x)>abs(v.x) && abs(u.y)>abs(v.y) && abs(u.z)>abs(v.z);
+}
+
+
 inline __host__ __device__ bool isBlack(float3 v)
 
 {

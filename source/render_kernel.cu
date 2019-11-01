@@ -550,8 +550,6 @@ __device__ inline float3 Tr(
 	return tr;
 }
 
-
-
 __device__ inline float pdf_li(
 	Kernel_params kernel_params,
 	float3 wi)
@@ -732,10 +730,10 @@ __device__ inline float3 sample(
 	while (true) {
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
-		ray_pos += ray_dir * t;
+		ray_pos += ray_dir * t; // Ray is still in object space
 		
 		if (!gpu_vdb.inVolumeBbox(ray_pos))	break;
-				
+
 		float density = get_density(ray_pos, gpu_vdb);
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
@@ -778,8 +776,6 @@ __device__ inline float3 vol_integrator(
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
 
-
-
 		}
 
 
@@ -802,11 +798,20 @@ __device__ inline float3 direct_integrator(
 	float3 L = BLACK;
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
-	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir); // Note ray is now in object space
+	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir); // Ray is now in object space
 	bool mi = false;
 
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
+
+#if 1
+		// Draw bbox
+		float width = 2.0f;
+		float3 min = gpu_vdb.vdb_info.bmin + make_float3(width);
+		float3 max = gpu_vdb.vdb_info.bmax - make_float3(width);
+		if (ray_pos<min || ray_pos>max ) return RED;
+#endif
+		
 		//printf("pos x: %f, y: %f, z: %f \n", ray_pos.x, ray_pos.y, ray_pos.z);
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
@@ -824,7 +829,9 @@ __device__ inline float3 direct_integrator(
 	}
 	
 	//Sample environment
-	ray_dir = normalize(gpu_vdb.get_xform().transform_vector(ray_dir));
+	ray_dir = normalize(gpu_vdb.get_xform().transform_vector(ray_dir)); // Ray is now in world space
+	ray_pos = gpu_vdb.get_xform().transform_point(ray_pos);
+
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta;
@@ -874,7 +881,7 @@ extern "C" __global__ void volume_rt_kernel(
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		//if(x<2&&y<2) value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb); // Debugging
-		value = vol_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
+		value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
 	}
 	
 	// Accumulate.
