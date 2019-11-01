@@ -36,9 +36,6 @@
 //
 //-----------------------------------------------
 
-class GPU_VDB;
-class camera;
-
 struct Kernel_params {
 
 	//Debug
@@ -94,4 +91,3 @@ struct Kernel_params {
 	
 };
  
-extern "C" __global__ void volume_rt_kernel(const camera cam, const GPU_VDB gpu_vdb, const Kernel_params kernel_params);
