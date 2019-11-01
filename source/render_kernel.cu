@@ -145,24 +145,6 @@ __device__ bool raySphereIntersect(
 	return true;
 }
 
-
-inline __device__ float3 rayBoxIntersect(float3 rpos, float3 rdir, float3 vmin, float3 vmax, mat4 xform)
-{
-	register float ht[8];
-	ht[0] = (vmin.x - rpos.x) / rdir.x;
-	ht[1] = (vmax.x - rpos.x) / rdir.x;
-	ht[2] = (vmin.y - rpos.y) / rdir.y;
-	ht[3] = (vmax.y - rpos.y) / rdir.y;
-	ht[4] = (vmin.z - rpos.z) / rdir.z;
-	ht[5] = (vmax.z - rpos.z) / rdir.z;
-	ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
-	ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));
-	ht[6] = (ht[6] < 0) ? 0.0 : ht[6];
-	return make_float3(ht[6], ht[7], (ht[7] < ht[6] || ht[7] < 0) ? NOHIT : 0);
-}
-
-
-
 __device__ inline float degree_to_radians(
 	float degree)
 {
@@ -421,42 +403,6 @@ __device__ inline float sample_double_hg(
 
 }
 
-/*
-// Volume accessors
-__device__ inline bool in_volume_bbox(
-	const VDBInfo gvdb,
-	const float3 pos)
-{
-
-	return pos.x >= gvdb.bmin.x && pos.y >= gvdb.bmin.y && pos.z >= gvdb.bmin.z && pos.x < gvdb.bmax.x && pos.y < gvdb.bmax.y && pos.z < gvdb.bmax.z;
-}
-
-__device__ inline float get_extinction(
-	const Kernel_params &kernel_params,
-	VDBInfo *gvdb,
-	const float3 &p)
-{
-
-	float density = 0.0f;
-
-	//brick node variables 
-	float3 vmin; //root pos of brick node
-	uint64 nodeid; // brick id 
-	float3 offset; // brick offset
-	float3 vdel; // i.e. voxel size 
-
-	VDBNode* brick_node = getNodeAtPoint(gvdb, p, &offset, &vmin, &vdel, &nodeid);
-
-	if (brick_node != 0x0) {
-
-		float3 brick_pos = (p - vmin) / vdel;
-		float3 atlas_pos = make_float3(brick_node->mValue);
-		density = tex3D<float>(gvdb->volIn[0], brick_pos.x + atlas_pos.x, brick_pos.y + atlas_pos.y, brick_pos.z + atlas_pos.z);
-	}
-
-	return density;
-}
-*/
 
 // Light Samplers 
 
@@ -553,34 +499,6 @@ __device__ inline float3 sample_env_tex(
 
 }
 
-/*
-__device__ inline float get_density(
-	const Kernel_params &kernel_params,
-	const GPU_VDB &gpu_vdb,
-	const float3 &p)
-{
-
-	float density = 0.0f;
-
-	//brick node variables 
-	float3 vmin; //root pos of brick node
-	uint64 nodeid; // brick id 
-	float3 offset; // brick offset
-	float3 vdel; // i.e. voxel size 
-
-	VDBNode* brick_node = getNodeAtPoint(gvdb, p, &offset, &vmin, &vdel, &nodeid);
-
-	if (brick_node != 0x0) {
-
-		float3 brick_pos = (p - vmin) / vdel;
-		float3 atlas_pos = make_float3(brick_node->mValue);
-		density = tex3D<float>(gvdb->volIn[0], brick_pos.x + atlas_pos.x, brick_pos.y + atlas_pos.y, brick_pos.z + atlas_pos.z);
-	}
-
-	return density;
-
-}
-*/
 
 __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	
@@ -768,13 +686,13 @@ __device__ inline float3 estimate_sun(
 
 }
 
-/*
+
 __device__ inline float3 uniform_sample_one_light(
 	Kernel_params kernel_params,
 	const float3 &ray_pos,
 	float3 &ray_dir,
 	Rand_state &randstate,
-	VDBInfo &gvdb)
+	GPU_VDB &gpu_vdb)
 {
 
 	int nLights = 2; // number of lights
@@ -785,18 +703,17 @@ __device__ inline float3 uniform_sample_one_light(
 
 	if (light_num) {
 
-		L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gvdb) * kernel_params.sun_mult;
+		L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb) * kernel_params.sun_mult;
 	}
 	else {
 
-		L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gvdb) * kernel_params.sky_mult;
+		L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb) * kernel_params.sky_mult;
 	}
 
 	return L * (float)nLights;
 
 }
 
-*/
 
 __device__ inline float3 sample(
 	Rand_state &rand_state,
@@ -831,7 +748,6 @@ __device__ inline float3 sample(
 
 }
 
-/*
 
 // PBRT Volume Integrator
 __device__ inline float3 vol_integrator(
@@ -839,12 +755,12 @@ __device__ inline float3 vol_integrator(
 	float3 ray_pos,
 	float3 ray_dir,
 	const Kernel_params kernel_params,
-	VDBInfo gvdb)
+	GPU_VDB &gpu_vdb)
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
-	float3 t = rayBoxIntersect(ray_pos, ray_dir, gvdb.bmin, gvdb.bmax);
+	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir); // Note ray is now in object space
 	bool mi;
 
 	if (t.z != NOHIT) { // found an intersection
@@ -853,13 +769,13 @@ __device__ inline float3 vol_integrator(
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gvdb);
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gpu_vdb);
 			if (isBlack(beta)) break;
 
 
 			if (mi) { // medium interaction 
 
-				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gvdb);
+				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gpu_vdb);
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
 
@@ -874,7 +790,6 @@ __device__ inline float3 vol_integrator(
 
 }
 
-*/
 
 
 // From Ray Tracing Gems Vol-28
