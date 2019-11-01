@@ -503,7 +503,7 @@ __device__ inline float3 sample_env_tex(
 __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	
 	// world position to local index position
-	//pos = gpu_vdb.get_xform().inverse() * pos;
+	pos -= gpu_vdb.vdb_info.bmin;
 	
 	// index position to [0-1] position
 	pos.x /= float(gpu_vdb.vdb_info.dim.x);
@@ -512,8 +512,10 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 
 	//printf("pos x: %f, y: %f, z: %f \n", pos.x, pos.y, pos.z);
 	
+	//pos.x = 1.0f - pos.x;
+	//pos.z = 1.0f - pos.z;
 
-	float density = tex3D<float>(gpu_vdb.density_texture, pos.x*0.5 + 0.5, pos.y*0.5+0.5, pos.z*0.5+0.5);
+	float density = tex3D<float>(gpu_vdb.density_texture, pos.x, pos.y, pos.z);
 	//printf("density: %f\n", density);
 	return density;
 
@@ -730,7 +732,7 @@ __device__ inline float3 sample(
 	while (true) {
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
-		ray_pos += ray_dir * t; // Ray is still in object space
+		ray_pos += ray_dir * t * gpu_vdb.vdb_info.voxelsize ; // Ray is still in object space
 		
 		if (!gpu_vdb.inVolumeBbox(ray_pos))	break;
 
@@ -829,8 +831,8 @@ __device__ inline float3 direct_integrator(
 	}
 	
 	//Sample environment
-	ray_dir = normalize(gpu_vdb.get_xform().transform_vector(ray_dir)); // Ray is now in world space
-	ray_pos = gpu_vdb.get_xform().transform_point(ray_pos);
+	ray_dir = normalize(gpu_vdb.get_xform().transpose().transform_vector(ray_dir)); // Ray is now in world space
+	ray_pos = gpu_vdb.get_xform().transpose().transform_point(ray_pos);
 
 	if (kernel_params.environment_type == 0) {
 

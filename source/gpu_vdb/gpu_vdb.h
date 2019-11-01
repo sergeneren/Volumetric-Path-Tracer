@@ -82,8 +82,8 @@ public:
 	// Device functions
 	__device__ float3 rayBoxIntersect(float3 &ray_pos, float3 &ray_dir) const {
 
-		ray_pos = xform.inverse().transform_point(ray_pos);
-		ray_dir = xform.inverse().transform_vector(ray_dir);
+		ray_pos = xform.transpose().inverse().transform_point(ray_pos);
+		ray_dir = xform.transpose().inverse().transform_vector(ray_dir);
 
 		register float ht[8];
 		ht[0] = (vdb_info.bmin.x - ray_pos.x) / ray_dir.x;
