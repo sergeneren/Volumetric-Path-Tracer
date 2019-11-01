@@ -961,7 +961,7 @@ int main(const int argc, const char* argv[])
 	if (error != CUDA_SUCCESS) printf("ERROR: cuInit, %i\n", error);
 	error = cuDeviceGet(&cuDevice, 0);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuInit, %i\n", error);
-	error = cuCtxCreate_v2(&cuContext, 0, cuDevice);
+	error = cuCtxGetCurrent(&cuContext);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuCtxCreate, %i\n", error);
 	error = cuModuleLoad(&cuModule, "render_kernel.ptx");
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
