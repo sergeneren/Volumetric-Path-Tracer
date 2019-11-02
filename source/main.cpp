@@ -1084,7 +1084,6 @@ int main(const int argc, const char* argv[])
 	kernel_params.max_interactions = 100;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
-	kernel_params.max_extinction = 1.0f;
 	kernel_params.ray_depth = 1;
 	kernel_params.phase_g1 = 0.0f;
 	kernel_params.phase_g2 = 0.0f;
@@ -1178,7 +1177,6 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
 		ImGui::InputInt("Ray Depth", &ray_depth, 1);
-		ImGui::InputFloat("extinction maj.", &kernel_params.max_extinction, .0f, 1.0f);
 		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);

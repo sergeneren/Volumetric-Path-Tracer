@@ -45,10 +45,8 @@
 #include "matrix_math.h"
 #include <string>
 
-
+// TO-DO: Remove these openvdb headers from this file for nvcc 
 #include <openvdb/openvdb.h>
-#include <openvdb/tools/Dense.h>
-#include <openvdb/Metadata.h>
 
 #include "helper_math.h"
 
@@ -66,7 +64,7 @@ struct ALIGN(16) VDB_INFO {
 	float	epsilon;
 	float3	bmin;
 	float3	bmax;
-
+	float	max_density;
 	cudaTextureObject_t density_texture; 
 	cudaTextureObject_t emission_texture;
 

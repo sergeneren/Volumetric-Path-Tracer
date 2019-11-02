@@ -44,6 +44,8 @@
 
 #include <filesystem>
 
+#include <openvdb/tools/Dense.h>
+#include <openvdb/Metadata.h>
 
 GPU_VDB::GPU_VDB(){}
 
@@ -81,17 +83,19 @@ void GPU_VDB::fill_texture(openvdb::GridBase::Ptr gridBase, cudaTextureObject_t 
 	vol_size.depth = dim_z;
 
 	float *volume_data_host = (float *)malloc(dim_x * dim_y * dim_z * sizeof(float));
-
+	vdb_info.max_density = .0f;
 	// Copy vdb values
 	for (int z = 0; z < dim_z; z++) {
 		for (int y = 0; y < dim_y; y++) {
 			for (int x = 0; x < dim_x; x++) {
 				int idx = z * dim_x*dim_y + y * dim_x + x;
-				volume_data_host[idx] = dense.getValue(idx);
+				float val = dense.getValue(idx);
+				vdb_info.max_density = max(vdb_info.max_density, val);
+				volume_data_host[idx] = val;
 			}
 		}
 	}
-
+	
 
 	// create 3D array
 	cudaArray *d_volumeArray = 0;
@@ -236,7 +240,6 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	set_vec3s(vdb_info.bmin, bbox.min().asVec3s());
 	set_vec3s(vdb_info.bmax, bbox.max().asVec3s());
 	set_vec3i(vdb_info.dim, bbox.dim().asVec3i());
-
 	
 	vdb_info.epsilon = FLT_EPSILON;
 	vdb_info.voxelsize = float(grid->voxelSize()[0]);

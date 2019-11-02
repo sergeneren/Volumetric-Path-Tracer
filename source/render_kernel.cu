@@ -534,7 +534,7 @@ __device__ inline float3 Tr(
 	float3 tr = WHITE;
 	float3 p = pos;
 	float t = 0.0f;
-	float inv_max_density = 1 / kernel_params.max_extinction;
+	float inv_max_density = 1 / gpu_vdb.vdb_info.max_density;
 
 	//int k = 1;
 	//kernel_params.debug_buffer[0] = WHITE;
@@ -726,7 +726,7 @@ __device__ inline float3 sample(
 	// Run delta tracking 
 	
 	float t = 0.0f;
-	float inv_max_density = 1.0f / kernel_params.max_extinction;
+	float inv_max_density = 1.0f / gpu_vdb.vdb_info.max_density;
 	float inv_density_mult = 1.0f / kernel_params.density_mult;
 	
 	while (true) {
