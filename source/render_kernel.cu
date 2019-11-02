@@ -517,7 +517,7 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	pos.y /= float(gpu_vdb.vdb_info.dim.y);
 	pos.z /= float(gpu_vdb.vdb_info.dim.z);
 
-	float density = tex3D<float>(gpu_vdb.density_texture, pos.x, pos.y, pos.z);
+	float density = tex3D<float>(gpu_vdb.vdb_info.density_texture, pos.x, pos.y, pos.z);
 	return density;
 }
 

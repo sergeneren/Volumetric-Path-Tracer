@@ -185,7 +185,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 
 	// Copy the grids to 3d cuda arrays 
 
-	fill_texture(densityGridBase, density_texture);
+	fill_texture(densityGridBase, vdb_info.density_texture);
 
 	// Fill emission channel if specified
 	if (!emission_channel.empty()) {

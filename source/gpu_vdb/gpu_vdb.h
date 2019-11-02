@@ -120,7 +120,6 @@ public:
 	__host__ __device__ mat4 get_xform() const { return this->xform; }
 	
 	VDB_INFO vdb_info;
-	cudaTextureObject_t density_texture;
 private:
 
 	__host__ void fill_texture(openvdb::GridBase::Ptr gridBase, cudaTextureObject_t &texture);
