@@ -45,7 +45,7 @@ struct Kernel_params {
 	uint2 resolution;
 	float exposure_scale;
 	unsigned int *display_buffer;
-
+	float4 *raw_buffer;
 	// Progressive rendering state
 	unsigned int iteration;
 	float3 *accum_buffer;

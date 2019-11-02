@@ -40,11 +40,14 @@
 #include <cmath>
 
 #include <stdio.h>
-#include "helper_math.h"
 #include <float.h>
+#include <OpenEXR/OpenEXRConfig.h>
+
+// Cuda includes
 #include <cuda_runtime.h> 
 #include <curand_kernel.h>
 #include <device_launch_parameters.h>
+#include "helper_math.h"
 
 typedef unsigned char		uchar;
 typedef unsigned int		uint;
@@ -52,6 +55,7 @@ typedef unsigned short		ushort;
 typedef unsigned long		ulong;
 typedef unsigned long long	uint64;
 
+// Internal includes
 #include "kernel_params.h"
 #include "gpu_vdb.h"
 #include "camera.h"
@@ -790,6 +794,7 @@ __device__ inline float3 direct_integrator(
 	Rand_state rand_state,
 	float3 ray_pos,
 	float3 ray_dir,
+	float &tr,
 	const Kernel_params kernel_params,
 	const GPU_VDB &gpu_vdb)
 {
@@ -841,6 +846,7 @@ __device__ inline float3 direct_integrator(
 		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
 	
+	tr = 1.0f - length(beta);
 	return L;
 
 }
@@ -869,12 +875,12 @@ extern "C" __global__ void volume_rt_kernel(
 	float3 ray_dir = normalize(camera_ray.B);
 	float3 ray_pos = camera_ray.A;
 	float3 value = WHITE;
-	
+	float tr = .0f;
 	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		//if(x<2&&y<2) value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb); // Debugging
-		value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb);
+		value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 	}
 	
 	// Accumulate.
@@ -888,6 +894,9 @@ extern "C" __global__ void volume_rt_kernel(
 	// Update display buffer (simple Reinhard tonemapper + gamma).
 
 	float3 val = kernel_params.accum_buffer[idx] * kernel_params.exposure_scale;
+
+	float4 raw = make_float4(val.x, val.y, val.z, tr);
+	kernel_params.raw_buffer[idx] = raw;
 
 	val.x *= (1.0f + val.x * 0.1f) / (1.0f + val.x);
 	val.y *= (1.0f + val.y * 0.1f) / (1.0f + val.y);

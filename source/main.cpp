@@ -72,10 +72,19 @@
 #include "gpu_vdb/gpu_vdb.h"
 #include "gpu_vdb/camera.h"
 
+
+// Image Writers 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#define TINYEXR_IMPLEMENTATION
+#include "tinyexr.h"
+
+//#define SAVE_TGA
+#define SAVE_OPENEXR
+
 #include <Windows.h>
+
 
 CUmodule cuCustom;
 CUfunction cuRaycastKernel;
@@ -101,7 +110,6 @@ float	aperture;
             exit(EXIT_FAILURE); \
         } \
     } while(false)
-
 
 // Env sampling functions
 static bool solveQuadratic(float a, float b, float c, float& x1, float& x2)
@@ -490,7 +498,10 @@ static void handle_mouse_pos(GLFWwindow *window, double xpos, double ypos)
 // Resize OpenGL and CUDA buffers for a given resolution.
 static void resize_buffers(
 	float3 **accum_buffer_cuda,
-	cudaGraphicsResource_t *display_buffer_cuda, int width, int height, GLuint display_buffer)
+	float4 **raw_buffer_cuda,
+	cudaGraphicsResource_t *display_buffer_cuda, 
+	int width, int height, 
+	GLuint display_buffer)
 {
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, display_buffer);
 	glBufferData(GL_PIXEL_UNPACK_BUFFER, width * height * 4, NULL, GL_DYNAMIC_COPY);
@@ -507,6 +518,11 @@ static void resize_buffers(
 	if (*accum_buffer_cuda)
 		check_success(cudaFree(*accum_buffer_cuda) == cudaSuccess);
 	check_success(cudaMalloc(accum_buffer_cuda, width * height * sizeof(float3)) == cudaSuccess);
+
+	if (*raw_buffer_cuda)
+		check_success(cudaFree(*raw_buffer_cuda) == cudaSuccess);
+	check_success(cudaMalloc(raw_buffer_cuda, width * height * sizeof(float4)) == cudaSuccess);
+
 }
 
 
@@ -914,6 +930,7 @@ int main(const int argc, const char* argv[])
 	init_cuda();
 
 	float3 *accum_buffer = NULL;
+	float4 *raw_buffer = NULL;
 	cudaGraphicsResource_t display_buffer_cuda = NULL;
 	float3 *debug_buffer = NULL;
 
@@ -1163,8 +1180,9 @@ int main(const int argc, const char* argv[])
 
 			aspect = float(width) / float(height);
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
-			resize_buffers(&accum_buffer, &display_buffer_cuda, width, height, display_buffer);
+			resize_buffers(&accum_buffer, &raw_buffer,&display_buffer_cuda, width, height, display_buffer);
 			kernel_params.accum_buffer = accum_buffer;
+			kernel_params.raw_buffer = raw_buffer;
 			glViewport(0, 0, width, height);
 
 			kernel_params.resolution.x = width;
@@ -1189,11 +1207,37 @@ int main(const int argc, const char* argv[])
 			sprintf_s(frame_string, "%d", frame);
 			char file_name[100] = "./render/pathtrace.";
 			strcat_s(file_name, frame_string);
+			
+#ifdef SAVE_TGA
 			strcat_s(file_name, ".tga");
 			unsigned char* image_data = (unsigned char *)malloc((int)(width * height * 3));
 			glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, image_data);
 			stbi_flip_vertically_on_write(1);
 			stbi_write_tga(file_name, width, height, 3, image_data);
+#endif
+
+#ifdef SAVE_OPENEXR
+			int res = width * height;
+			strcat_s(file_name, ".exr");
+			
+			float4 *c = new float4[res];
+			memset(c, 0x0, sizeof(float4) * res);
+			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
+
+			const Imf::Rgba *f = new Imf::Rgba[res]; 
+			memset(&f, 0x0, sizeof(Imf::Rgba) * res);
+
+			for (int i = 0; i < res; i++) {
+				f[i].r = FloatToHalf(c[i].x);
+				
+			}
+
+			Imf::RgbaOutputFile out_file(file_name, width, height, Imf::WRITE_RGBA);
+			out_file.setFrameBuffer(d, 1, width);
+			out_file.writePixels(height);
+#endif
+
+
 
 			frame++;
 			ctx->save_image = false;
@@ -1255,6 +1299,7 @@ int main(const int argc, const char* argv[])
 		check_success(cudaFreeArray(env_tex_data) == cudaSuccess);
 	}
 	check_success(cudaFree(accum_buffer) == cudaSuccess);
+	check_success(cudaFree(raw_buffer) == cudaSuccess);
 	check_success(cudaFree(debug_buffer) == cudaSuccess);
 	// Cleanup OpenGL.
 	glDeleteVertexArrays(1, &quad_vao);

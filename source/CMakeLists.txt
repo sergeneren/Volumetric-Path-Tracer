@@ -2,15 +2,15 @@ cmake_minimum_required(VERSION 3.8.0 FATAL_ERROR)
 project(VPT LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-find_package(glfw3 REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
-set(_VCPKG_INCLUDE_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/")
 
 include(${CMAKE_SOURCE_DIR}/Helpers.cmake)
 ##################################################################
 
 ## Set output directories
 
+set(_VCPKG_INCLUDE_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/bin)
