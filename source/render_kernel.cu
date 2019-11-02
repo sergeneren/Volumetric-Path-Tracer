@@ -895,7 +895,7 @@ extern "C" __global__ void volume_rt_kernel(
 
 	float3 val = kernel_params.accum_buffer[idx] * kernel_params.exposure_scale;
 
-	float4 raw = make_float4(val.x, val.y, val.z, tr);
+	float4 raw = make_float4(val.x, val.y, val.z, tr) * kernel_params.exposure_scale;
 	kernel_params.raw_buffer[idx] = raw;
 
 	val.x *= (1.0f + val.x * 0.1f) / (1.0f + val.x);

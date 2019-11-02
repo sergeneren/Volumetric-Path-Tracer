@@ -82,8 +82,8 @@
 #define TINYEXR_IMPLEMENTATION
 #include "tinyexr.h"
 
-//#define SAVE_TGA
-#define SAVE_OPENEXR
+#define SAVE_TGA
+//#define SAVE_OPENEXR
 
 #include <Windows.h>
 
@@ -267,12 +267,31 @@ static bool save_exr(float4 *rgba, int width, int height, const char *filename) 
 	std::vector<float> images[4];
 	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
 
-	for (int i = 0; i < width * height; i++) {
-		images[0][i] = rgba[i].x;
-		images[1][i] = rgba[i].y;
-		images[2][i] = rgba[i].z;
-		images[3][i] = rgba[i].w;
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			
+			int idx = i * width + j;
+			
+			// Flip image vertically
+			i = height - i - 1;
+			int idx2 = i * width + j;
+			
+			images[0][idx] = rgba[idx2].x;
+			images[1][idx] = rgba[idx2].y;
+			images[2][idx] = rgba[idx2].z;
+			images[3][idx] = rgba[idx2].w;
+
+		}
 	}
+	
+	/*
+	for (int i = 0; i < width * height; i++) {
+		images[0][i] = rgba[width*height - i].x;
+		images[1][i] = rgba[width*height - i].y;
+		images[2][i] = rgba[width*height - i].z;
+		images[3][i] = rgba[width*height - i].w;
+	}
+	*/
 
 	float* image_ptr[4];
 
@@ -318,11 +337,13 @@ static bool save_exr(float4 *rgba, int width, int height, const char *filename) 
 // Initialize GLFW and GLEW.
 static GLFWwindow *init_opengl()
 {
+
 	check_success(glfwInit());
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	
 
 	GLFWwindow *window = glfwCreateWindow(
 		1200, 1024, "volume path tracer", NULL, NULL);
@@ -1272,10 +1293,29 @@ int main(const int argc, const char* argv[])
 			char file_name[100] = "./render/pathtrace.";
 			strcat_s(file_name, frame_string);
 			
-#ifdef SAVE_TGA //TO-DO make a function out of this  
+#ifdef SAVE_TGA   
 			strcat_s(file_name, ".tga");
-			unsigned char* image_data = (unsigned char *)malloc((int)(width * height * 3));
-			glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, image_data);
+			
+			unsigned char* image_data;
+			image_data = new unsigned char[(width * height * 3)];
+			
+			int res = width * height;
+			float4 *c = (float4*)malloc(res * sizeof(float4));
+			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
+
+			int idx = 0; 
+			for (int i = 0; i < res; i++) {
+				
+				unsigned char ir = int(255 * c[i].x);
+				unsigned char ig = int(255 * c[i].y);
+				unsigned char ib = int(255 * c[i].z);
+				
+				image_data[idx++] = ir;
+				image_data[idx++] = ig;
+				image_data[idx++] = ib;
+			
+			}
+
 			stbi_flip_vertically_on_write(1);
 			stbi_write_tga(file_name, width, height, 3, image_data);
 #endif
