@@ -41,11 +41,13 @@ struct Kernel_params {
 	//Debug
 	bool render;
 	bool debug;
+	
 	// Display
 	uint2 resolution;
 	float exposure_scale;
 	unsigned int *display_buffer;
 	float4 *raw_buffer;
+
 	// Progressive rendering state
 	unsigned int iteration;
 	float3 *accum_buffer;
@@ -88,5 +90,9 @@ struct Kernel_params {
 
 	float3 *debug_buffer;
 	
+	// Integrators
+
+	int integrator;
+
 };
  

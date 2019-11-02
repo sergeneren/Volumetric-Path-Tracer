@@ -1129,6 +1129,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.sky_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_mult = 1.0f;
 	kernel_params.env_sample_tex_res = 360;
+	kernel_params.integrator = 0;
 
 	update_debug_buffer(&debug_buffer, kernel_params);
 	kernel_params.debug_buffer = debug_buffer;
@@ -1148,7 +1149,7 @@ int main(const int argc, const char* argv[])
 	int ray_depth = 1;
 	float azimuth = 120.0f;
 	float elevation = 30.0f;
-
+	int integrator = 0;
 	bool render = true;
 
 	// End ImGui parameters
@@ -1207,6 +1208,7 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
 		ImGui::InputInt("Ray Depth", &ray_depth, 1);
+		ImGui::InputInt("Integrator", &integrator, 0);
 		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
@@ -1266,8 +1268,12 @@ int main(const int argc, const char* argv[])
 		}
 
 		// Restart rendering if there is a change 
-		if (ctx->change || max_interaction != kernel_params.max_interactions || ray_depth != kernel_params.ray_depth) {
+		if (ctx->change || 
+			max_interaction != kernel_params.max_interactions || 
+			ray_depth != kernel_params.ray_depth || 
+			integrator != kernel_params.integrator) {
 
+			kernel_params.integrator = integrator;
 			update_debug_buffer(&debug_buffer, kernel_params);
 			kernel_params.debug_buffer = debug_buffer;
 			kernel_params.iteration = 0;

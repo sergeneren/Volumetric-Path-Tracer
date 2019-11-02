@@ -754,9 +754,11 @@ __device__ inline float3 vol_integrator(
 	Rand_state rand_state,
 	float3 ray_pos,
 	float3 ray_dir,
+	float &tr,
 	const Kernel_params kernel_params,
 	const GPU_VDB &gpu_vdb)
 {
+	
 	float3 L = BLACK;
 	float3 beta = WHITE;
 	float3 env_pos = ray_pos;
@@ -765,7 +767,6 @@ __device__ inline float3 vol_integrator(
 
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
-
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
@@ -779,10 +780,8 @@ __device__ inline float3 vol_integrator(
 			}
 
 		}
-
-
 	}
-
+	tr = 1.0f - length(beta);
 	return L;
 
 }
@@ -879,8 +878,9 @@ extern "C" __global__ void volume_rt_kernel(
 	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		//if(x<2&&y<2) value = direct_integrator(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb); // Debugging
-		value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
+		if(kernel_params.integrator) value = vol_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
+		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
+		
 	}
 	
 	// Accumulate.
