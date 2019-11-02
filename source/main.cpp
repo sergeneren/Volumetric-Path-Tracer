@@ -77,6 +77,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#define TINYEXR_USE_MINIZ 0
+#include "zlib.h"
 #define TINYEXR_IMPLEMENTATION
 #include "tinyexr.h"
 
@@ -249,6 +251,68 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 
 
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
+}
+
+// Save Exr Image
+static bool save_exr(float4 *rgba, int width, int height, const char *filename) {
+
+	EXRHeader header;
+	InitEXRHeader(&header);
+
+	EXRImage image;
+	InitEXRImage(&image);
+
+	image.num_channels = 4;
+	
+	std::vector<float> images[4];
+	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
+
+	for (int i = 0; i < width * height; i++) {
+		images[0][i] = rgba[i].x;
+		images[1][i] = rgba[i].y;
+		images[2][i] = rgba[i].z;
+		images[3][i] = rgba[i].w;
+	}
+
+	float* image_ptr[4];
+
+	image_ptr[0] = &(images[3].at(0)); // A
+	image_ptr[1] = &(images[2].at(0)); // B
+	image_ptr[2] = &(images[1].at(0)); // G
+	image_ptr[3] = &(images[0].at(0)); // R
+
+	image.images = (unsigned char**)image_ptr;
+	image.width = width;
+	image.height = height;
+
+	header.num_channels = 4;
+	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
+	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
+	strncpy(header.channels[0].name, "A", 255); header.channels[0].name[strlen("a")] = '\0';
+	strncpy(header.channels[1].name, "B", 255); header.channels[1].name[strlen("B")] = '\0';
+	strncpy(header.channels[2].name, "G", 255); header.channels[2].name[strlen("G")] = '\0';
+	strncpy(header.channels[3].name, "R", 255); header.channels[3].name[strlen("R")] = '\0';
+
+	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+	for (int i = 0; i < header.num_channels; i++) {
+		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
+		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
+	}
+
+	const char* err = NULL; // or nullptr in C++11 or later.
+	int ret = SaveEXRImageToFile(&image, &header, filename, &err);
+	if (ret != TINYEXR_SUCCESS) {
+		fprintf(stderr, "Save EXR err: %s\n", err);
+		return false;
+	}
+	printf("Saved exr file. [ %s ] \n", filename);
+
+	free(header.channels);
+	free(header.pixel_types);
+	free(header.requested_pixel_types);
+	
+	return true;
 }
 
 // Initialize GLFW and GLEW.
@@ -1208,7 +1272,7 @@ int main(const int argc, const char* argv[])
 			char file_name[100] = "./render/pathtrace.";
 			strcat_s(file_name, frame_string);
 			
-#ifdef SAVE_TGA
+#ifdef SAVE_TGA //TO-DO make a function out of this  
 			strcat_s(file_name, ".tga");
 			unsigned char* image_data = (unsigned char *)malloc((int)(width * height * 3));
 			glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, image_data);
@@ -1220,25 +1284,14 @@ int main(const int argc, const char* argv[])
 			int res = width * height;
 			strcat_s(file_name, ".exr");
 			
-			float4 *c = new float4[res];
-			memset(c, 0x0, sizeof(float4) * res);
+			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			const Imf::Rgba *f = new Imf::Rgba[res]; 
-			memset(&f, 0x0, sizeof(Imf::Rgba) * res);
-
-			for (int i = 0; i < res; i++) {
-				f[i].r = FloatToHalf(c[i].x);
-				
-			}
-
-			Imf::RgbaOutputFile out_file(file_name, width, height, Imf::WRITE_RGBA);
-			out_file.setFrameBuffer(d, 1, width);
-			out_file.writePixels(height);
+			bool success = save_exr(c, width, height, file_name);
+			if (!success) printf("!Unable to save exr file.\n");
+			
 #endif
-
-
-
+					   
 			frame++;
 			ctx->save_image = false;
 		}
