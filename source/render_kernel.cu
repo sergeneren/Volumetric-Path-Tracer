@@ -41,7 +41,6 @@
 
 #include <stdio.h>
 #include <float.h>
-#include <OpenEXR/OpenEXRConfig.h>
 
 // Cuda includes
 #include <cuda_runtime.h> 

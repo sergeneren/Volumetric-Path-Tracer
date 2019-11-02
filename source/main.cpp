@@ -629,7 +629,7 @@ static void resize_buffers(
 
 }
 
-
+// TO-DO: make gpu do this.  
 static bool create_cdf(
 	Kernel_params &kernel_params,
 	cudaArray_t *env_func_data,

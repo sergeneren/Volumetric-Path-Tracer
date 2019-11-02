@@ -79,7 +79,9 @@ struct Kernel_params {
 	float sky_mult;
 	cudaTextureObject_t env_tex;
 
+	// Procedural sky texture
 	int env_sample_tex_res;
+	cudaTextureObject_t sky_tex;
 	cudaTextureObject_t env_func_tex;
 	cudaTextureObject_t env_cdf_tex;
 	cudaTextureObject_t env_marginal_func_tex;
