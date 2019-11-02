@@ -288,7 +288,7 @@ static bool save_exr(float4 *rgba, int width, int height, const char *filename) 
 	header.num_channels = 4;
 	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
 	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "A", 255); header.channels[0].name[strlen("a")] = '\0';
+	strncpy(header.channels[0].name, "A", 255); header.channels[0].name[strlen("A")] = '\0';
 	strncpy(header.channels[1].name, "B", 255); header.channels[1].name[strlen("B")] = '\0';
 	strncpy(header.channels[2].name, "G", 255); header.channels[2].name[strlen("G")] = '\0';
 	strncpy(header.channels[3].name, "R", 255); header.channels[3].name[strlen("R")] = '\0';
