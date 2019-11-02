@@ -86,11 +86,10 @@
 #include <Windows.h>
 
 
-CUmodule cuCustom;
+CUmodule cuRenderModule;
+CUmodule cuTextureModule;
 CUfunction cuRaycastKernel;
-
-
-//VolumeGVDB		gvdb;
+CUfunction cuTextureKernel;
 
 GPU_VDB	gpu_vdb;
 
@@ -1060,8 +1059,10 @@ int main(const int argc, const char* argv[])
 		exit(0);
 	}
 	
-	const char * module_name = "render_kernel.ptx";
-	const char * kernel_name = "volume_rt_kernel";
+	const char * render_module_name = "render_kernel.ptx";
+	const char * texture_module_name = "texture_kernels.ptx";
+	const char * render_kernel_name = "volume_rt_kernel";
+	const char * texture_kernel_name = "calculate_textures";
 
 	int cuda_devices[1];
 	unsigned int num_cuda_devices;
@@ -1073,9 +1074,14 @@ int main(const int argc, const char* argv[])
 
 	CUresult error;
 
-	error = cuModuleLoad(&cuCustom, module_name);
+	error = cuModuleLoad(&cuRenderModule, render_module_name);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
-	error = cuModuleGetFunction(&cuRaycastKernel, cuCustom, kernel_name);
+	error = cuModuleGetFunction(&cuRaycastKernel, cuRenderModule, render_kernel_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
+
+	error = cuModuleLoad(&cuTextureModule, texture_module_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
 
 
