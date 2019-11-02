@@ -82,8 +82,8 @@
 #define TINYEXR_IMPLEMENTATION
 #include "tinyexr.h"
 
-#define SAVE_TGA
-//#define SAVE_OPENEXR
+//#define SAVE_TGA
+#define SAVE_OPENEXR
 
 #include <Windows.h>
 
@@ -254,7 +254,9 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 }
 
 // Save Exr Image
-static bool save_exr(float4 *rgba, int width, int height, const char *filename) {
+static bool save_exr(float4 *rgba, int width, int height, std::string filename) {
+
+	filename.append(".exr");
 
 	EXRHeader header;
 	InitEXRHeader(&header);
@@ -320,7 +322,7 @@ static bool save_exr(float4 *rgba, int width, int height, const char *filename) 
 	}
 
 	const char* err = NULL; // or nullptr in C++11 or later.
-	int ret = SaveEXRImageToFile(&image, &header, filename, &err);
+	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
 	if (ret != TINYEXR_SUCCESS) {
 		fprintf(stderr, "Save EXR err: %s\n", err);
 		return false;
@@ -331,6 +333,34 @@ static bool save_exr(float4 *rgba, int width, int height, const char *filename) 
 	free(header.pixel_types);
 	free(header.requested_pixel_types);
 	
+	return true;
+}
+
+static bool save_tga(float4 *rgba, int width, int height, std::string filename){
+
+	filename.append(".tga");
+
+	unsigned char* image_data;
+	image_data = new unsigned char[(width * height * 3)];
+
+	int idx = 0;
+	for (int i = 0; i < width * height; i++) {
+		
+		unsigned char ir = (unsigned int)(255.0f * fminf(fmaxf(rgba[i].x, 0.0f), 1.0f));
+		unsigned char ig = (unsigned int)(255.0f * fminf(fmaxf(rgba[i].y, 0.0f), 1.0f));
+		unsigned char ib = (unsigned int)(255.0f * fminf(fmaxf(rgba[i].z, 0.0f), 1.0f));
+
+		image_data[idx++] = ir;
+		image_data[idx++] = ig;
+		image_data[idx++] = ib;
+
+	}
+
+	stbi_flip_vertically_on_write(1);
+	int success = stbi_write_tga(filename.c_str(), width, height, 3, image_data);
+
+	if (!success) return false;
+
 	return true;
 }
 
@@ -1292,36 +1322,18 @@ int main(const int argc, const char* argv[])
 			strcat_s(file_name, frame_string);
 			
 #ifdef SAVE_TGA   
-			strcat_s(file_name, ".tga");
-			
-			unsigned char* image_data;
-			image_data = new unsigned char[(width * height * 3)];
 			
 			int res = width * height;
 			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			int idx = 0; 
-			for (int i = 0; i < res; i++) {
-				
-				unsigned char ir = int(255 * c[i].x);
-				unsigned char ig = int(255 * c[i].y);
-				unsigned char ib = int(255 * c[i].z);
-				
-				image_data[idx++] = ir;
-				image_data[idx++] = ig;
-				image_data[idx++] = ib;
+			bool success = save_tga(c, width, height, file_name);
+			if (!success) printf("!Unable to save exr file.\n");
 			
-			}
-
-			stbi_flip_vertically_on_write(1);
-			stbi_write_tga(file_name, width, height, 3, image_data);
 #endif
 
 #ifdef SAVE_OPENEXR
 			int res = width * height;
-			strcat_s(file_name, ".exr");
-			
 			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
