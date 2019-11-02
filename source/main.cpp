@@ -51,7 +51,6 @@
 #include <cuda_runtime_api.h>
 #include <cuda_gl_interop.h>
 #include <driver_types.h>
-//#include <vector_functions.h>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -64,7 +63,6 @@
 #include "helper_math.h"
 #undef APIENTRY
 
-//#include "gvdb.h"
 #include "hdr_loader.h"
 #include "kernel_params.h"
 
@@ -286,15 +284,6 @@ static bool save_exr(float4 *rgba, int width, int height, std::string filename) 
 		}
 	}
 	
-	/*
-	for (int i = 0; i < width * height; i++) {
-		images[0][i] = rgba[width*height - i].x;
-		images[1][i] = rgba[width*height - i].y;
-		images[2][i] = rgba[width*height - i].z;
-		images[3][i] = rgba[width*height - i].w;
-	}
-	*/
-
 	float* image_ptr[4];
 
 	image_ptr[0] = &(images[3].at(0)); // A
@@ -985,7 +974,6 @@ static void update_camera(
 	lookat += cam.v * float(my) * rot_speed;
 	
 	// Zoom 
-
 	lookfrom -= cam.w * float(zoom_delta) * zoom_speed;
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
@@ -997,11 +985,8 @@ static void update_debug_buffer(
 	float3 **debug_buffer_cuda,
 	Kernel_params kernel_params)
 {
-
 	if (*debug_buffer_cuda)	check_success(cudaFree(*debug_buffer_cuda) == cudaSuccess);
 	check_success(cudaMalloc(debug_buffer_cuda, 1000 * sizeof(float3)) == cudaSuccess);
-
-
 }
 
 
@@ -1234,10 +1219,10 @@ int main(const int argc, const char* argv[])
 
 			// Reserved for host side debugging
 
-			//Copy debug buffer and print
+			
 
 #if 0
-
+			//Copy debug buffer and print
 			printf("ray_depth:%d\n", ray_depth);
 			float3 *c = new float3[1000];
 			memset(c, 0x0, sizeof(float3) * 1000);
