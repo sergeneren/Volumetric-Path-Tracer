@@ -364,7 +364,7 @@ static GLFWwindow *init_opengl()
 	
 
 	GLFWwindow *window = glfwCreateWindow(
-		1200, 1024, "volume path tracer", NULL, NULL);
+		1200, 800, "volume path tracer", NULL, NULL);
 	if (!window) {
 		fprintf(stderr, "Error creating OpenGL window.\n");;
 		glfwTerminate();
@@ -542,7 +542,7 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			dist = length(max - min); // diagonal length of gpu_vdb object
 
 			lookat = center; 
-			lookfrom = make_float3(center.x+(dist*5), center.y + (dist * 2), center.z + (dist * 5));
+			lookfrom = make_float3(center.x+(dist), center.y + (dist), center.z + (dist));
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
 			ctx->change = true;
@@ -1117,6 +1117,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.elevation = 30;
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sun_mult = 1.0f;
+	kernel_params.energy_inject = 0.0f;
 	kernel_params.sky_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_mult = 1.0f;
 	kernel_params.env_sample_tex_res = 360;
@@ -1138,10 +1139,12 @@ int main(const int argc, const char* argv[])
 	int max_interaction = 100;
 	float max_extinction = 1.0f;
 	int ray_depth = 1;
+	float energy = .0f;
 	float azimuth = 120.0f;
 	float elevation = 30.0f;
 	int integrator = 0;
 	bool render = true;
+
 
 	// End ImGui parameters
 
@@ -1208,6 +1211,7 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat("Depth Multiplier", &kernel_params.tr_depth);
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
+		ImGui::InputFloat("Energy Injection", &energy, .0f);
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
@@ -1221,13 +1225,11 @@ int main(const int argc, const char* argv[])
 		//End drawing imgui
 		//-----------------------------------------------------------------
 
-		if (debug) {
+		if (0) {
 
 			// Reserved for host side debugging
 
-			
-
-#if 0
+			#if 0
 			//Copy debug buffer and print
 			printf("ray_depth:%d\n", ray_depth);
 			float3 *c = new float3[1000];
@@ -1245,9 +1247,7 @@ int main(const int argc, const char* argv[])
 
 			}
 
-#endif
-
-
+			#endif
 
 		}
 
@@ -1265,12 +1265,18 @@ int main(const int argc, const char* argv[])
 			integrator != kernel_params.integrator) {
 
 			kernel_params.integrator = integrator;
-			update_debug_buffer(&debug_buffer, kernel_params);
-			kernel_params.debug_buffer = debug_buffer;
+			//update_debug_buffer(&debug_buffer, kernel_params);
+			//kernel_params.debug_buffer = debug_buffer;
 			kernel_params.iteration = 0;
+			
+			if (energy == 0) kernel_params.energy_inject = 1.0f;
+			else kernel_params.energy_inject = 1.0f + (energy / 100000.0f);
+
 			ctx->change = false;
 
 		}
+
+		if (kernel_params.iteration == kernel_params.max_interactions) ctx->save_image = true;
 
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
@@ -1349,7 +1355,6 @@ int main(const int argc, const char* argv[])
 		size_t size_p;
 
 		cudaGraphicsResourceGetMappedPointer(&p, &size_p, display_buffer_cuda);
-		//printf("error in: %s\n", cudaGetErrorString(cudaGetLastError()));
 		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
 
 		// Launch volume rendering kernel.

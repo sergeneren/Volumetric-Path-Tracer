@@ -719,6 +719,7 @@ __device__ inline float3 sample(
 	float3 &ray_pos,
 	const float3 &ray_dir,
 	bool &interaction,
+	float &tr,
 	const Kernel_params &kernel_params,
 	const GPU_VDB &gpu_vdb)
 {
@@ -736,15 +737,18 @@ __device__ inline float3 sample(
 		if (!gpu_vdb.inVolumeBbox(ray_pos))	break;
 
 		float density = get_density(ray_pos, gpu_vdb);
+
+		// Accumulate opacity
+		if(tr<1.0f) tr += density;
+		
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
-			return kernel_params.albedo / kernel_params.extinction;
+			return (kernel_params.albedo / kernel_params.extinction) * kernel_params.energy_inject;
 		}
 		
 	}
 	
 	return WHITE;
-
 }
 
 
@@ -769,7 +773,7 @@ __device__ inline float3 vol_integrator(
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gpu_vdb);
+			beta *= sample(rand_state, ray_pos, ray_dir, mi,tr, kernel_params, gpu_vdb);
 			if (isBlack(beta)) break;
 
 
@@ -780,9 +784,8 @@ __device__ inline float3 vol_integrator(
 
 		}
 	}
-	tr = 1.0f - length(beta);
+	tr = fminf(tr, 1.0f);
 	return L;
-
 }
 
 
@@ -816,7 +819,7 @@ __device__ inline float3 direct_integrator(
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 			
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, kernel_params, gpu_vdb);
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb);
 			if (isBlack(beta)) break;
 			
 			if (mi) { // medium interaction 
@@ -842,8 +845,7 @@ __device__ inline float3 direct_integrator(
 			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
 		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
-	
-	tr = 1.0f - length(beta);
+	tr = fminf(tr, 1.0f);
 	return L;
 
 }
