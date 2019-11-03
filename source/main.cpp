@@ -315,7 +315,7 @@ static bool save_exr(float4 *rgba, int width, int height, std::string filename) 
 		fprintf(stderr, "Save EXR err: %s\n", err);
 		return false;
 	}
-	printf("Saved exr file. [ %s ] \n", filename);
+	printf("Saved exr file. [ %s ] \n", filename.c_str());
 
 	free(header.channels);
 	free(header.pixel_types);
@@ -536,8 +536,8 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			break;
 		case GLFW_KEY_F: // Frame camera to include objects
 			 
-			float3 min = gpu_vdb.get_xform().transform_point(gpu_vdb.vdb_info.bmin);
-			float3 max = gpu_vdb.get_xform().transform_point(gpu_vdb.vdb_info.bmax);
+			float3 min = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
+			float3 max = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
 			float3 center = (max + min) / 2;
 			dist = length(max - min); // diagonal length of gpu_vdb object
 
