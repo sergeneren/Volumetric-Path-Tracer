@@ -6,7 +6,7 @@ VPT is a path tracer to render openvdb files using Nvidia gvdb library and Cuda.
 
 ## Release Notes
 
-v1.0 Initial Public Release
+v1.1 Alpha
 
 ## Installation
 
@@ -15,20 +15,16 @@ Either download the source as a zip file or right click to a desired location an
 git clone https://github.com/sergeneren/Volumetric-Path-Tracer
 ```
 
-**!!!Warning: Master branch of VPT is now unstable and under development for custom gpu_vdb classes. Please use the stable_v0.1 branch with the command below**
-
-```
-git clone -b custom-gpu-vdb --single-branch https://github.com/sergeneren/Volumetric-Path-Tracer
-```
-
 
 ### Dependencies
 
-VPT depends on following libraries. They can be installed using ```vcpkg.exe install 'package name'``` command. 
+VPT depends on following libraries. All the libraries are choosen so they can easily installed by vcpkg using ```vcpkg.exe install 'package name'``` command. 
 
+* [OpenVDB](https://www.openvdb.org/)
 * [GLFW3](https://www.glfw.org/) 
 * [Dear Imgui](https://github.com/ocornut/imgui)
 * [STB Image](https://github.com/nothings/stb)
+* [tinyexr](https://github.com/syoyo/tinyexr)
 
 ### Build 
 VPT expects [vcpkg](https://github.com/Microsoft/vcpkg), Visual Studio 2017 and CMake to be installed.  
@@ -49,19 +45,19 @@ VPT expects [vcpkg](https://github.com/Microsoft/vcpkg), Visual Studio 2017 and 
 
 **Step 5:** Generate and open the VS file. Build VPT in "Release" configuration. This will create a "VPT" folder under build directory and vpt.exe. Necessary binaries will be placed here. 
  
-**note:** Currently only windows GVDB libraries (VS 2017, VC 14) are distributed with the repo. If you wish to use the repo under Linux or Mac please use this fork of [GVDB](https://github.com/sergeneren/gvdb-voxels) and compile the necessary binaries to be used with the renderer. 
-
 ### Usage 
 
 VPT has two command line arguments: A vdb file name as first argument, and a second optional environment texture. If you wish to use an environment map with VPT just specify the hdri in command line, for example: 
 
-```vpt.exe ../../../assets/dragon.vdb ../../../assets/Barce_Rooftop_C_3k.hdr```
+```.\vpt.exe dragon.vdb Barce_Rooftop_C_3k.hdr```
+
+Currently VPT expects vdb and hdri files to be under assets directory. This directory is assigned at cmake during configuration. 
 
 You can find couple hdri maps under assets directory which are provided by [sIbl Archive](http://www.hdrlabs.com/sibl/archive.html) and [HDRI Skies](https://hdri-skies.com/).
 
 [The Moana Cloud datasets](https://www.technology.disneyanimation.com/clouds) are Copyright 2017 Disney Enterprises, Inc. and are licensed under the Creative Commons Attribution-ShareAlike 3.0 Unported License. A copy of this license is available at http://creativecommons.org/licenses/by-sa/3.0/.
 
-The interactive camera in application uses left mouse for orbiting, middle mouse for panning, and mouse wheel for zooming. keyboard "s" takes a screenshot and places it under "bin/render" folder with .tga extension. Keyboard "-" and "+" changes FOV and "ESC" key quits the application   
+The interactive camera in application uses left mouse for orbiting, middle mouse for panning, and mouse wheel for zooming. keyboard "s" takes a screenshot and places it under "bin/render" folder with .tga or .exr extension. Keyboard "-" and "+" changes FOV and "ESC" key quits the application. "F" key frames the current vdb file so it is in the cameras fov.     
 
 ## Author
 
