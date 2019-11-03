@@ -18,7 +18,7 @@ git clone https://github.com/sergeneren/Volumetric-Path-Tracer
 
 ### Dependencies
 
-VPT depends on following libraries. All the libraries are choosen so they can easily installed by vcpkg using ```vcpkg.exe install 'package name'``` command. 
+VPT depends on following libraries. All the libraries are choosen so they can be easily installed by vcpkg using ```vcpkg.exe install 'package name'``` command. 
 
 * [OpenVDB](https://www.openvdb.org/)
 * [GLFW3](https://www.glfw.org/) 
