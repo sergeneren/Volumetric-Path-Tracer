@@ -675,7 +675,7 @@ __device__ inline float3 sample(
 		
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
-			return (kernel_params.albedo / kernel_params.extinction) * kernel_params.energy_inject;
+			return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
 		}
 		
 	}

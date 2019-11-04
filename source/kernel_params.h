@@ -77,7 +77,7 @@ struct Kernel_params {
 	float3 sky_color;
 	float sun_mult;
 	float sky_mult;
-	float energy_inject;
+	double energy_inject;
 	cudaTextureObject_t env_tex;
 
 	// Procedural sky texture

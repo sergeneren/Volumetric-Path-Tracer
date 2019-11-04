@@ -1168,7 +1168,7 @@ int main(const int argc, const char* argv[])
 	int max_interaction = 100;
 	float max_extinction = 1.0f;
 	int ray_depth = 1;
-	float energy = .0f;
+	double energy = .0f;
 	float azimuth = 120.0f;
 	float elevation = 30.0f;
 	int integrator = 0;
@@ -1216,8 +1216,8 @@ int main(const int argc, const char* argv[])
 		kernel_params.azimuth = azimuth;
 		kernel_params.elevation = elevation;
 		kernel_params.debug = debug;
-		if (energy == 0) kernel_params.energy_inject = 1.0f;
-		else kernel_params.energy_inject = 1.0f + (energy / 100000.0f);
+		if (energy == 0) kernel_params.energy_inject = 1.0;
+		else kernel_params.energy_inject = 1.0 + (energy / 100000.0);
 
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
@@ -1228,7 +1228,7 @@ int main(const int argc, const char* argv[])
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-
+		
 		ImGui::Begin("Parameters window");
 		ImGui::Checkbox("Render", &render);
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
@@ -1243,7 +1243,7 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat("Depth Multiplier", &kernel_params.tr_depth);
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
-		ImGui::InputFloat("Energy Injection", &energy, .0f);
+		ImGui::InputDouble("Energy Injection", &energy, 0.0);
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
