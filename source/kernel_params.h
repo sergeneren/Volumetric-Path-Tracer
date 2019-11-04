@@ -47,7 +47,7 @@ struct Kernel_params {
 	float exposure_scale;
 	unsigned int *display_buffer;
 	float4 *raw_buffer;
-	cudaTextureObject_t bn_tex;
+	float *blue_noise_buffer;
 
 	// Progressive rendering state
 	unsigned int iteration;

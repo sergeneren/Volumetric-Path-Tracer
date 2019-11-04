@@ -65,6 +65,7 @@
 
 #include "hdr_loader.h"
 #include "kernel_params.h"
+#include "bitmap_image.h"
 
 // new classes
 #include "gpu_vdb/gpu_vdb.h"
@@ -977,6 +978,45 @@ static bool create_environment(
 	return true;
 }
 
+
+static void update_blue_noise(Kernel_params &kernel_params) {
+
+	// Update blue noise texture of kernel_params with golden ratio  
+
+
+
+}
+
+static bool load_blue_noise(Kernel_params &kernel_params, std::string filename) {
+
+	// Load blue noise texture from assets directory and send to gpu 
+	bitmap_image image(filename.c_str());
+	
+	if (!image)
+		return false; 
+
+	int width = image.width();
+	int height = image.height();
+	
+	float *values = new float[height * width];
+	   
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			
+			rgb_t color; 
+
+			image.get_pixel(x, y, color);
+			int idx = y * width + x; 
+			values[idx] = color.red;
+
+		}
+	}
+
+	check_success(cudaMalloc((void**)&values, width * height * sizeof(float)) == cudaSuccess) ;
+	check_success(cudaMemcpy(&kernel_params.blue_noise_buffer, values, width * height * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+
+	return true;
+}
 
 // Process camera movement.
 static void update_camera(
