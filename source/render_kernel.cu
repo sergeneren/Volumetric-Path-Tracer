@@ -100,54 +100,6 @@ __device__ inline float3 spherical_direction(
 
 }
 
-__device__ inline bool solveQuadratic(
-	float a,
-	float b,
-	float c,
-	float& x1,
-	float& x2)
-{
-	if (b == 0) {
-		// Handle special case where the the two vector ray.dir and V are perpendicular
-		// with V = ray.orig - sphere.centre
-		if (a == 0) return false;
-		x1 = 0; x2 = sqrt(-c / a);
-		return true;
-	}
-
-	float discr = b * b - 4 * a * c;
-
-	if (discr < 0) return false;
-
-	float q = (b < 0.f) ? -0.5f * (b - sqrt(discr)) : -0.5f * (b + sqrt(discr));
-	x1 = q / a;
-	x2 = c / q;
-
-	return true;
-}
-
-__device__ bool raySphereIntersect(
-	const float3& orig,
-	const float3& dir,
-	const float& radius,
-	float& t0,
-	float& t1)
-{
-
-	float A = squared_length(dir);
-	float B = 2 * (dir.x * orig.x + dir.y * orig.y + dir.z * orig.z);
-	float C = orig.x * orig.x + orig.y * orig.y + orig.z * orig.z - radius * radius;
-
-	if (!solveQuadratic(A, B, C, t0, t1)) return false;
-
-	if (t0 > t1) {
-		float tempt = t1;
-		t1 = t0;
-		t0 = tempt;
-	}
-	return true;
-}
-
 __device__ inline float degree_to_radians(
 	float degree)
 {
@@ -697,7 +649,6 @@ __device__ inline float3 vol_integrator(
 	
 	float3 L = BLACK;
 	float3 beta = WHITE;
-	float3 env_pos = ray_pos;
 	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
 	bool mi;
 
@@ -722,7 +673,6 @@ __device__ inline float3 vol_integrator(
 }
 
 
-
 // From Ray Tracing Gems Vol-28
 __device__ inline float3 direct_integrator(
 	Rand_state rand_state,
@@ -734,7 +684,6 @@ __device__ inline float3 direct_integrator(
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
-	float3 env_pos = ray_pos;
 	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
 	bool mi = false;
 
