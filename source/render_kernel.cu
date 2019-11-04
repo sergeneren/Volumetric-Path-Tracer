@@ -411,81 +411,13 @@ __device__ inline float sample_double_hg(
 
 __device__ inline float3 sample_atmosphere(
 	const Kernel_params &kernel_params,
-	const float3 orig,
-	const float3 dir,
-	const float3 intensity)
+	const float3 dir)
 {
-
-	// initial parameters
-	float	atmosphereRadius = 6420e3f;
-	float3	sunDirection = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
-	float	earthRadius = 6360e3f;
-	float	Hr = 7994.0f;
-	float	Hm = 1200.0f;
-	float3	betaR = make_float3(3.8e-6f, 13.5e-6f, 33.1e-6f);
-	float3	betaM = make_float3(21e-6f);
-	//
-
-
-	float t0, t1;
-	float tmin, tmax = FLT_MAX;
-	float3 pos = orig;
-	pos.y += 1000 + 6360e3f;
-
-	if (raySphereIntersect(pos, dir, 6360e3f, t0, t1) && t1 > .0f) tmax = fmaxf(.0f, t0);
-	tmin = .0f;
-	if (!raySphereIntersect(pos, dir, atmosphereRadius, t0, t1) || t1 < 0) return make_float3(1.0f, .0f, .0f);
-	if (t0 > tmin && t0 > 0) tmin = t0;
-	if (t1 < tmax) tmax = t1;
-
-	uint numSamples = 16;
-	uint numSamplesLight = 8;
-
-	float segmentLength = (tmax - tmin) / numSamples;
-	float tCurrent = tmin;
-	float3 sumR = make_float3(0.0f, .0f, .0f); // Rayleigh contribution
-	float3 sumM = make_float3(0.0f, .0f, .0f); // Mie contribution
-
-	float opticalDepthR = 0, opticalDepthM = 0;
-	float mu = dot(dir, sunDirection); // mu in the paper which is the cosine of the angle between the sun direction and the ray direction
-	float phaseR = 3.f / (16.f * M_PI) * (1 + mu * mu);
-	float g = 0.76f;
-
-	float phaseM = 3.f / (8.f * M_PI) * ((1.f - g * g) * (1.f + mu * mu)) / ((2.f + g * g) * pow(1.f + g * g - 2.f * g * mu, 1.5f));
-
-	for (uint i = 0; i < numSamples; ++i) {
-		float3 samplePosition = pos + (tCurrent + segmentLength * 0.5f) * dir;
-		float height = length(samplePosition) - earthRadius;
-		// compute optical depth for light
-		float hr = exp(-height / Hr) * segmentLength;
-		float hm = exp(-height / Hm) * segmentLength;
-		opticalDepthR += hr;
-		opticalDepthM += hm;
-		// light optical depth
-		float t0Light, t1Light;
-		raySphereIntersect(samplePosition, sunDirection, atmosphereRadius, t0Light, t1Light);
-		float segmentLengthLight = t1Light / numSamplesLight, tCurrentLight = 0;
-		float opticalDepthLightR = 0, opticalDepthLightM = 0;
-		uint j;
-		for (j = 0; j < numSamplesLight; ++j) {
-			float3 samplePositionLight = samplePosition + (tCurrentLight + segmentLengthLight * 0.5f) * sunDirection;
-			float heightLight = length(samplePositionLight) - earthRadius;
-			if (heightLight < 0) break;
-			opticalDepthLightR += exp(-heightLight / Hr) * segmentLengthLight;
-			opticalDepthLightM += exp(-heightLight / Hm) * segmentLengthLight;
-			tCurrentLight += segmentLengthLight;
-		}
-		if (j == numSamplesLight) {
-			float3 tau = betaR * (opticalDepthR + opticalDepthLightR) + betaM * 1.1f * (opticalDepthM + opticalDepthLightM);
-			float3 attenuation = make_float3(exp(-tau.x), exp(-tau.y), exp(-tau.z));
-			sumR += attenuation * hr;
-			sumM += attenuation * hm;
-		}
-		tCurrent += segmentLength;
-	}
-
-
-	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
+	
+	float azimuth = atan2f(-dir.z, -dir.x) * INV_2_PI + 0.5f;
+	float elevation = acosf(fmaxf(fminf(dir.y, 1.0f), -1.0f)) * INV_PI;
+	const float4 texval = tex2D<float4>( kernel_params.sky_tex, azimuth, elevation);
+	return make_float3(texval.x, texval.y, texval.z);
 }
 
 __device__ inline float3 sample_env_tex(
@@ -588,7 +520,7 @@ __device__ inline float3 estimate_sky(
 
 		if (kernel_params.environment_type == 0) {
 			light_pdf = draw_sample_from_distribution(kernel_params, randstate, wi);
-			Li = sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
+			Li = sample_atmosphere(kernel_params, wi);
 		}
 		else {
 			light_pdf = sample_spherical(randstate, wi);
@@ -635,7 +567,7 @@ __device__ inline float3 estimate_sky(
 
 			if (kernel_params.environment_type == 0)
 			{
-				Li = sample_atmosphere(kernel_params, ray_pos, wi, kernel_params.sky_color);
+				Li = sample_atmosphere(kernel_params, wi);
 			}
 			else Li = sample_env_tex(kernel_params, wi);
 
@@ -830,11 +762,11 @@ __device__ inline float3 direct_integrator(
 		}
 		
 	}
-
+	ray_dir = normalize(ray_dir);
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta;
-		else L += sample_atmosphere(kernel_params, env_pos, ray_dir, kernel_params.sky_color) * beta;
+		else L += sample_atmosphere(kernel_params, ray_dir) * beta;
 
 	}
 	else {
@@ -880,7 +812,7 @@ extern "C" __global__ void volume_rt_kernel(
 	{
 		if(kernel_params.integrator) value = vol_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
-		
+		//if(x<2&&y<2) direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 	}
 	
 	// Accumulate.

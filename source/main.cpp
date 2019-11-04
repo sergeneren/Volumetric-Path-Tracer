@@ -631,6 +631,7 @@ static void resize_buffers(
 // TO-DO: make gpu do this.  
 static bool create_cdf(
 	Kernel_params &kernel_params,
+	cudaArray_t *env_val_data,
 	cudaArray_t *env_func_data,
 	cudaArray_t *env_cdf_data,
 	cudaArray_t *env_marginal_func_data,
@@ -645,7 +646,6 @@ static bool create_cdf(
 
 	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
 	const unsigned res = 180;
-
 	kernel_params.env_sample_tex_res = res;
 
 	float az = 0;
@@ -746,6 +746,34 @@ static bool create_cdf(
 
 	// Send data to GPU 
 	//-------------------------------------------------------------------------------------
+
+	// Send val data
+
+	float4 *texture = new float4[res*res];
+	for (int i = 0; i < res*res; i++) {
+		texture[i] = make_float4(val[i].x, val[i].y, val[i].z, 1.0f);
+	}
+
+	const cudaChannelFormatDesc channel_desc_val = cudaCreateChannelDesc<float4>();
+	check_success(cudaMallocArray(env_val_data, &channel_desc_val, res, res) == cudaSuccess);
+	check_success(cudaMemcpy2DToArray(*env_val_data, 0, 0, texture, res * sizeof(float4), res * sizeof(float4), res, cudaMemcpyHostToDevice) == cudaSuccess);
+
+	cudaResourceDesc res_desc_val;
+	memset(&res_desc_val, 0, sizeof(res_desc_val));
+	res_desc_val.resType = cudaResourceTypeArray;
+	res_desc_val.res.array.array = *env_val_data;
+
+	cudaTextureDesc tex_desc_val;
+	memset(&tex_desc_val, 0, sizeof(tex_desc_val));
+	tex_desc_val.addressMode[0] = cudaAddressModeWrap;
+	tex_desc_val.addressMode[1] = cudaAddressModeClamp;
+	tex_desc_val.addressMode[2] = cudaAddressModeWrap;
+	tex_desc_val.filterMode = cudaFilterModeLinear;
+	tex_desc_val.readMode = cudaReadModeElementType;
+	tex_desc_val.normalizedCoords = 1;
+
+	check_success(cudaCreateTextureObject(&kernel_params.sky_tex, &res_desc_val, &tex_desc_val, NULL) == cudaSuccess);
+
 
 	// Send func data
 	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float>();
@@ -1127,6 +1155,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.debug_buffer = debug_buffer;
 
 	//kernel parameters env data
+	cudaArray_t env_val_data = 0;
 	cudaArray_t env_tex_data = 0;
 	cudaArray_t env_func_data = 0;
 	cudaArray_t env_cdf_data = 0;
@@ -1164,6 +1193,7 @@ int main(const int argc, const char* argv[])
 
 	create_cdf(
 		kernel_params,
+		&env_val_data,
 		&env_func_data,
 		&env_cdf_data,
 		&env_marginal_func_data,
@@ -1186,6 +1216,8 @@ int main(const int argc, const char* argv[])
 		kernel_params.azimuth = azimuth;
 		kernel_params.elevation = elevation;
 		kernel_params.debug = debug;
+		if (energy == 0) kernel_params.energy_inject = 1.0f;
+		else kernel_params.energy_inject = 1.0f + (energy / 100000.0f);
 
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
@@ -1268,10 +1300,6 @@ int main(const int argc, const char* argv[])
 			//update_debug_buffer(&debug_buffer, kernel_params);
 			//kernel_params.debug_buffer = debug_buffer;
 			kernel_params.iteration = 0;
-			
-			if (energy == 0) kernel_params.energy_inject = 1.0f;
-			else kernel_params.energy_inject = 1.0f + (energy / 100000.0f);
-
 			ctx->change = false;
 
 		}
@@ -1281,7 +1309,7 @@ int main(const int argc, const char* argv[])
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
 
-			create_cdf(kernel_params, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
+			create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
 			kernel_params.iteration = 0;
 
 		}

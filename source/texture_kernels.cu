@@ -220,11 +220,17 @@ extern "C" __global__ void calculate_textures(const Kernel_params kernel_params,
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x >= width || y >= height) return;
-	const unsigned int idx = y * kernel_params.resolution.x + x;
+	const unsigned int idx = y * width + x;
 	
+	//calculate direction
 
-
-
-
+	float azimuth = float(x) / float(width) * float(M_PI) * 2.0f;
+	float elevation = float(y) / float(height) * float(M_PI);
+	
+	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
+	pos.y += 1000 + 6360e3f;
+	float3 dir = make_float3(sinf(elevation) * cosf(azimuth), cosf(elevation), sinf(elevation) * sinf(azimuth)); // polar to cartesian 
+	
+	float3 value = sample_atmosphere(kernel_params, pos, dir, kernel_params.sky_color);
 
 }
