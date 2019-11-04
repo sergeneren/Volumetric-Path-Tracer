@@ -195,6 +195,14 @@ __device__ inline float tex_lookup_2d(
 	return texval;
 }
 
+__device__ inline float power_heuristic(int nf, float fPdf, int ng, float gPdf)
+{
+	float f = nf * fPdf, g = ng * gPdf;
+	return (f*f) / (f*f + g * g);
+}
+
+// Environment light samplers
+
 __device__ inline float draw_sample_from_distribution(
 	Kernel_params kernel_params,
 	Rand_state rand_state,
@@ -278,11 +286,14 @@ __device__ inline float draw_sample_from_distribution(
 
 	wo = normalize(make_float3(sin_theta * cos_phi, sin_theta * sin_phi, cos_theta));
 	pdf = (marginal_pdf * conditional_pdf) / (2 * M_PI * M_PI * sin_theta);
-	if (kernel_params.debug) printf("\n%f	%f	%f	%d	%d", ((float(u) + du) / float(res)), ((float(v) + dv) / float(res)), pdf, u, v);
+	//if (kernel_params.debug) printf("\n%f	%f	%f	%d	%d", ((float(u) + du) / float(res)), ((float(v) + dv) / float(res)), pdf, u, v);
 	//if (kernel_params.debug) printf("\n%f	%f	%f	%f", wo.x, wo.y,wo.z, dot(wo, sundir));
 	return pdf;
 }
 
+
+
+//Phase functions pdf 
 __device__ inline float draw_pdf_from_distribution(Kernel_params kernel_params, float2 point)
 {
 	int res = kernel_params.env_sample_tex_res;
@@ -295,14 +306,6 @@ __device__ inline float draw_pdf_from_distribution(Kernel_params kernel_params, 
 
 	return conditional / marginal;
 }
-
-__device__ inline float power_heuristic(int nf, float fPdf, int ng, float gPdf)
-{
-	float f = nf * fPdf, g = ng * gPdf;
-	return (f*f) / (f*f + g * g);
-}
-
-//Phase functions pdf 
 
 __device__ inline float isotropic() {
 
@@ -430,8 +433,6 @@ __device__ inline float3 sample_env_tex(
 		atan2f(wi.z, wi.x) * (float)(0.5 / M_PI) + 0.5f,
 		acosf(fmaxf(fminf(wi.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
 	return make_float3(texval.x, texval.y, texval.z);
-
-
 }
 
 
