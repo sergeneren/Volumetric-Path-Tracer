@@ -58,6 +58,7 @@ typedef unsigned long long	uint64;
 #include "kernel_params.h"
 #include "gpu_vdb.h"
 #include "camera.h"
+#include "light.h"
 
 
 
@@ -147,11 +148,6 @@ __device__ inline float tex_lookup_2d(
 	return texval;
 }
 
-__device__ inline float power_heuristic(int nf, float fPdf, int ng, float gPdf)
-{
-	float f = nf * fPdf, g = ng * gPdf;
-	return (f*f) / (f*f + g * g);
-}
 
 // Environment light samplers
 
@@ -265,16 +261,6 @@ __device__ inline float isotropic() {
 
 }
 
-__device__ inline float henyey_greenstein(
-	float cos_theta,
-	float g)
-{
-
-	float denominator = 1 + g * g - 2 * g * cos_theta;
-
-	return M_PI_4 * (1 - g * g) / (denominator * sqrtf(denominator));
-
-}
 
 __device__ inline float double_henyey_greenstein(
 	float cos_theta,
@@ -835,6 +821,7 @@ __device__ inline float3 direct_integrator(
 
 extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
+	const point_light *lights,
 	const GPU_VDB gpu_vdb,
 	const Kernel_params kernel_params) {
 	
@@ -842,7 +829,7 @@ extern "C" __global__ void volume_rt_kernel(
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x >= kernel_params.resolution.x || y >= kernel_params.resolution.y)
 		return;
-
+	
 	// Initialize pseudorandom number generator (PRNG); assume we need no more than 4096 random numbers.
 	const unsigned int idx = y * kernel_params.resolution.x + x;
 	Rand_state rand_state;
@@ -862,12 +849,14 @@ extern "C" __global__ void volume_rt_kernel(
 	float3 value = WHITE;
 	float tr = .0f;
 
+	/*
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		if(kernel_params.integrator) value = vol_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 	}
-
+	*/
+	value = lights[0].color;
 	// Check if values contains nan or infinite values
 	if (isNan(value) || isInf(value) ) value = kernel_params.accum_buffer[idx];
 	if (isnan(tr) || isinf(tr) ) tr = 1.0f;

@@ -103,7 +103,7 @@ float	fov;
 float	aspect; 
 float	aperture;
 
-light *lights;
+point_light *lights;
 
 #define check_success(expr) \
     do { \
@@ -1108,6 +1108,19 @@ int main(const int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
+	// Setup Lights
+
+	int num_lights = 2;
+	lights = new point_light[num_lights];
+
+	// TO-DO read these from json file
+	lights[0].pos = make_float3(70, 100, 0);
+	lights[0].power = 1000.0f;
+	lights[0].color = make_float3(1, 0, 0);
+
+	lights[0].pos = make_float3(50, 110, -20);
+	lights[0].power = 1000.0f;
+	lights[0].color = make_float3(0, 0, 1);
 
 	// Setup gpu_vdb
 
@@ -1450,17 +1463,11 @@ int main(const int argc, const char* argv[])
 		dim3 grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
-
-		void *params[] = { &cam, &gpu_vdb, &kernel_params };
+		
+		void *params[] = { &cam, lights , &gpu_vdb, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
-		
-		// Update blue-noise texture 
-		
-		/*
-		//update_blue_noise(&bn_buffer, bn_width, bn_height);
-		//kernel_params.blue_noise_buffer = bn_buffer;
-		*/
+
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 

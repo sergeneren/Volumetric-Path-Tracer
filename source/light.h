@@ -71,17 +71,20 @@ __device__ inline float power_heuristic(int nf, float fPdf, int ng, float gPdf)
 class light {
 
 public:
-	__host__ __device__ light():pos(make_float3(.0f)), dir(make_float3(.0f)), power(1.0f){}
-	__host__ __device__ virtual int get_type(){}
-	
+	__host__ __device__ light():pos(make_float3(.0f)), dir(make_float3(.0f)), power(1.0f), color(make_float3(1.0f)) {}
+	__host__ __device__ ~light() {};
+	__host__ __device__ virtual int get_type() const { return 0; };
+	__device__ virtual float3 Le() const { return make_float3(.0f); };
+
 	float3 pos;
 	float3 dir;
 	float power;
+	float3 color;
 
 	enum light_type {
-
-		POINT_LIGHT = 0,
-		AREA_LIGHT = 1
+		__INIT__	= 0,
+		POINT_LIGHT = 1,
+		AREA_LIGHT	= 2
 	};
 
 };
@@ -90,9 +93,11 @@ public:
 
 class point_light : public light {
 
-	__host__ __device__ point_light():color(make_float3(1.0f)){}
+public:
 
-	__device__ float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) {
+	__host__ __device__ point_light(){}
+
+	__device__ float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) const {
 
 		float3 Ld = make_float3(.0f);
 		float3 wi;
@@ -135,11 +140,9 @@ class point_light : public light {
 
 	}
 
-
-	__host__ __device__ virtual int get_type() { return POINT_LIGHT; }
+	__host__ __device__ virtual int get_type() const { return POINT_LIGHT; }
 
 	
-	float3 color;
 
 };
 
