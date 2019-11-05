@@ -70,7 +70,7 @@
 // new classes
 #include "gpu_vdb/gpu_vdb.h"
 #include "gpu_vdb/camera.h"
-
+#include "light.h"
 
 // Image Writers 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -102,6 +102,8 @@ float3	vup;
 float	fov;
 float	aspect; 
 float	aperture;
+
+light *lights;
 
 #define check_success(expr) \
     do { \
