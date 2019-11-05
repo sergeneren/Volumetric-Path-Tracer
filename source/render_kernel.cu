@@ -536,6 +536,26 @@ __device__ inline float3 estimate_sky(
 
 }
 
+__device__ inline float3 estimate_point_light(
+	Kernel_params kernel_params,
+	Rand_state &randstate,
+	const float3 &ray_pos,
+	float3 &ray_dir,
+	const GPU_VDB &gpu_vdb)
+{
+
+	float3 Ld = BLACK;
+	float3 wi;
+	float phase_pdf = .0f;
+
+	
+
+
+
+
+
+}
+
 
 __device__ inline float3 estimate_sun(
 	Kernel_params kernel_params,
