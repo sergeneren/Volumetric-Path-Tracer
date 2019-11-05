@@ -1481,5 +1481,18 @@ inline __host__ __device__ bool isBlack(float3 v)
 	return length(v) < 1.192092896e-07F;
 }
 
+inline __host__ __device__ bool isNan(float3 v)
+
+{
+	return isnan(v.x) || isnan(v.y) || isnan(v.z);
+}
+
+inline __host__ __device__ bool isInf(float3 v)
+
+{
+	return isinf(v.x) || isinf(v.y) || isinf(v.z);
+}
+
+
 
 #endif

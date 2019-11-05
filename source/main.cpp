@@ -978,16 +978,7 @@ static bool create_environment(
 	return true;
 }
 
-
-static void update_blue_noise(Kernel_params &kernel_params) {
-
-	// Update blue noise texture of kernel_params with golden ratio  
-
-
-
-}
-
-static bool load_blue_noise(Kernel_params &kernel_params, std::string filename) {
+static bool load_blue_noise(float3 **buffer, std::string filename, int &width, int &height) {
 
 	// Load blue noise texture from assets directory and send to gpu 
 	bitmap_image image(filename.c_str());
@@ -995,10 +986,10 @@ static bool load_blue_noise(Kernel_params &kernel_params, std::string filename) 
 	if (!image)
 		return false; 
 
-	int width = image.width();
-	int height = image.height();
+	width = image.width();
+	height = image.height();
 	
-	float *values = new float[height * width];
+	float3 *values = new float3[height * width];
 	   
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
@@ -1007,13 +998,15 @@ static bool load_blue_noise(Kernel_params &kernel_params, std::string filename) 
 
 			image.get_pixel(x, y, color);
 			int idx = y * width + x; 
-			values[idx] = color.red;
+			values[idx].x = float(color.red) / 255.0f;
+			values[idx].y = float(color.blue) / 255.0f;
+			values[idx].z = float(color.green) / 255.0f;
 
 		}
 	}
 
-	check_success(cudaMalloc((void**)&values, width * height * sizeof(float)) == cudaSuccess) ;
-	check_success(cudaMemcpy(&kernel_params.blue_noise_buffer, values, width * height * sizeof(float), cudaMemcpyHostToDevice) == cudaSuccess);
+	check_success(cudaMalloc(buffer, width * height * sizeof(float3)) == cudaSuccess) ;
+	check_success(cudaMemcpy(*buffer, values, width * height * sizeof(float3), cudaMemcpyHostToDevice) == cudaSuccess);
 
 	return true;
 }
@@ -1122,11 +1115,13 @@ int main(const int argc, const char* argv[])
 	std::string file_path = ASSET_PATH;
 	file_path.append(fname);
 	
+	
 	if (!gpu_vdb.loadVDB(file_path, "density")) {
 		std::cout << "!Can't load VDB file: " << file_path << std::endl;
 		exit(0);
 	}
 	
+
 	const char * render_module_name = "render_kernel.ptx";
 	const char * texture_module_name = "texture_kernels.ptx";
 	const char * render_kernel_name = "volume_rt_kernel";
@@ -1191,6 +1186,13 @@ int main(const int argc, const char* argv[])
 	kernel_params.env_sample_tex_res = 360;
 	kernel_params.integrator = 0;
 
+	std::string bn_path = ASSET_PATH;
+	bn_path.append("BN0.bmp");
+
+	float3 *bn_buffer = NULL;
+	int bn_width, bn_height;
+	load_blue_noise(&bn_buffer, bn_path, bn_width, bn_height);
+	kernel_params.blue_noise_buffer = bn_buffer;
 	update_debug_buffer(&debug_buffer, kernel_params);
 	kernel_params.debug_buffer = debug_buffer;
 
@@ -1434,8 +1436,13 @@ int main(const int argc, const char* argv[])
 		void *params[] = { &cam, &gpu_vdb, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
-
-
+		
+		// Update blue-noise texture 
+		
+		/*
+		//update_blue_noise(&bn_buffer, bn_width, bn_height);
+		//kernel_params.blue_noise_buffer = bn_buffer;
+		*/
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 

@@ -662,7 +662,8 @@ __device__ inline float3 vol_integrator(
 
 
 			if (mi) { // medium interaction 
-				L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gpu_vdb);
+				if (kernel_params.sun_mult > .0f) L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gpu_vdb);
+				else L += beta * estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb);
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
 
@@ -750,29 +751,37 @@ extern "C" __global__ void volume_rt_kernel(
 	Rand_state rand_state;
 	curand_init(idx, 0, kernel_params.iteration * 4096, &rand_state);
 	
-	float u = float(x + vanDerCorput(&rand_state)) / float(kernel_params.resolution.x);
-	float v = float(y + vanDerCorput(&rand_state, 3)) / float(kernel_params.resolution.y);
+	// Get a blue noise sample from buffer
+	int x_new = x % 256;
+	int y_new = y % 256;
+	int bn_index = y_new * 256 + x_new;
+	float3 bn = kernel_params.blue_noise_buffer[bn_index];
+
+	float u = float(x + bn.x) / float(kernel_params.resolution.x);
+	float v = float(y + bn.y) / float(kernel_params.resolution.y);
 	ray camera_ray = cam.get_ray(u, v, &rand_state);
 	float3 ray_dir = normalize(camera_ray.B);
 	float3 ray_pos = camera_ray.A;
 	float3 value = WHITE;
 	float tr = .0f;
-	
+
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		if(kernel_params.integrator) value = vol_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
-		//if(x<2&&y<2) direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
-	}
-	
-	// Accumulate.
-	if (kernel_params.iteration == 0)
-		kernel_params.accum_buffer[idx] = value;
-	else if (kernel_params.iteration < kernel_params.max_interactions) {
-		kernel_params.accum_buffer[idx] = kernel_params.accum_buffer[idx] +
-			(value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
 	}
 
+	// Check if values contains nan or infinite values
+	if (isNan(value) || isInf(value) ) value = kernel_params.accum_buffer[idx];
+	if (isnan(tr) || isinf(tr) ) tr = 1.0f;
+
+	// Accumulate.
+	if (kernel_params.iteration == 0)kernel_params.accum_buffer[idx] = value;
+	else if (kernel_params.iteration < kernel_params.max_interactions) {
+			kernel_params.accum_buffer[idx] = kernel_params.accum_buffer[idx] +
+			(value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
+	}
+	
 	// Update display buffer (simple Reinhard tonemapper + gamma).
 
 	float3 val = kernel_params.accum_buffer[idx] * kernel_params.exposure_scale;
@@ -788,4 +797,11 @@ extern "C" __global__ void volume_rt_kernel(
 	const unsigned int b = (unsigned int)(255.0f * fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 	kernel_params.display_buffer[idx] = 0xff000000 | (r << 16) | (g << 8) | b;
 	
+	// Update blue_noise texture with golden ratio
+	if (idx < (256 * 256)) {
+		float3 val = kernel_params.blue_noise_buffer[idx];
+		val += (1.0f + sqrtf(5.0f)) / 2.0f;
+		val = fmodf(val, make_float3(1.0f));
+		kernel_params.blue_noise_buffer[idx] = val;
+	}
 }
