@@ -570,7 +570,7 @@ __device__ inline float3 estimate_point_light(
 	float inv_density_mult = 1.0f / kernel_params.density_mult;
 	
 	float max_t = .0f;
-	max_t -= logf(1 - rand(&randstate)) * inv_max_density * inv_density_mult;
+	max_t -= logf(1 - rand(&randstate)) * inv_max_density * inv_density_mult * kernel_params.tr_depth;
 	
 	float thetaA = atan2f(.0f - delta, D); 
 	float thetaB = atan2f(max_t - delta, D);
@@ -583,6 +583,46 @@ __device__ inline float3 estimate_point_light(
 	float weight = power_heuristic(1, phase_pdf, 1, eq_pdf);
 	
 	Ld = (Li + Leq) * weight;
+	
+
+
+	l_pos = kernel_params.point_light2_pos;
+	// Sample point light with phase pdf  
+	wi = normalize(l_pos - ray_pos);
+	cos_theta = dot(ray_dir, wi);
+	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
+	tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb);
+
+	falloff = 1 / length(l_pos*l_pos - ray_pos * ray_pos);
+
+	Li = kernel_params.point_light_col * kernel_params.point_light_pow * tr  * phase_pdf * falloff;
+
+	// Sample point light with equiangular pdf
+
+	delta = dot(l_pos - ray_pos, ray_dir);
+	D = length(ray_pos + ray_dir * delta - l_pos);
+
+	inv_max_density = 1.0f / gpu_vdb.vdb_info.max_density;
+	inv_density_mult = 1.0f / kernel_params.density_mult;
+
+	max_t = .0f;
+	max_t -= logf(1 - rand(&randstate)) * inv_max_density * inv_density_mult * kernel_params.tr_depth;
+
+	thetaA = atan2f(.0f - delta, D);
+	thetaB = atan2f(max_t - delta, D);
+
+	t = D * tanf(lerp(thetaA, thetaB, rand(&randstate)));
+
+	eq_pdf = D / ((thetaB - thetaA) * (D*D + t * t));
+	Leq = kernel_params.point_light2_col * kernel_params.point_light2_pow * tr  * eq_pdf * falloff;
+
+	weight = power_heuristic(1, phase_pdf, 1, eq_pdf);
+
+	Ld += (Li + Leq) * weight;
+
+
+
+	
 	return Ld;
 
 }

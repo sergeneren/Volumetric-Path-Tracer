@@ -1180,6 +1180,8 @@ int main(const int argc, const char* argv[])
 	kernel_params.elevation = 30;
 	kernel_params.point_light_pos = make_float3(.0f, .0f, .0f);
 	kernel_params.point_light_col = make_float3(1.0f, 1.0f, 1.0f);
+	kernel_params.point_light2_pos = make_float3(.0f, .0f, .0f);
+	kernel_params.point_light2_col = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.point_light_pow = 100.0f;
 	kernel_params.sun_mult = 1.0f;
@@ -1289,9 +1291,17 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
 		ImGui::InputDouble("Energy Injection", &energy, 0.0);
+		
+		// Point lights 
 		ImGui::InputFloat3("Point light pos", (float *)&kernel_params.point_light_pos);
 		ImGui::ColorEdit3("Point light col", (float *)&kernel_params.point_light_col);
 		ImGui::InputFloat("Point Light pow", &kernel_params.point_light_pow, 100.0f);
+		
+		ImGui::InputFloat3("Point light2 pos", (float *)&kernel_params.point_light2_pos);
+		ImGui::ColorEdit3("Point light2 col", (float *)&kernel_params.point_light2_col);
+		ImGui::InputFloat("Point Light2 pow", &kernel_params.point_light2_pow, 100.0f);
+		
+		
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
