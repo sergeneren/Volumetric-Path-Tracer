@@ -1100,10 +1100,33 @@ int main(const int argc, const char* argv[])
 
 	init_cuda();
 
-	float3 *accum_buffer = NULL;
-	float4 *raw_buffer = NULL;
-	cudaGraphicsResource_t display_buffer_cuda = NULL;
-	float3 *debug_buffer = NULL;
+	// Setup modules and contexes 
+
+	const char * render_module_name = "render_kernel.ptx";
+	const char * texture_module_name = "texture_kernels.ptx";
+	const char * render_kernel_name = "volume_rt_kernel";
+	const char * texture_kernel_name = "calculate_textures";
+
+	int cuda_devices[1];
+	unsigned int num_cuda_devices;
+	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
+	if (num_cuda_devices == 0) {
+		fprintf(stderr, "Could not determine CUDA device for context\n.");
+		exit(EXIT_FAILURE);
+	}
+
+	CUresult error;
+
+	error = cuModuleLoad(&cuRenderModule, render_module_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+	error = cuModuleGetFunction(&cuRaycastKernel, cuRenderModule, render_kernel_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
+
+	error = cuModuleLoad(&cuTextureModule, texture_module_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
+	   	
 
 	// SETUP IMGUI PARAMETERS
 	const char* glsl_version = "#version 330";
@@ -1131,32 +1154,17 @@ int main(const int argc, const char* argv[])
 		exit(0);
 	}
 	
+	GPU_VDB *vdbs; 
 
-	const char * render_module_name = "render_kernel.ptx";
-	const char * texture_module_name = "texture_kernels.ptx";
-	const char * render_kernel_name = "volume_rt_kernel";
-	const char * texture_kernel_name = "calculate_textures";
+	vdbs = new GPU_VDB[2];
 
-	int cuda_devices[1];
-	unsigned int num_cuda_devices;
-	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
-	if (num_cuda_devices == 0) {
-		fprintf(stderr, "Could not determine CUDA device for context\n.");
-		exit(EXIT_FAILURE);
-	}
+	vdbs[0] = gpu_vdb;
+	vdbs[1] = gpu_vdb;
 
-	CUresult error;
-
-	error = cuModuleLoad(&cuRenderModule, render_module_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
-	error = cuModuleGetFunction(&cuRaycastKernel, cuRenderModule, render_kernel_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
-
-	error = cuModuleLoad(&cuTextureModule, texture_module_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
-	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
-
+	CUdeviceptr d_volume_ptr;
+	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB)*2) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB)*2) == cudaSuccess);
+	   
 
 	// Setup initial camera 
 	lookfrom = make_float3(10.0f, .0f, .0f);
@@ -1173,8 +1181,6 @@ int main(const int argc, const char* argv[])
 #if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
 	#undef rand // undefine the rand coming from camera.h
 	
-	
-
 	float3 min = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
 	float3 max = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
 
@@ -1196,10 +1202,16 @@ int main(const int argc, const char* argv[])
 	check_success(cuMemAlloc(&d_lights, sizeof(point_light)*num_lights)==cudaSuccess);
 	check_success(cuMemcpyHtoD(d_lights, lights, sizeof(point_light)*num_lights) == cudaSuccess);
 #endif 
-
-
-
+	   
 	// Setup initial render kernel parameters.
+	
+	// Kernel param buffers
+
+	float3 *accum_buffer = NULL;
+	float4 *raw_buffer = NULL;
+	cudaGraphicsResource_t display_buffer_cuda = NULL;
+	float3 *debug_buffer = NULL;
+
 	Kernel_params kernel_params;
 	memset(&kernel_params, 0, sizeof(Kernel_params));
 	kernel_params.render = true;
@@ -1472,7 +1484,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 		
-		void *params[] = { &cam, (void *)&d_lights , &gpu_vdb, &kernel_params };
+		void *params[] = { &cam, (void *)&d_lights , (void *)&d_volume_ptr, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
