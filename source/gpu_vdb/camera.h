@@ -35,8 +35,8 @@
 //
 //-----------------------------------------------
 
-#ifndef __CAMERA_H_
-#define __CAMERA_H_
+#ifndef __CAMERA_H__
+#define __CAMERA_H__
 
 
 #include <curand_kernel.h>

@@ -412,7 +412,7 @@ __device__ inline float3 Tr(
 	while (true) {
 		if (tr.x < 0.0000001) break;
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
-		p += dir * t;
+		p += dir * t * gpu_vdb.vdb_info.voxelsize;
 		if (!gpu_vdb.inVolumeBbox(p)) break;
 		float density = get_density(p, gpu_vdb);
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
@@ -524,90 +524,27 @@ __device__ inline float3 estimate_sky(
 
 __device__ inline float3 estimate_point_light(
 	Kernel_params kernel_params,
+	const point_light *lights,
 	Rand_state &randstate,
 	const float3 &ray_pos,
 	float3 &ray_dir,
 	const GPU_VDB &gpu_vdb)
 {
 
-	float3 Ld = BLACK;
-	float3 wi;
-	float phase_pdf = .0f;
-	float eq_pdf = .0f;
-	float3 l_pos = kernel_params.point_light_pos; 
+	float3 Ld = make_float3(.0f); 
 	
 	
-	// Sample point light with phase pdf  
-	wi = normalize(l_pos - ray_pos);
-	float cos_theta = dot(ray_dir, wi);
-	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
-	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb);
-	
-	float falloff = 1 / length(l_pos*l_pos - ray_pos*ray_pos);
+	for (int i = 0; i < 15; i++) {
 
-	float3 Li = kernel_params.point_light_col * kernel_params.point_light_pow * tr  * phase_pdf * falloff;
+		float dist = length(lights[i].pos - ray_pos);
+		float possible_tr = expf(-gpu_vdb.vdb_info.max_density * dist / (sqrtf(lights[i].power)*kernel_params.tr_depth))  ;
 
-	// Sample point light with equiangular pdf
-
-	float delta = dot(l_pos - ray_pos, ray_dir);
-	float D = length(ray_pos + ray_dir * delta - l_pos);
-	
-	float inv_max_density = 1.0f / gpu_vdb.vdb_info.max_density;
-	float inv_density_mult = 1.0f / kernel_params.density_mult;
-	
-	float max_t = .0f;
-	max_t -= logf(1 - rand(&randstate)) * inv_max_density * inv_density_mult * kernel_params.tr_depth;
-	
-	float thetaA = atan2f(.0f - delta, D); 
-	float thetaB = atan2f(max_t - delta, D);
-
-	float t = D * tanf(lerp(thetaA, thetaB, rand(&randstate)));
-
-	eq_pdf = D / ((thetaB - thetaA) * (D*D + t * t));
-	float3 Leq = kernel_params.point_light_col * kernel_params.point_light_pow * tr  * eq_pdf * falloff;
-	
-	float weight = power_heuristic(1, phase_pdf, 1, eq_pdf);
-	
-	Ld = (Li + Leq) * weight;
-	
-
-
-	l_pos = kernel_params.point_light2_pos;
-	// Sample point light with phase pdf  
-	wi = normalize(l_pos - ray_pos);
-	cos_theta = dot(ray_dir, wi);
-	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
-	tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb);
-
-	falloff = 1 / length(l_pos*l_pos - ray_pos * ray_pos);
-
-	Li = kernel_params.point_light_col * kernel_params.point_light_pow * tr  * phase_pdf * falloff;
-
-	// Sample point light with equiangular pdf
-
-	delta = dot(l_pos - ray_pos, ray_dir);
-	D = length(ray_pos + ray_dir * delta - l_pos);
-
-	inv_max_density = 1.0f / gpu_vdb.vdb_info.max_density;
-	inv_density_mult = 1.0f / kernel_params.density_mult;
-
-	max_t = .0f;
-	max_t -= logf(1 - rand(&randstate)) * inv_max_density * inv_density_mult * kernel_params.tr_depth;
-
-	thetaA = atan2f(.0f - delta, D);
-	thetaB = atan2f(max_t - delta, D);
-
-	t = D * tanf(lerp(thetaA, thetaB, rand(&randstate)));
-
-	eq_pdf = D / ((thetaB - thetaA) * (D*D + t * t));
-	Leq = kernel_params.point_light2_col * kernel_params.point_light2_pow * tr  * eq_pdf * falloff;
-
-	weight = power_heuristic(1, phase_pdf, 1, eq_pdf);
-
-	Ld += (Li + Leq) * weight;
-
-
-
+		if (possible_tr > 0.01f) {
+			float3 dir = normalize(lights[i].pos - ray_pos);
+			float3 tr = Tr(randstate, ray_pos, dir, kernel_params, gpu_vdb);
+			Ld += lights[i].Le(randstate, ray_pos, ray_dir, kernel_params.phase_g1, tr, gpu_vdb.vdb_info.max_density, kernel_params.density_mult, kernel_params.tr_depth);
+		}
+	}
 	
 	return Ld;
 
@@ -650,6 +587,7 @@ __device__ inline float3 estimate_sun(
 
 __device__ inline float3 uniform_sample_one_light(
 	Kernel_params kernel_params,
+	const point_light *lights,
 	const float3 &ray_pos,
 	float3 &ray_dir,
 	Rand_state &randstate,
@@ -667,7 +605,7 @@ __device__ inline float3 uniform_sample_one_light(
 	}
 	else if (light_num >= 1 && light_num < 2) {
 	
-		L += estimate_point_light(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb);
+		L += estimate_point_light(kernel_params, lights, randstate, ray_pos, ray_dir, gpu_vdb);
 	
 	}
 	else {
@@ -721,6 +659,7 @@ __device__ inline float3 sample(
 // PBRT Volume Integrator
 __device__ inline float3 vol_integrator(
 	Rand_state rand_state,
+	const point_light *lights,
 	float3 ray_pos,
 	float3 ray_dir,
 	float &tr,
@@ -743,9 +682,8 @@ __device__ inline float3 vol_integrator(
 
 
 			if (mi) { // medium interaction 
-				//if (kernel_params.sun_mult > .0f) L += beta * uniform_sample_one_light(kernel_params, ray_pos, ray_dir, rand_state, gpu_vdb);
-				//else L += beta * estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb);
-				L += beta * estimate_point_light(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb);
+				if (kernel_params.sun_mult > .0f) L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb);
+				else L += beta * estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb);
 				
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
@@ -849,14 +787,14 @@ extern "C" __global__ void volume_rt_kernel(
 	float3 value = WHITE;
 	float tr = .0f;
 
-	/*
+	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		if(kernel_params.integrator) value = vol_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
+		if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 	}
-	*/
-	value = lights[0].color;
+	
+	
 	// Check if values contains nan or infinite values
 	if (isNan(value) || isInf(value) ) value = kernel_params.accum_buffer[idx];
 	if (isnan(tr) || isinf(tr) ) tr = 1.0f;

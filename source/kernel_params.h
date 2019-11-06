@@ -81,15 +81,6 @@ struct Kernel_params {
 	double energy_inject;
 	cudaTextureObject_t env_tex;
 
-	// Point Light
-	float3 point_light_pos;
-	float3 point_light_col;
-	float point_light_pow;
-
-	float3 point_light2_pos;
-	float3 point_light2_col;
-	float point_light2_pow;
-
 	// Procedural sky texture
 	int env_sample_tex_res;
 	cudaTextureObject_t sky_tex;

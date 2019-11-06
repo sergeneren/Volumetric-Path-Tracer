@@ -61,6 +61,8 @@
 #include <fstream>
 #include <sys/stat.h>
 #include "helper_math.h"
+#include <assert.h>
+#include <random>
 #undef APIENTRY
 
 #include "hdr_loader.h"
@@ -396,7 +398,9 @@ static void init_cuda()
 		fprintf(stderr, "Could not determine CUDA device for current OpenGL context\n.");
 		exit(EXIT_FAILURE);
 	}
+	
 	check_success(cudaSetDevice(cuda_devices[0]) == cudaSuccess);
+	cuInit(0);
 }
 
 // Utility: add a GLSL shader.
@@ -1108,20 +1112,6 @@ int main(const int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-	// Setup Lights
-
-	int num_lights = 2;
-	lights = new point_light[num_lights];
-
-	// TO-DO read these from json file
-	lights[0].pos = make_float3(70, 100, 0);
-	lights[0].power = 1000.0f;
-	lights[0].color = make_float3(1, 0, 0);
-
-	lights[0].pos = make_float3(50, 110, -20);
-	lights[0].power = 1000.0f;
-	lights[0].color = make_float3(0, 0, 1);
-
 	// Setup gpu_vdb
 
 	std::string fname;
@@ -1174,6 +1164,35 @@ int main(const int argc, const char* argv[])
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
 
+	// Setup Lights
+#if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
+	#undef rand // undefine the rand coming from camera.h
+	
+	
+
+	float3 min = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
+	float3 max = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
+
+	std::mt19937 e2(std::random_device{}());
+	std::uniform_real_distribution<> dist(0, 1);
+	
+	int num_lights = 15;
+	lights = new point_light[num_lights];
+
+	for (int i = 0; i < num_lights; ++i) {
+
+		lights[i].pos = min + make_float3(dist(e2) * (max.x - min.x), dist(e2) * (max.y - min.y), dist(e2) * (max.z - min.z));
+		lights[i].power = 1000 ;
+		lights[i].color = make_float3(dist(e2), dist(e2), dist(e2));
+
+	}
+
+	CUdeviceptr d_lights;
+	check_success(cuMemAlloc(&d_lights, sizeof(point_light)*num_lights)==cudaSuccess);
+	check_success(cuMemcpyHtoD(d_lights, lights, sizeof(point_light)*num_lights) == cudaSuccess);
+#endif 
+
+
 
 	// Setup initial render kernel parameters.
 	Kernel_params kernel_params;
@@ -1193,12 +1212,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.extinction = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.azimuth = 150;
 	kernel_params.elevation = 30;
-	kernel_params.point_light_pos = make_float3(.0f, .0f, .0f);
-	kernel_params.point_light_col = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.point_light2_pos = make_float3(.0f, .0f, .0f);
-	kernel_params.point_light2_col = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sun_color = make_float3(1.0f, 1.0f, 1.0f);
-	kernel_params.point_light_pow = 100.0f;
 	kernel_params.sun_mult = 1.0f;
 	kernel_params.energy_inject = 0.0f;
 	kernel_params.sky_color = make_float3(1.0f, 1.0f, 1.0f);
@@ -1305,18 +1319,7 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat("Depth Multiplier", &kernel_params.tr_depth);
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
-		ImGui::InputDouble("Energy Injection", &energy, 0.0);
-		
-		// Point lights 
-		ImGui::InputFloat3("Point light pos", (float *)&kernel_params.point_light_pos);
-		ImGui::ColorEdit3("Point light col", (float *)&kernel_params.point_light_col);
-		ImGui::InputFloat("Point Light pow", &kernel_params.point_light_pow, 100.0f);
-		
-		ImGui::InputFloat3("Point light2 pos", (float *)&kernel_params.point_light2_pos);
-		ImGui::ColorEdit3("Point light2 col", (float *)&kernel_params.point_light2_col);
-		ImGui::InputFloat("Point Light2 pow", &kernel_params.point_light2_pow, 100.0f);
-		
-		
+		ImGui::InputDouble("Energy Injection", &energy, 0.0);		
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
@@ -1464,7 +1467,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 		
-		void *params[] = { &cam, lights , &gpu_vdb, &kernel_params };
+		void *params[] = { &cam, (void *)&d_lights , &gpu_vdb, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
