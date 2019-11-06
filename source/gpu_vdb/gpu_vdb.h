@@ -113,7 +113,7 @@ public:
 	// Host functions
 	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");
 	__host__ VDB_INFO * get_vdb_info() ;
-	
+	__host__ GPU_VDB * clone();
 	// Host and device functions
 	__host__ __device__ mat4 get_xform() const { return this->xform; }
 	

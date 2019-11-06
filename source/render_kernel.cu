@@ -702,13 +702,13 @@ __device__ inline float3 direct_integrator(
 	float3 ray_dir,
 	float &tr,
 	const Kernel_params kernel_params,
-	const GPU_VDB &gpu_vdb)
+	const GPU_VDB *gpu_vdb)
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
-	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
+	float3 t = gpu_vdb[0].rayBoxIntersect(ray_pos, ray_dir);
 	bool mi = false;
-
+	
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
 
@@ -723,12 +723,12 @@ __device__ inline float3 direct_integrator(
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 			
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb);
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb[0]);
 			if (isBlack(beta)) break;
 			
 			if (mi) { // medium interaction 
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
-				if (kernel_params.sun_mult > .0f) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta * kernel_params.sun_mult;
+				if (kernel_params.sun_mult > .0f) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb[0]) * beta * kernel_params.sun_mult;
 			}
 		
 		}
@@ -737,7 +737,7 @@ __device__ inline float3 direct_integrator(
 	ray_dir = normalize(ray_dir);
 	if (kernel_params.environment_type == 0) {
 
-		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta;
+		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb[0]) * beta;
 		else L += sample_atmosphere(kernel_params, ray_dir) * beta;
 
 	}
@@ -749,6 +749,7 @@ __device__ inline float3 direct_integrator(
 			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
 		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
+	
 	tr = fminf(tr, 1.0f);
 	return L;
 
@@ -760,7 +761,7 @@ __device__ inline float3 direct_integrator(
 extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
 	const point_light *lights,
-	const GPU_VDB gpu_vdb,
+	const GPU_VDB *gpu_vdb,
 	const Kernel_params kernel_params) {
 	
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -790,8 +791,10 @@ extern "C" __global__ void volume_rt_kernel(
 	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
+		//if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
+		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
+		value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
+		
 	}
 	
 	

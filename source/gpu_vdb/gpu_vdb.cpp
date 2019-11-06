@@ -58,6 +58,11 @@ VDB_INFO* GPU_VDB::get_vdb_info(){
 
 }
 
+GPU_VDB * GPU_VDB::clone() {
+
+	return this;
+}
+
 void GPU_VDB::fill_texture(openvdb::GridBase::Ptr gridBase, cudaTextureObject_t &texture){
 
 	openvdb::FloatGrid::Ptr grid = openvdb::gridPtrCast<openvdb::FloatGrid>(gridBase);

@@ -1100,32 +1100,7 @@ int main(const int argc, const char* argv[])
 
 	init_cuda();
 
-	// Setup modules and contexes 
-
-	const char * render_module_name = "render_kernel.ptx";
-	const char * texture_module_name = "texture_kernels.ptx";
-	const char * render_kernel_name = "volume_rt_kernel";
-	const char * texture_kernel_name = "calculate_textures";
-
-	int cuda_devices[1];
-	unsigned int num_cuda_devices;
-	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
-	if (num_cuda_devices == 0) {
-		fprintf(stderr, "Could not determine CUDA device for context\n.");
-		exit(EXIT_FAILURE);
-	}
-
-	CUresult error;
-
-	error = cuModuleLoad(&cuRenderModule, render_module_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
-	error = cuModuleGetFunction(&cuRaycastKernel, cuRenderModule, render_kernel_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
-
-	error = cuModuleLoad(&cuTextureModule, texture_module_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
-	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
+	
 	   	
 
 	// SETUP IMGUI PARAMETERS
@@ -1154,6 +1129,36 @@ int main(const int argc, const char* argv[])
 		exit(0);
 	}
 	
+	// Setup modules and contexes 
+
+	const char * render_module_name = "render_kernel.ptx";
+	const char * texture_module_name = "texture_kernels.ptx";
+	const char * render_kernel_name = "volume_rt_kernel";
+	const char * texture_kernel_name = "calculate_textures";
+
+	int cuda_devices[1];
+	unsigned int num_cuda_devices;
+	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
+	if (num_cuda_devices == 0) {
+		fprintf(stderr, "Could not determine CUDA device for context\n.");
+		exit(EXIT_FAILURE);
+	}
+
+	CUresult error;
+
+	error = cuModuleLoad(&cuRenderModule, render_module_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+	error = cuModuleGetFunction(&cuRaycastKernel, cuRenderModule, render_kernel_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
+
+	error = cuModuleLoad(&cuTextureModule, texture_module_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
+
+	   	  
+	// Set volume instances
+
 	GPU_VDB *vdbs; 
 
 	vdbs = new GPU_VDB[2];
@@ -1397,7 +1402,7 @@ int main(const int argc, const char* argv[])
 
 		}
 
-		if (kernel_params.iteration == kernel_params.max_interactions) ctx->save_image = true;
+		//if (kernel_params.iteration == kernel_params.max_interactions) ctx->save_image = true;
 
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {

@@ -286,6 +286,41 @@ struct mat4 {
 		temp = *this * temp;
 		return make_float3(temp.x, temp.y, temp.z);
 	}
+	__host__ __device__ __forceinline__ mat4 rotate_zyx(const float3 &angs) {
+
+		float cx, sx, cy, sy, cz, sz;
+		cx = (float)cos(angs.x * 3.141592 / 180);
+		sx = (float)sin(angs.x * 3.141592 / 180);
+		cy = (float)cos(angs.y * 3.141592 / 180);
+		sy = (float)sin(angs.y * 3.141592 / 180);
+		cz = (float)cos(angs.z * 3.141592 / 180);
+		sz = (float)sin(angs.z * 3.141592 / 180);
+
+		m[0][0] *= cz * cy;
+		m[1][0] *= sz * cy;
+		m[2][0] *= -sy;
+		
+		m[0][1] *= -sz * cx + cz * sy*sx;
+		m[1][1] *= cz * cx - sz * sy*sz;
+		m[2][1] *= -cy * sx;
+
+		m[0][2] *= -sz * sx + cz * sy*cx;
+		m[1][2] *= cz * sx + sz * sy*cx;
+		m[2][2] *= cy * cx;
+	}
+
+	__host__ __device__ __forceinline__ mat4 translate(const float3 &val) {
+		m[0][3] += val.x;
+		m[1][3] += val.y;
+		m[2][3] += val.z;
+	}
+
+	__host__ __device__ __forceinline__ mat4 scale(const float3 &val) {
+		m[0][0] *= val.x;
+		m[1][1] *= val.y;
+		m[2][2] *= val.z;
+	}
+
 
 	__host__ __device__ __forceinline__ mat4 &operator*=(const float f) { return *this = *this * f; }
 	__host__ __device__ __forceinline__ mat4 &operator/=(const float f) { return *this = *this / f; }
