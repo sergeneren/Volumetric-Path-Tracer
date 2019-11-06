@@ -1166,6 +1166,12 @@ int main(const int argc, const char* argv[])
 	vdbs[0] = gpu_vdb;
 	vdbs[1] = gpu_vdb;
 
+	mat4 xform = vdbs[1].get_xform();
+	xform.translate(make_float3(50, 0, 0));
+	xform = xform.rotate_zyx(make_float3(0, M_PI/2.0f, 0));
+	vdbs[1].set_xform(xform);
+
+
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB)*2) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB)*2) == cudaSuccess);
@@ -1299,6 +1305,7 @@ int main(const int argc, const char* argv[])
 
 	bool debug = false;
 	int frame = 0;
+	float rot_amount = 0.0f;
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -1405,17 +1412,14 @@ int main(const int argc, const char* argv[])
 		//if (kernel_params.iteration == kernel_params.max_interactions) ctx->save_image = true;
 
 		// Test rotation
-		if (1) {
-			float3 rotation = make_float3(0 , M_PI / 100.0f, 0);
+#if 0 
+			float3 rotation = make_float3( 0,0,(M_PI / 10.0f) * rot_amount);
 			mat4 rot = vdbs[0].get_xform().rotate_zyx(rotation);
 			vdbs[0].set_xform(rot);
-			vdbs[0].get_xform().print();
-			//check_success(cudaFree(&d_volume_ptr) == cudaSuccess);
-			//check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * 2) == cudaSuccess);
 			check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB) * 2) == cudaSuccess);
-
+			rot_amount += 0.1f;
 			kernel_params.iteration = 0;
-		}
+#endif
 		
 
 

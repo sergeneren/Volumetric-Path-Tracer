@@ -791,9 +791,8 @@ extern "C" __global__ void volume_rt_kernel(
 	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		//if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
-		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
-		value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
+		if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb[0]);
+		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 		
 	}
 	
