@@ -83,6 +83,11 @@
 #define TINYEXR_IMPLEMENTATION
 #include "tinyexr.h"
 
+// File parsers
+
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
+
 //#define SAVE_TGA
 #define SAVE_OPENEXR
 

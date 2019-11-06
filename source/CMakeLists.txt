@@ -4,7 +4,7 @@ project(VPT LANGUAGES CXX CUDA)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
-
+find_package(nlohmann_json CONFIG REQUIRED)
 include(${CMAKE_SOURCE_DIR}/Helpers.cmake)
 ##################################################################
 
@@ -82,7 +82,7 @@ _COMPILEPTX ( SOURCES ${CUDA_SOURCES}
 
 ###################################################################
 add_executable(vpt ${SOURCE_FILES})
-target_link_libraries(vpt PRIVATE glfw imgui::imgui cudart cuda openvdb)
+target_link_libraries(vpt PRIVATE glfw imgui::imgui nlohmann_json::nlohmann_json cudart cuda openvdb)
 
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)

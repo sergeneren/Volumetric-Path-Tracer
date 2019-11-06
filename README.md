@@ -25,6 +25,7 @@ VPT depends on following libraries. All the libraries are choosen so they can be
 * [Dear Imgui](https://github.com/ocornut/imgui)
 * [STB Image](https://github.com/nothings/stb)
 * [tinyexr](https://github.com/syoyo/tinyexr)
+* [nlohmann json](https://github.com/nlohmann/json)
 
 ### Build 
 VPT expects [vcpkg](https://github.com/Microsoft/vcpkg), Visual Studio 2017 and CMake to be installed.  
