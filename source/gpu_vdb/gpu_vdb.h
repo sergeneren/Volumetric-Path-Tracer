@@ -116,7 +116,8 @@ public:
 	__host__ GPU_VDB * clone();
 	// Host and device functions
 	__host__ __device__ mat4 get_xform() const { return this->xform; }
-	
+	__host__ __device__ void set_xform(mat4 &matrix) { this->xform = matrix; }
+
 	VDB_INFO vdb_info;
 private:
 

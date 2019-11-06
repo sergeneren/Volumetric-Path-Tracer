@@ -296,29 +296,38 @@ struct mat4 {
 		cz = (float)cos(angs.z);
 		sz = (float)sin(angs.z);
 
-		m[0][0] *= cz * cy;
-		m[1][0] *= sz * cy;
-		m[2][0] *= -sy;
+		this->m[0][0] += cz * cy;
+		this->m[1][0] += sz * cy;
+		this->m[2][0] += -sy;
 		
-		m[0][1] *= -sz * cx + cz * sy*sx;
-		m[1][1] *= cz * cx - sz * sy*sz;
-		m[2][1] *= -cy * sx;
+		this->m[0][1] += -sz * cx + cz * sy*sx;
+		this->m[1][1] += cz * cx - sz * sy*sz;
+		this->m[2][1] += -cy * sx;
 
-		m[0][2] *= -sz * sx + cz * sy*cx;
-		m[1][2] *= cz * sx + sz * sy*cx;
-		m[2][2] *= cy * cx;
+		this->m[0][2] += -sz * sx + cz * sy*cx;
+		this->m[1][2] += cz * sx + sz * sy*cx;
+		this->m[2][2] += cy * cx;
+
+		return *this;
+
 	}
 
 	__host__ __device__ __forceinline__ mat4 translate(const float3 &val) {
+		
 		m[0][3] += val.x;
 		m[1][3] += val.y;
 		m[2][3] += val.z;
+
+		return *this;
 	}
 
 	__host__ __device__ __forceinline__ mat4 scale(const float3 &val) {
+		
 		m[0][0] *= val.x;
 		m[1][1] *= val.y;
 		m[2][2] *= val.z;
+
+		return *this;
 	}
 
 

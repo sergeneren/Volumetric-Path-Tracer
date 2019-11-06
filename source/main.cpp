@@ -1406,8 +1406,14 @@ int main(const int argc, const char* argv[])
 
 		// Test rotation
 		if (1) {
+			float3 rotation = make_float3(0 , M_PI / 100.0f, 0);
+			mat4 rot = vdbs[0].get_xform().rotate_zyx(rotation);
+			vdbs[0].set_xform(rot);
+			vdbs[0].get_xform().print();
+			//check_success(cudaFree(&d_volume_ptr) == cudaSuccess);
+			//check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * 2) == cudaSuccess);
+			check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB) * 2) == cudaSuccess);
 
-			vdbs[0].get_xform().rotate_zyx();
 			kernel_params.iteration = 0;
 		}
 		
