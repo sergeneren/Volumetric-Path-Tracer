@@ -74,7 +74,7 @@ public:
 	__host__ __device__ light():pos(make_float3(.0f)), dir(make_float3(.0f)), power(1.0f), color(make_float3(1.0f)) {}
 	__host__ __device__ ~light() {};
 	__host__ __device__ virtual int get_type() const { return 0; };
-	__device__ virtual float3 Le() const { return make_float3(.0f); };
+	__device__ virtual float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) const { return make_float3(.0f); };
 
 	float3 pos;
 	float3 dir;
@@ -97,7 +97,7 @@ public:
 
 	__host__ __device__ point_light(){}
 
-	__device__ float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) const {
+	__device__ float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) const override {
 
 		float3 Ld = make_float3(.0f);
 		float3 wi;
