@@ -1404,6 +1404,15 @@ int main(const int argc, const char* argv[])
 
 		//if (kernel_params.iteration == kernel_params.max_interactions) ctx->save_image = true;
 
+		// Test rotation
+		if (1) {
+
+			vdbs[0].get_xform().rotate_zyx();
+			kernel_params.iteration = 0;
+		}
+		
+
+
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
 

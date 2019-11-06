@@ -289,12 +289,12 @@ struct mat4 {
 	__host__ __device__ __forceinline__ mat4 rotate_zyx(const float3 &angs) {
 
 		float cx, sx, cy, sy, cz, sz;
-		cx = (float)cos(angs.x * 3.141592 / 180);
-		sx = (float)sin(angs.x * 3.141592 / 180);
-		cy = (float)cos(angs.y * 3.141592 / 180);
-		sy = (float)sin(angs.y * 3.141592 / 180);
-		cz = (float)cos(angs.z * 3.141592 / 180);
-		sz = (float)sin(angs.z * 3.141592 / 180);
+		cx = (float)cos(angs.x);
+		sx = (float)sin(angs.x);
+		cy = (float)cos(angs.y);
+		sy = (float)sin(angs.y);
+		cz = (float)cos(angs.z);
+		sz = (float)sin(angs.z);
 
 		m[0][0] *= cz * cy;
 		m[1][0] *= sz * cy;
