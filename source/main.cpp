@@ -93,6 +93,11 @@ using json = nlohmann::json;
 
 #include <Windows.h>
 
+// Third Party
+
+#define OIDN_STATIC_LIB
+#include <OpenImageDenoise/oidn.h>
+
 
 CUmodule cuRenderModule;
 CUmodule cuTextureModule;
@@ -1099,9 +1104,7 @@ int main(const int argc, const char* argv[])
 	quad_vao = create_quad(program, &quad_vertex_buffer);
 
 	init_cuda();
-
-	
-	   	
+	 	
 
 	// SETUP IMGUI PARAMETERS
 	const char* glsl_version = "#version 330";
@@ -1306,6 +1309,13 @@ int main(const int argc, const char* argv[])
 	bool debug = false;
 	int frame = 0;
 	float rot_amount = 0.0f;
+
+
+	// Create OIDN devices 
+
+	OIDNDevice oidn_device = oidnNewDevice(OIDN_DEVICE_TYPE_DEFAULT);
+	oidnCommitDevice(oidn_device);
+	OIDNFilter oidn_filter = oidnNewFilter(oidn_device, "RT");
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -1515,6 +1525,11 @@ int main(const int argc, const char* argv[])
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 
+		//TO-DO Do Image denoising with OIDN library
+
+
+
+
 		// Update texture for display.
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, display_buffer);
 		glBindTexture(GL_TEXTURE_2D, display_tex);
@@ -1536,6 +1551,10 @@ int main(const int argc, const char* argv[])
 		glfwSwapBuffers(window);
 		//break;
 	}
+
+	//Cleanup OIDN
+	oidnReleaseDevice(oidn_device);
+	oidnReleaseFilter(oidn_filter);
 
 	//Cleanup imgui
 	ImGui_ImplOpenGL3_Shutdown();

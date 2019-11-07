@@ -10,7 +10,6 @@ include(${CMAKE_SOURCE_DIR}/Helpers.cmake)
 
 ## Set output directories
 
-set(_VCPKG_INCLUDE_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/bin)
@@ -24,6 +23,25 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/bin)
 
 ##################################################################
+
+
+
+##################################################################
+
+# set external directories 
+
+set(_VCPKG_INCLUDE_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/")
+set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/../thirdparty/")
+
+
+#set OIDN libraries 
+
+set(OID_DIR "${THIRDPARTY_DIR}/OpenImageDenoise")
+find_library(OIDN_LIB "OpenImageDenoise" "${OID_DIR}/lib")
+find_library(OIDN_MKLDNN_LIB "mkldnn" "${OID_DIR}/lib")
+find_library(OIDN_COMMON_LIB "common" "${OID_DIR}/lib")
+
+set(OIDN_LIBRARIES ${OIDN_LIB} ${OIDN_MKLDNN_LIB} ${OIDN_COMMON_LIB})
 
 ##Set env mapping renders variable
 
@@ -82,9 +100,10 @@ _COMPILEPTX ( SOURCES ${CUDA_SOURCES}
 
 ###################################################################
 add_executable(vpt ${SOURCE_FILES})
-target_link_libraries(vpt PRIVATE glfw imgui::imgui nlohmann_json::nlohmann_json cudart cuda openvdb)
+target_link_libraries(vpt PRIVATE glfw imgui::imgui nlohmann_json::nlohmann_json cudart cuda openvdb ${OIDN_LIBRARIES})
 
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
+include_directories(${OID_DIR}/include)
