@@ -112,7 +112,7 @@ float3	lookfrom;
 float3	lookat;
 float3	vup;
 float	fov;
-float	aspect; 
+float	aspect;
 float	aperture;
 
 point_light *lights;
@@ -277,19 +277,19 @@ static bool save_exr(float4 *rgba, int width, int height, std::string filename) 
 	InitEXRImage(&image);
 
 	image.num_channels = 4;
-	
+
 	std::vector<float> images[4];
 	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
 
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
-			
+
 			int idx = i * width + j;
-			
+
 			// Flip image vertically
 			i = height - i - 1;
 			int idx2 = i * width + j;
-			
+
 			images[0][idx] = rgba[idx2].x;
 			images[1][idx] = rgba[idx2].y;
 			images[2][idx] = rgba[idx2].z;
@@ -297,7 +297,7 @@ static bool save_exr(float4 *rgba, int width, int height, std::string filename) 
 
 		}
 	}
-	
+
 	float* image_ptr[4];
 
 	image_ptr[0] = &(images[3].at(0)); // A
@@ -335,7 +335,7 @@ static bool save_exr(float4 *rgba, int width, int height, std::string filename) 
 	free(header.channels);
 	free(header.pixel_types);
 	free(header.requested_pixel_types);
-	
+
 	return true;
 }
 
@@ -408,7 +408,7 @@ static bool save_exr(float3 *rgba, int width, int height, std::string filename) 
 	return true;
 }
 
-static bool save_tga(float4 *rgba, int width, int height, std::string filename){
+static bool save_tga(float4 *rgba, int width, int height, std::string filename) {
 
 	filename.append(".tga");
 
@@ -417,7 +417,7 @@ static bool save_tga(float4 *rgba, int width, int height, std::string filename){
 
 	int idx = 0;
 	for (int i = 0; i < width * height; i++) {
-		
+
 		unsigned char ir = (unsigned int)(255.0f * fminf(fmaxf(rgba[i].x, 0.0f), 1.0f));
 		unsigned char ig = (unsigned int)(255.0f * fminf(fmaxf(rgba[i].y, 0.0f), 1.0f));
 		unsigned char ib = (unsigned int)(255.0f * fminf(fmaxf(rgba[i].z, 0.0f), 1.0f));
@@ -445,7 +445,7 @@ static GLFWwindow *init_opengl()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	
+
 
 	GLFWwindow *window = glfwCreateWindow(
 		1200, 800, "volume path tracer", NULL, NULL);
@@ -477,7 +477,7 @@ static void init_cuda()
 		fprintf(stderr, "Could not determine CUDA device for current OpenGL context\n.");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	check_success(cudaSetDevice(cuda_devices[0]) == cudaSuccess);
 	cuInit(0);
 }
@@ -621,14 +621,14 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			ctx->save_image = true;
 			break;
 		case GLFW_KEY_F: // Frame camera to include objects
-			 
+
 			float3 min = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
 			float3 max = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
 			float3 center = (max + min) / 2;
 			dist = length(max - min); // diagonal length of gpu_vdb object
 
-			lookat = center; 
-			lookfrom = make_float3(center.x+(dist), center.y + (dist), center.z + (dist));
+			lookat = center;
+			lookfrom = make_float3(center.x + (dist), center.y + (dist), center.z + (dist));
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
 			ctx->change = true;
@@ -644,7 +644,7 @@ static void handle_mouse_button(GLFWwindow *window, int button, int action, int 
 {
 	Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
 	bool imgui_hover = ImGui::IsAnyWindowHovered();
-	
+
 	if (button == GLFW_MOUSE_BUTTON_LEFT && !imgui_hover) {
 		if (action == GLFW_PRESS) {
 			ctx->moving = true;
@@ -688,8 +688,8 @@ static void handle_mouse_pos(GLFWwindow *window, double xpos, double ypos)
 static void resize_buffers(
 	float3 **accum_buffer_cuda,
 	float4 **raw_buffer_cuda,
-	cudaGraphicsResource_t *display_buffer_cuda, 
-	int width, int height, 
+	cudaGraphicsResource_t *display_buffer_cuda,
+	int width, int height,
 	GLuint display_buffer)
 {
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, display_buffer);
@@ -886,7 +886,7 @@ static bool create_cdf(
 
 	check_success(cudaMallocArray(env_cdf_data, &channel_desc, res, res) == cudaSuccess);
 	check_success(cudaMemcpy2DToArray(*env_cdf_data, 0, 0, cdf, res * sizeof(float), res * sizeof(float), res, cudaMemcpyHostToDevice) == cudaSuccess);
-	
+
 	cudaResourceDesc res_desc_cdf;
 	memset(&res_desc_cdf, 0, sizeof(res_desc_cdf));
 	res_desc_cdf.resType = cudaResourceTypeArray;
@@ -1067,22 +1067,22 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 
 	// Load blue noise texture from assets directory and send to gpu 
 	bitmap_image image(filename.c_str());
-	
+
 	if (!image)
-		return false; 
+		return false;
 
 	width = image.width();
 	height = image.height();
-	
+
 	float3 *values = new float3[height * width];
-	   
+
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
-			
-			rgb_t color; 
+
+			rgb_t color;
 
 			image.get_pixel(x, y, color);
-			int idx = y * width + x; 
+			int idx = y * width + x;
 			values[idx].x = float(color.red) / 255.0f;
 			values[idx].y = float(color.blue) / 255.0f;
 			values[idx].z = float(color.green) / 255.0f;
@@ -1090,7 +1090,7 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 		}
 	}
 
-	check_success(cudaMalloc(buffer, width * height * sizeof(float3)) == cudaSuccess) ;
+	check_success(cudaMalloc(buffer, width * height * sizeof(float3)) == cudaSuccess);
 	check_success(cudaMemcpy(*buffer, values, width * height * sizeof(float3), cudaMemcpyHostToDevice) == cudaSuccess);
 
 	return true;
@@ -1104,11 +1104,11 @@ static void update_camera(
 	double my,
 	int zoom_delta)
 {
-	float rot_speed = 1; 
+	float rot_speed = 1;
 	float zoom_speed = 50;
 
 	// Rotation
-	
+
 	lookfrom -= cam.u * float(dx) * rot_speed;
 	lookfrom += cam.v * float(dy) * rot_speed;
 
@@ -1117,12 +1117,12 @@ static void update_camera(
 	lookfrom += cam.v * float(my) * rot_speed;
 	lookat -= cam.u * float(mx) * rot_speed;
 	lookat += cam.v * float(my) * rot_speed;
-	
+
 	// Zoom 
 	lookfrom -= cam.w * float(zoom_delta) * zoom_speed;
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
-	
+
 }
 
 
@@ -1173,7 +1173,7 @@ int main(const int argc, const char* argv[])
 	quad_vao = create_quad(program, &quad_vertex_buffer);
 
 	init_cuda();
-	 	
+
 
 	// SETUP IMGUI PARAMETERS
 	const char* glsl_version = "#version 330";
@@ -1191,16 +1191,16 @@ int main(const int argc, const char* argv[])
 
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
-	
+
 	std::string file_path = ASSET_PATH;
 	file_path.append(fname);
-	
-	
+
+
 	if (!gpu_vdb.loadVDB(file_path, "density")) {
 		std::cout << "!Can't load VDB file: " << file_path << std::endl;
 		exit(0);
 	}
-	
+
 	// Setup modules and contexes 
 
 	const char * render_module_name = "render_kernel.ptx";
@@ -1228,10 +1228,10 @@ int main(const int argc, const char* argv[])
 	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
 
-	   	  
+
 	// Set volume instances
 
-	GPU_VDB *vdbs; 
+	GPU_VDB *vdbs;
 
 	vdbs = new GPU_VDB[2];
 
@@ -1240,54 +1240,54 @@ int main(const int argc, const char* argv[])
 
 	mat4 xform = vdbs[1].get_xform();
 	xform.translate(make_float3(50, 0, 0));
-	xform = xform.rotate_zyx(make_float3(0, M_PI/2.0f, 0));
+	xform = xform.rotate_zyx(make_float3(0, M_PI / 2.0f, 0));
 	vdbs[1].set_xform(xform);
 
 
 	CUdeviceptr d_volume_ptr;
-	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB)*2) == cudaSuccess);
-	check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB)*2) == cudaSuccess);
-	   
+	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * 2) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB) * 2) == cudaSuccess);
+
 
 	// Setup initial camera 
 	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
 	lookat = make_float3(-10.0f, 72.0f, -43.0f);
 	vup = make_float3(.0f, 1.0f, .0f);
 	fov = 30.0f;
-	aspect = 1.0f; 
-	aperture = 0.0f; 
+	aspect = 1.0f;
+	aperture = 0.0f;
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
 
 	// Setup Lights
 #if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
-	#undef rand // undefine the rand coming from camera.h and light.h
-	
+#undef rand // undefine the rand coming from camera.h and light.h
+
 	float3 min = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
 	float3 max = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
 
 	std::mt19937 e2(std::random_device{}());
 	std::uniform_real_distribution<> dist(0, 1);
-	
+
 	int num_lights = 15;
 	lights = new point_light[num_lights];
 
 	for (int i = 0; i < num_lights; ++i) {
 
 		lights[i].pos = min + make_float3(dist(e2) * (max.x - min.x), dist(e2) * (max.y - min.y), dist(e2) * (max.z - min.z));
-		lights[i].power = 1000 ;
+		lights[i].power = 1000;
 		lights[i].color = make_float3(dist(e2), dist(e2), dist(e2));
 
 	}
 
 	CUdeviceptr d_lights;
-	check_success(cuMemAlloc(&d_lights, sizeof(point_light)*num_lights)==cudaSuccess);
+	check_success(cuMemAlloc(&d_lights, sizeof(point_light)*num_lights) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_lights, lights, sizeof(point_light)*num_lights) == cudaSuccess);
 #endif 
-	   
+
 	// Setup initial render kernel parameters.
-	
+
 	// Kernel param buffers
 
 	float3 *accum_buffer = NULL;
@@ -1385,7 +1385,7 @@ int main(const int argc, const char* argv[])
 	oidn::DeviceRef oidn_device = oidn::newDevice();
 	oidn_device.commit();
 	oidn::FilterRef filter = oidn_device.newFilter("RT");
-	
+
 	// Main loop
 
 	while (!glfwWindowShouldClose(window)) {
@@ -1414,7 +1414,7 @@ int main(const int argc, const char* argv[])
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-		
+
 		ImGui::Begin("Parameters window");
 		ImGui::Checkbox("Render", &render);
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
@@ -1429,7 +1429,7 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat("Depth Multiplier", &kernel_params.tr_depth);
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
-		ImGui::InputDouble("Energy Injection", &energy, 0.0);		
+		ImGui::InputDouble("Energy Injection", &energy, 0.0);
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
@@ -1447,8 +1447,8 @@ int main(const int argc, const char* argv[])
 
 			// Reserved for host side debugging
 
-			#if 0
-			//Copy debug buffer and print
+#if 0
+//Copy debug buffer and print
 			printf("ray_depth:%d\n", ray_depth);
 			float3 *c = new float3[1000];
 			memset(c, 0x0, sizeof(float3) * 1000);
@@ -1465,7 +1465,7 @@ int main(const int argc, const char* argv[])
 
 			}
 
-			#endif
+#endif
 
 		}
 
@@ -1477,9 +1477,9 @@ int main(const int argc, const char* argv[])
 		}
 
 		// Restart rendering if there is a change 
-		if (ctx->change || 
-			max_interaction != kernel_params.max_interactions || 
-			ray_depth != kernel_params.ray_depth || 
+		if (ctx->change ||
+			max_interaction != kernel_params.max_interactions ||
+			ray_depth != kernel_params.ray_depth ||
 			integrator != kernel_params.integrator) {
 
 			kernel_params.integrator = integrator;
@@ -1494,14 +1494,14 @@ int main(const int argc, const char* argv[])
 
 		// Test rotation
 #if 0 
-			float3 rotation = make_float3( 0,0,(M_PI / 10.0f) * rot_amount);
-			mat4 rot = vdbs[0].get_xform().rotate_zyx(rotation);
-			vdbs[0].set_xform(rot);
-			check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB) * 2) == cudaSuccess);
-			rot_amount += 0.1f;
-			kernel_params.iteration = 0;
+		float3 rotation = make_float3(0, 0, (M_PI / 10.0f) * rot_amount);
+		mat4 rot = vdbs[0].get_xform().rotate_zyx(rotation);
+		vdbs[0].set_xform(rot);
+		check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB) * 2) == cudaSuccess);
+		rot_amount += 0.1f;
+		kernel_params.iteration = 0;
 #endif
-		
+
 
 
 		// Recreate environment sampling textures if sun position changes
@@ -1522,7 +1522,7 @@ int main(const int argc, const char* argv[])
 
 			aspect = float(width) / float(height);
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
-			resize_buffers(&accum_buffer, &raw_buffer,&display_buffer_cuda, width, height, display_buffer);
+			resize_buffers(&accum_buffer, &raw_buffer, &display_buffer_cuda, width, height, display_buffer);
 			kernel_params.accum_buffer = accum_buffer;
 			kernel_params.raw_buffer = raw_buffer;
 			glViewport(0, 0, width, height);
@@ -1549,16 +1549,16 @@ int main(const int argc, const char* argv[])
 			sprintf_s(frame_string, "%d", frame);
 			char file_name[100] = "./render/pathtrace.";
 			strcat_s(file_name, frame_string);
-			
+
 #ifdef SAVE_TGA   
-			
+
 			int res = width * height;
 			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
 			bool success = save_tga(c, width, height, file_name);
 			if (!success) printf("!Unable to save exr file.\n");
-			
+
 #endif
 
 #ifdef SAVE_OPENEXR
@@ -1568,9 +1568,9 @@ int main(const int argc, const char* argv[])
 
 			bool success = save_exr(c, width, height, file_name);
 			if (!success) printf("!Unable to save exr file.\n");
-			
+
 #endif
-					   
+
 			frame++;
 			ctx->save_image = false;
 		}
@@ -1588,7 +1588,7 @@ int main(const int argc, const char* argv[])
 		dim3 grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
-		
+
 		void *params[] = { &cam, (void *)&d_lights , (void *)&d_volume_ptr, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
@@ -1596,29 +1596,30 @@ int main(const int argc, const char* argv[])
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 
-		//Do Image denoising with OIDN library if max spp is reached
-	
-		if (kernel_params.iteration < kernel_params.max_interactions) {
-			
+		//Do Image denoising with OIDN library 
+		if (0) {
+
 			int resolution = width * height;
-			float4 *in_buffer, *out_buffer;
+			float4 *in_buffer;
 			float3 *temp_in_buffer, *temp_out_buffer;
 
+			unsigned int *out_buffer;
+			out_buffer = (unsigned int*)malloc(resolution * sizeof(unsigned int));
+
 			in_buffer = (float4*)malloc(resolution * sizeof(float4));
-			out_buffer = (float4*)malloc(resolution * sizeof(float4));
-			
+
 			check_success(cudaMemcpy(in_buffer, raw_buffer, sizeof(float4) * resolution, cudaMemcpyDeviceToHost) == cudaSuccess);
 
 			temp_in_buffer = (float3*)malloc(resolution * sizeof(float3));
 			temp_out_buffer = (float3*)malloc(resolution * sizeof(float3));
-					   			 
-			for(int i=0; i<resolution; i++){
-			
+
+			for (int i = 0; i < resolution; i++) {
+
 				temp_in_buffer[i].x = in_buffer[i].x;
 				temp_in_buffer[i].y = in_buffer[i].y;
 				temp_in_buffer[i].z = in_buffer[i].z;
 			}
-					   
+
 			filter.setImage("color", temp_in_buffer, oidn::Format::Float3, width, height);
 			filter.setImage("output", temp_out_buffer, oidn::Format::Float3, width, height);
 			filter.set("hdr", true);
@@ -1627,31 +1628,50 @@ int main(const int argc, const char* argv[])
 			filter.commit();
 			filter.execute();
 
-			float3 red = make_float3(1.0f, .0f, .0f);
-			float3 blue = make_float3(.0f, .0f, 1.0f);
+			if (0) { // save denoised image 
+
+				float3 red = make_float3(1.0f, .0f, .0f);
+				float3 blue = make_float3(.0f, .0f, 1.0f);
+
+				for (int i = 0; i < resolution; i++) {
+
+					float diff = length(temp_in_buffer[i] - temp_out_buffer[i]);
+
+					temp_out_buffer[i] = lerp(blue, red, diff);
+
+				}
+
+
+				if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+				char frame_string[100];
+				sprintf_s(frame_string, "%d", frame);
+				char file_name[100] = "./render/pathtrace.";
+				strcat_s(file_name, frame_string);
+
+				bool success = save_exr(temp_out_buffer, width, height, file_name);
+				if (!success) printf("!Unable to save exr file.\n");
+
+				frame++;
+
+			}
 
 			for (int i = 0; i < resolution; i++) {
 
-				float diff = length(temp_in_buffer[i] - temp_out_buffer[i]);
+				float3 val = temp_out_buffer[i];
 
-				temp_out_buffer[i] = lerp(blue, red, diff);
-							
+				val.x *= (1.0f + val.x * 0.1f) / (1.0f + val.x);
+				val.y *= (1.0f + val.y * 0.1f) / (1.0f + val.y);
+				val.z *= (1.0f + val.z * 0.1f) / (1.0f + val.z);
+				const unsigned int r = (unsigned int)(255.0f * fminf(powf(fmaxf(val.x, 0.0f), (float)(1.0 / 2.2)), 1.0f));
+				const unsigned int g = (unsigned int)(255.0f * fminf(powf(fmaxf(val.y, 0.0f), (float)(1.0 / 2.2)), 1.0f));
+				const unsigned int b = (unsigned int)(255.0f * fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
+				out_buffer[i] = 0xff000000 | (r << 16) | (g << 8) | b;
 			}
 
 
-			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
-			char frame_string[100];
-			sprintf_s(frame_string, "%d", frame);
-			char file_name[100] = "./render/pathtrace.";
-			strcat_s(file_name, frame_string);
 
-			bool success = save_exr(temp_out_buffer, width, height, file_name);
-			if (!success) printf("!Unable to save exr file.\n");
-
-			frame++;
 
 		}
-
 
 		// Update texture for display.
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, display_buffer);
@@ -1688,6 +1708,7 @@ int main(const int argc, const char* argv[])
 	check_success(cudaFree(accum_buffer) == cudaSuccess);
 	check_success(cudaFree(raw_buffer) == cudaSuccess);
 	check_success(cudaFree(debug_buffer) == cudaSuccess);
+
 	// Cleanup OpenGL.
 	glDeleteVertexArrays(1, &quad_vao);
 	glDeleteBuffers(1, &quad_vertex_buffer);
