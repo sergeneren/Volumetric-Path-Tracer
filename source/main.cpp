@@ -1250,10 +1250,10 @@ int main(const int argc, const char* argv[])
 	   
 
 	// Setup initial camera 
-	lookfrom = make_float3(10.0f, .0f, .0f);
-	lookat = make_float3(.0f, .0f, .0f);
+	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
+	lookat = make_float3(-10.0f, 72.0f, -43.0f);
 	vup = make_float3(.0f, 1.0f, .0f);
-	fov = 50.0f;
+	fov = 30.0f;
 	aspect = 1.0f; 
 	aperture = 0.0f; 
 
@@ -1262,7 +1262,7 @@ int main(const int argc, const char* argv[])
 
 	// Setup Lights
 #if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
-	#undef rand // undefine the rand coming from camera.h
+	#undef rand // undefine the rand coming from camera.h and light.h
 	
 	float3 min = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
 	float3 max = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
@@ -1302,7 +1302,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.max_interactions = 100;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
-	kernel_params.ray_depth = 1;
+	kernel_params.ray_depth = 10;
 	kernel_params.phase_g1 = 0.0f;
 	kernel_params.phase_g2 = 0.0f;
 	kernel_params.phase_f = 1.0f;
@@ -1343,7 +1343,7 @@ int main(const int argc, const char* argv[])
 
 	int max_interaction = 100;
 	float max_extinction = 1.0f;
-	int ray_depth = 1;
+	int ray_depth = 10;
 	double energy = .0f;
 	float azimuth = 120.0f;
 	float elevation = 30.0f;
@@ -1419,7 +1419,7 @@ int main(const int argc, const char* argv[])
 		ImGui::Checkbox("Render", &render);
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
-		ImGui::InputInt("Ray Depth", &ray_depth, 1);
+		ImGui::InputInt("Ray Depth", &ray_depth, 10);
 		ImGui::InputInt("Integrator", &integrator, 0);
 		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
@@ -1598,7 +1598,7 @@ int main(const int argc, const char* argv[])
 
 		//Do Image denoising with OIDN library if max spp is reached
 	
-		if (kernel_params.iteration == kernel_params.max_interactions) {
+		if (kernel_params.iteration < kernel_params.max_interactions) {
 			
 			int resolution = width * height;
 			float4 *in_buffer, *out_buffer;
@@ -1626,6 +1626,18 @@ int main(const int argc, const char* argv[])
 
 			filter.commit();
 			filter.execute();
+
+			float3 red = make_float3(1.0f, .0f, .0f);
+			float3 blue = make_float3(.0f, .0f, 1.0f);
+
+			for (int i = 0; i < resolution; i++) {
+
+				float diff = length(temp_in_buffer[i] - temp_out_buffer[i]);
+
+				temp_out_buffer[i] = lerp(blue, red, diff);
+							
+			}
+
 
 			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
 			char frame_string[100];
