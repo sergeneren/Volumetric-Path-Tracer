@@ -265,7 +265,7 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
 }
 
-// Save Exr Image
+// Save Exr Images
 static bool save_exr(float4 *rgba, int width, int height, std::string filename) {
 
 	filename.append(".exr");
@@ -336,6 +336,75 @@ static bool save_exr(float4 *rgba, int width, int height, std::string filename) 
 	free(header.pixel_types);
 	free(header.requested_pixel_types);
 	
+	return true;
+}
+
+static bool save_exr(float3 *rgba, int width, int height, std::string filename) {
+
+	filename.append(".exr");
+
+	EXRHeader header;
+	InitEXRHeader(&header);
+
+	EXRImage image;
+	InitEXRImage(&image);
+
+	image.num_channels = 3;
+
+	std::vector<float> images[3];
+	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
+
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+
+			int idx = i * width + j;
+
+			// Flip image vertically
+			i = height - i - 1;
+			int idx2 = i * width + j;
+
+			images[0][idx] = rgba[idx2].x;
+			images[1][idx] = rgba[idx2].y;
+			images[2][idx] = rgba[idx2].z;
+		}
+	}
+
+	float* image_ptr[3];
+
+	image_ptr[0] = &(images[2].at(0)); // B
+	image_ptr[1] = &(images[1].at(0)); // G
+	image_ptr[2] = &(images[0].at(0)); // R
+
+	image.images = (unsigned char**)image_ptr;
+	image.width = width;
+	image.height = height;
+
+	header.num_channels = 3;
+	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
+	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
+	strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
+	strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
+	strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
+
+	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+	for (int i = 0; i < header.num_channels; i++) {
+		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
+		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
+	}
+
+	const char* err = NULL; // or nullptr in C++11 or later.
+	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
+	if (ret != TINYEXR_SUCCESS) {
+		fprintf(stderr, "Save EXR err: %s\n", err);
+		return false;
+	}
+	printf("Saved exr file. [ %s ] \n", filename.c_str());
+
+	free(header.channels);
+	free(header.pixel_types);
+	free(header.requested_pixel_types);
+
 	return true;
 }
 
@@ -1527,15 +1596,50 @@ int main(const int argc, const char* argv[])
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 
-		//Do Image denoising with OIDN library
-			   		 
-		filter.setImage("color", &kernel_params.display_buffer, oidn::Format::Float3, width, height);
-		filter.setImage("output", &kernel_params.display_buffer, oidn::Format::Float3, width, height);
-		filter.set("hdr", true);
-		filter.set("srgb", true);
+		//Do Image denoising with OIDN library if max spp is reached
+	
+		if (kernel_params.iteration == kernel_params.max_interactions) {
+			
+			int resolution = width * height;
+			float4 *in_buffer, *out_buffer;
+			float3 *temp_in_buffer, *temp_out_buffer;
 
-		filter.commit();
-		filter.execute();
+			in_buffer = (float4*)malloc(resolution * sizeof(float4));
+			out_buffer = (float4*)malloc(resolution * sizeof(float4));
+			
+			check_success(cudaMemcpy(in_buffer, raw_buffer, sizeof(float4) * resolution, cudaMemcpyDeviceToHost) == cudaSuccess);
+
+			temp_in_buffer = (float3*)malloc(resolution * sizeof(float3));
+			temp_out_buffer = (float3*)malloc(resolution * sizeof(float3));
+					   			 
+			for(int i=0; i<resolution; i++){
+			
+				temp_in_buffer[i].x = in_buffer[i].x;
+				temp_in_buffer[i].y = in_buffer[i].y;
+				temp_in_buffer[i].z = in_buffer[i].z;
+			}
+					   
+			filter.setImage("color", temp_in_buffer, oidn::Format::Float3, width, height);
+			filter.setImage("output", temp_out_buffer, oidn::Format::Float3, width, height);
+			filter.set("hdr", true);
+			filter.set("srgb", false);
+
+			filter.commit();
+			filter.execute();
+
+			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+			char frame_string[100];
+			sprintf_s(frame_string, "%d", frame);
+			char file_name[100] = "./render/pathtrace.";
+			strcat_s(file_name, frame_string);
+
+			bool success = save_exr(temp_out_buffer, width, height, file_name);
+			if (!success) printf("!Unable to save exr file.\n");
+
+			frame++;
+
+		}
+
 
 		// Update texture for display.
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, display_buffer);
