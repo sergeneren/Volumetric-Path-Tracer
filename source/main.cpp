@@ -96,7 +96,7 @@ using json = nlohmann::json;
 // Third Party
 
 #define OIDN_STATIC_LIB
-#include <OpenImageDenoise/oidn.h>
+#include <OpenImageDenoise/oidn.hpp>
 
 
 CUmodule cuRenderModule;
@@ -1313,9 +1313,11 @@ int main(const int argc, const char* argv[])
 
 	// Create OIDN devices 
 
-	OIDNDevice oidn_device = oidnNewDevice(OIDN_DEVICE_TYPE_DEFAULT);
-	oidnCommitDevice(oidn_device);
-	OIDNFilter oidn_filter = oidnNewFilter(oidn_device, "RT");
+	oidn::DeviceRef oidn_device = oidn::newDevice();
+	oidn_device.commit();
+	oidn::FilterRef filter = oidn_device.newFilter("RT");
+	
+	// Main loop
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -1525,10 +1527,15 @@ int main(const int argc, const char* argv[])
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 
-		//TO-DO Do Image denoising with OIDN library
+		//Do Image denoising with OIDN library
+			   		 
+		filter.setImage("color", &kernel_params.display_buffer, oidn::Format::Float3, width, height);
+		filter.setImage("output", &kernel_params.display_buffer, oidn::Format::Float3, width, height);
+		filter.set("hdr", true);
+		filter.set("srgb", true);
 
-
-
+		filter.commit();
+		filter.execute();
 
 		// Update texture for display.
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, display_buffer);
@@ -1551,10 +1558,6 @@ int main(const int argc, const char* argv[])
 		glfwSwapBuffers(window);
 		//break;
 	}
-
-	//Cleanup OIDN
-	oidnReleaseDevice(oidn_device);
-	oidnReleaseFilter(oidn_filter);
 
 	//Cleanup imgui
 	ImGui_ImplOpenGL3_Shutdown();
