@@ -664,32 +664,33 @@ __device__ inline float3 vol_integrator(
 	float3 ray_dir,
 	float &tr,
 	const Kernel_params kernel_params,
-	const GPU_VDB &gpu_vdb)
+	const GPU_VDB *gpu_vdb)
 {
 	
 	float3 L = BLACK;
 	float3 beta = WHITE;
-	float3 t = gpu_vdb.rayBoxIntersect(ray_pos, ray_dir);
+	float3 t = gpu_vdb[0].rayBoxIntersect(ray_pos, ray_dir);
 	bool mi;
-
+	
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
-			beta *= sample(rand_state, ray_pos, ray_dir, mi,tr, kernel_params, gpu_vdb);
+			beta *= sample(rand_state, ray_pos, ray_dir, mi,tr, kernel_params, gpu_vdb[0]);
 			if (isBlack(beta)) break;
 
-
+			/*
 			if (mi) { // medium interaction 
-				if (kernel_params.sun_mult > .0f) L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb);
-				else L += beta * estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb);
+				if (kernel_params.sun_mult > .0f) L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb[0]);
+				else L += beta * estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb[0]);
 				
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
-
+			*/
 		}
 	}
+	
 	tr = fminf(tr, 1.0f);
 	return L;
 }
@@ -791,7 +792,7 @@ extern "C" __global__ void volume_rt_kernel(
 	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb[0]);
+		if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb);
 		
 	}

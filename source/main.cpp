@@ -1318,7 +1318,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.sky_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_mult = 1.0f;
 	kernel_params.env_sample_tex_res = 360;
-	kernel_params.integrator = 0;
+	kernel_params.integrator = 1;
 
 	std::string bn_path = ASSET_PATH;
 	bn_path.append("BN0.bmp");
@@ -1376,6 +1376,7 @@ int main(const int argc, const char* argv[])
 		&env_marginal_cdf_data);
 
 	bool debug = false;
+	bool denoise = false;
 	int frame = 0;
 	float rot_amount = 0.0f;
 
@@ -1417,10 +1418,11 @@ int main(const int argc, const char* argv[])
 
 		ImGui::Begin("Parameters window");
 		ImGui::Checkbox("Render", &render);
+		ImGui::Checkbox("Denoise", &denoise);
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
 		ImGui::InputInt("Ray Depth", &ray_depth, 10);
-		ImGui::InputInt("Integrator", &integrator, 0);
+		ImGui::InputInt("Integrator", &integrator, 1);
 		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
@@ -1597,14 +1599,11 @@ int main(const int argc, const char* argv[])
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 
 		//Do Image denoising with OIDN library 
-		if (0) {
+		if (denoise) {
 
 			int resolution = width * height;
 			float4 *in_buffer;
 			float3 *temp_in_buffer, *temp_out_buffer;
-
-			unsigned int *out_buffer;
-			out_buffer = (unsigned int*)malloc(resolution * sizeof(unsigned int));
 
 			in_buffer = (float4*)malloc(resolution * sizeof(float4));
 
@@ -1628,7 +1627,7 @@ int main(const int argc, const char* argv[])
 			filter.commit();
 			filter.execute();
 
-			if (0) { // save denoised image 
+			if (1) { // save denoised image 
 
 				float3 red = make_float3(1.0f, .0f, .0f);
 				float3 blue = make_float3(.0f, .0f, 1.0f);
@@ -1655,22 +1654,7 @@ int main(const int argc, const char* argv[])
 
 			}
 
-			for (int i = 0; i < resolution; i++) {
-
-				float3 val = temp_out_buffer[i];
-
-				val.x *= (1.0f + val.x * 0.1f) / (1.0f + val.x);
-				val.y *= (1.0f + val.y * 0.1f) / (1.0f + val.y);
-				val.z *= (1.0f + val.z * 0.1f) / (1.0f + val.z);
-				const unsigned int r = (unsigned int)(255.0f * fminf(powf(fmaxf(val.x, 0.0f), (float)(1.0 / 2.2)), 1.0f));
-				const unsigned int g = (unsigned int)(255.0f * fminf(powf(fmaxf(val.y, 0.0f), (float)(1.0 / 2.2)), 1.0f));
-				const unsigned int b = (unsigned int)(255.0f * fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
-				out_buffer[i] = 0xff000000 | (r << 16) | (g << 8) | b;
-			}
-
-
-
-
+			denoise = false;
 		}
 
 		// Update texture for display.
