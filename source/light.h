@@ -74,7 +74,6 @@ public:
 	__host__ __device__ light():pos(make_float3(.0f)), dir(make_float3(.0f)), power(1.0f), color(make_float3(1.0f)) {}
 	__host__ __device__ ~light() {};
 	__host__ __device__ virtual int get_type() const=0;
-	__device__ virtual float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) const = 0;
 
 	float3 pos;
 	float3 dir;
@@ -108,6 +107,7 @@ public:
 		float3 wi;
 		float phase_pdf = .0f;
 		float eq_pdf = .0f;
+		
 		
 		// Sample point light with phase pdf  
 		wi = normalize(pos - ray_pos);
@@ -157,14 +157,10 @@ public:
 	__host__ __device__ light_list(unsigned int n_l){
 		num_lights = n_l;	
 	}
-	__host__  __device__ ~light_list() {
-	
-		delete[] light_ptr;
-
-	}
+	__host__  __device__ ~light_list() {}
 
 	unsigned int num_lights;
-	light *light_ptr;
+	point_light *light_ptr;
 
 };
 

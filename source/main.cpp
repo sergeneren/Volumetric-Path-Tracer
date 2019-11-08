@@ -1272,16 +1272,20 @@ int main(const int argc, const char* argv[])
 	
 	light_list l_list(num_lights);
 	l_list.light_ptr = (point_light*)malloc(num_lights * sizeof(point_light));
+	cudaMallocManaged(&l_list.light_ptr, num_lights * sizeof(point_light));
 
 	for (int i = 0; i < num_lights; ++i) {
 		float3 pos = min + make_float3(dist(e2) * (max.x - min.x), dist(e2) * (max.y - min.y), dist(e2) * (max.z - min.z));
 		float3 color = make_float3(dist(e2), dist(e2), dist(e2));
-		l_list.light_ptr[i] = point_light(pos, color, 1000.0f);
+		
+		l_list.light_ptr[i] = point_light();
+		l_list.light_ptr[i].color = color;
+		l_list.light_ptr[i].pos = pos;
 	}
 
 	CUdeviceptr d_lights;
-	check_success(cuMemAlloc(&d_lights, sizeof(point_light)*num_lights) == cudaSuccess);
-	check_success(cuMemcpyHtoD(d_lights, &l_list, sizeof(point_light)*num_lights) == cudaSuccess);
+	check_success(cuMemAlloc(&d_lights, sizeof(light_list)) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_lights, &l_list, sizeof(light_list)) == cudaSuccess);
 #endif 
 
 	// Setup initial render kernel parameters.
