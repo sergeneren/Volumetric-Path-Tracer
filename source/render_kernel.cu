@@ -441,7 +441,7 @@ __device__ inline float3 estimate_sky(
 	Rand_state &randstate,
 	const float3 &ray_pos,
 	float3 &ray_dir,
-	const GPU_VDB &gpu_vdb)
+	const GPU_VDB *gpu_vdb)
 {
 	float3 Ld = BLACK;
 
@@ -472,7 +472,7 @@ __device__ inline float3 estimate_sky(
 			phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 
 			if (phase_pdf > .0f) {
-				float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb);
+				float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb[0]);
 				Li *= tr;
 
 				if (!isBlack(Li)) {
@@ -502,7 +502,7 @@ __device__ inline float3 estimate_sky(
 			if (light_pdf == 0.0f) return Ld;
 			weight = power_heuristic(1, phase_pdf, 1, light_pdf);
 
-			float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb);
+			float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb[0]);
 
 			if (kernel_params.environment_type == 0)
 			{
@@ -524,26 +524,27 @@ __device__ inline float3 estimate_sky(
 
 __device__ inline float3 estimate_point_light(
 	Kernel_params kernel_params,
-	const point_light *lights,
+	const light_list lights,
 	Rand_state &randstate,
 	const float3 &ray_pos,
 	float3 &ray_dir,
-	const GPU_VDB &gpu_vdb)
+	const GPU_VDB *gpu_vdb)
 {
 
 	float3 Ld = make_float3(.0f); 
-	
+	float max_density = gpu_vdb[0].vdb_info.max_density;
 	
 	for (int i = 0; i < 15; i++) {
-
-		float dist = length(lights[i].pos - ray_pos);
-		float possible_tr = expf(-gpu_vdb.vdb_info.max_density * dist / (sqrtf(lights[i].power)*kernel_params.tr_depth))  ;
-
+		
+		float dist = length(lights.light_ptr[i].pos - ray_pos);
+		float possible_tr = expf(-gpu_vdb[0].vdb_info.max_density * dist / (sqrtf(lights.light_ptr[i].power)*kernel_params.tr_depth))  ;
+		
 		if (possible_tr > 0.01f) {
-			float3 dir = normalize(lights[i].pos - ray_pos);
-			float3 tr = Tr(randstate, ray_pos, dir, kernel_params, gpu_vdb);
-			Ld += lights[i].Le(randstate, ray_pos, ray_dir, kernel_params.phase_g1, tr, gpu_vdb.vdb_info.max_density, kernel_params.density_mult, kernel_params.tr_depth);
+			float3 dir = normalize(lights.light_ptr[i].pos - ray_pos);
+			float3 tr = Tr(randstate, ray_pos, dir, kernel_params, gpu_vdb[0]);
+			Ld += lights.light_ptr[i].Le(randstate, ray_pos, ray_dir, kernel_params.phase_g1, tr, max_density, kernel_params.density_mult, kernel_params.tr_depth);
 		}
+		
 	}
 	
 	return Ld;
@@ -556,7 +557,7 @@ __device__ inline float3 estimate_sun(
 	Rand_state &randstate,
 	const float3 &ray_pos,
 	float3 &ray_dir,
-	const GPU_VDB &gpu_vdb)
+	const GPU_VDB *gpu_vdb)
 {
 	float3 Ld = BLACK;
 	float3 wi;
@@ -572,7 +573,7 @@ __device__ inline float3 estimate_sun(
 	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 
 	// Check visibility of light source 
-	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb);
+	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb[0]);
 
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
 	Ld = kernel_params.sun_color * tr  * phase_pdf;
@@ -587,11 +588,11 @@ __device__ inline float3 estimate_sun(
 
 __device__ inline float3 uniform_sample_one_light(
 	Kernel_params kernel_params,
-	const point_light *lights,
+	const light_list lights,
 	const float3 &ray_pos,
 	float3 &ray_dir,
 	Rand_state &randstate,
-	const GPU_VDB &gpu_vdb)
+	const GPU_VDB *gpu_vdb)
 {
 
 	int nLights = 3; // number of lights
@@ -659,7 +660,7 @@ __device__ inline float3 sample(
 // PBRT Volume Integrator
 __device__ inline float3 vol_integrator(
 	Rand_state rand_state,
-	const point_light *lights,
+	const light_list lights,
 	float3 ray_pos,
 	float3 ray_dir,
 	float &tr,
@@ -680,14 +681,14 @@ __device__ inline float3 vol_integrator(
 			beta *= sample(rand_state, ray_pos, ray_dir, mi,tr, kernel_params, gpu_vdb[0]);
 			if (isBlack(beta)) break;
 
-			/*
+			
 			if (mi) { // medium interaction 
-				if (kernel_params.sun_mult > .0f) L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb[0]);
-				else L += beta * estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb[0]);
+				if (kernel_params.sun_mult > .0f) L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb);
+				else L += beta * estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb);
 				
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
-			*/
+			
 		}
 	}
 	
@@ -729,7 +730,7 @@ __device__ inline float3 direct_integrator(
 			
 			if (mi) { // medium interaction 
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
-				if (kernel_params.sun_mult > .0f) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb[0]) * beta * kernel_params.sun_mult;
+				if (kernel_params.sun_mult > .0f) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta * kernel_params.sun_mult;
 			}
 		
 		}
@@ -738,7 +739,7 @@ __device__ inline float3 direct_integrator(
 	ray_dir = normalize(ray_dir);
 	if (kernel_params.environment_type == 0) {
 
-		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb[0]) * beta;
+		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta;
 		else L += sample_atmosphere(kernel_params, ray_dir) * beta;
 
 	}
@@ -761,7 +762,7 @@ __device__ inline float3 direct_integrator(
 
 extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
-	const point_light *lights,
+	const light_list lights,
 	const GPU_VDB *gpu_vdb,
 	const Kernel_params kernel_params) {
 	

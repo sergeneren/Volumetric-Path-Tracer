@@ -73,8 +73,8 @@ class light {
 public:
 	__host__ __device__ light():pos(make_float3(.0f)), dir(make_float3(.0f)), power(1.0f), color(make_float3(1.0f)) {}
 	__host__ __device__ ~light() {};
-	__host__ __device__ virtual int get_type() const { return 0; };
-	__device__ virtual float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) const { return make_float3(.0f); };
+	__host__ __device__ virtual int get_type() const=0;
+	__device__ virtual float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) const = 0;
 
 	float3 pos;
 	float3 dir;
@@ -96,8 +96,13 @@ class point_light : public light {
 public:
 
 	__host__ __device__ point_light(){}
+	__host__ __device__ point_light(float3 p, float3 cl, float pow) {
+		pos = p;
+		color = cl;
+		power = pow;
+	}
 
-	__device__ float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) const override {
+	__device__ float3 Le(Rand_state &randstate, float3 ray_pos, float3 ray_dir, float phase_g1, float3 tr, float max_density, float density_mult, float tr_depth) const {
 
 		float3 Ld = make_float3(.0f);
 		float3 wi;
@@ -140,11 +145,30 @@ public:
 
 	}
 
-	__host__ __device__ virtual int get_type() const { return POINT_LIGHT; }
-
-	
+	__host__ __device__ int get_type() const { return POINT_LIGHT; }
 
 };
+
+
+
+class light_list {
+
+public:
+	__host__ __device__ light_list(unsigned int n_l){
+		num_lights = n_l;	
+	}
+	__host__  __device__ ~light_list() {
+	
+		delete[] light_ptr;
+
+	}
+
+	unsigned int num_lights;
+	light *light_ptr;
+
+};
+
+
 
 
 #endif

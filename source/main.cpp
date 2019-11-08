@@ -115,8 +115,6 @@ float	fov;
 float	aspect;
 float	aperture;
 
-point_light *lights;
-
 #define check_success(expr) \
     do { \
         if(!(expr)) { \
@@ -1271,19 +1269,19 @@ int main(const int argc, const char* argv[])
 	std::uniform_real_distribution<> dist(0, 1);
 
 	int num_lights = 15;
-	lights = new point_light[num_lights];
+	
+	light_list l_list(num_lights);
+	l_list.light_ptr = (point_light*)malloc(num_lights * sizeof(point_light));
 
 	for (int i = 0; i < num_lights; ++i) {
-
-		lights[i].pos = min + make_float3(dist(e2) * (max.x - min.x), dist(e2) * (max.y - min.y), dist(e2) * (max.z - min.z));
-		lights[i].power = 1000;
-		lights[i].color = make_float3(dist(e2), dist(e2), dist(e2));
-
+		float3 pos = min + make_float3(dist(e2) * (max.x - min.x), dist(e2) * (max.y - min.y), dist(e2) * (max.z - min.z));
+		float3 color = make_float3(dist(e2), dist(e2), dist(e2));
+		l_list.light_ptr[i] = point_light(pos, color, 1000.0f);
 	}
 
 	CUdeviceptr d_lights;
 	check_success(cuMemAlloc(&d_lights, sizeof(point_light)*num_lights) == cudaSuccess);
-	check_success(cuMemcpyHtoD(d_lights, lights, sizeof(point_light)*num_lights) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_lights, &l_list, sizeof(point_light)*num_lights) == cudaSuccess);
 #endif 
 
 	// Setup initial render kernel parameters.
@@ -1347,7 +1345,7 @@ int main(const int argc, const char* argv[])
 	double energy = .0f;
 	float azimuth = 120.0f;
 	float elevation = 30.0f;
-	int integrator = 0;
+	int integrator = 1;
 	bool render = true;
 
 
@@ -1547,6 +1545,7 @@ int main(const int argc, const char* argv[])
 		if (ctx->save_image) {
 
 			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+
 			char frame_string[100];
 			sprintf_s(frame_string, "%d", frame);
 			char file_name[100] = "./render/pathtrace.";
@@ -1629,6 +1628,7 @@ int main(const int argc, const char* argv[])
 
 			if (1) { // save denoised image 
 
+				/*
 				float3 red = make_float3(1.0f, .0f, .0f);
 				float3 blue = make_float3(.0f, .0f, 1.0f);
 
@@ -1639,9 +1639,10 @@ int main(const int argc, const char* argv[])
 					temp_out_buffer[i] = lerp(blue, red, diff);
 
 				}
-
+				*/
 
 				if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+
 				char frame_string[100];
 				sprintf_s(frame_string, "%d", frame);
 				char file_name[100] = "./render/pathtrace.";
