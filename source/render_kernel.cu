@@ -534,7 +534,7 @@ __device__ inline float3 estimate_point_light(
 	float3 Ld = make_float3(.0f); 
 	float max_density = gpu_vdb[0].vdb_info.max_density;
 	
-	for (int i = 0; i < 15; i++) {
+	for (int i = 0; i < lights.num_lights; i++) {
 		
 		float dist = length(lights.light_ptr[i].pos - ray_pos);
 		float possible_tr = expf(-gpu_vdb[0].vdb_info.max_density * dist / (sqrtf(lights.light_ptr[i].power)*kernel_params.tr_depth))  ;
@@ -596,22 +596,24 @@ __device__ inline float3 uniform_sample_one_light(
 {
 
 	int nLights = 3; // number of lights
-	int light_num = rand(&randstate) * nLights;
+	float light_num = rand(&randstate) * nLights;
 	
 	float3 L = BLACK;
 
 	if (light_num < 1) {
 
-		L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb) * kernel_params.sun_mult;
+		if(kernel_params.sun_mult > .0f)
+			L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb) * kernel_params.sun_mult;
 	}
 	else if (light_num >= 1 && light_num < 2) {
-	
-		L += estimate_point_light(kernel_params, lights, randstate, ray_pos, ray_dir, gpu_vdb);
+		
+		if(lights.num_lights>0)
+			L += estimate_point_light(kernel_params, lights, randstate, ray_pos, ray_dir, gpu_vdb);
 	
 	}
 	else {
-
-		L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb) * kernel_params.sky_mult;
+		if(kernel_params.sky_mult > .0f)
+			L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb) * kernel_params.sky_mult;
 	}
 
 	return L * (float)nLights;
@@ -681,11 +683,8 @@ __device__ inline float3 vol_integrator(
 			beta *= sample(rand_state, ray_pos, ray_dir, mi,tr, kernel_params, gpu_vdb[0]);
 			if (isBlack(beta)) break;
 
-			
 			if (mi) { // medium interaction 
-				if (kernel_params.sun_mult > .0f) L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb);
-				else L += beta * estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb);
-				
+				L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb);
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
 			

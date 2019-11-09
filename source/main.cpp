@@ -1268,7 +1268,7 @@ int main(const int argc, const char* argv[])
 	std::mt19937 e2(std::random_device{}());
 	std::uniform_real_distribution<> dist(0, 1);
 
-	int num_lights = 15;
+	int num_lights = 3;
 	
 	light_list l_list(num_lights);
 	l_list.light_ptr = (point_light*)malloc(num_lights * sizeof(point_light));
@@ -1281,6 +1281,7 @@ int main(const int argc, const char* argv[])
 		l_list.light_ptr[i] = point_light();
 		l_list.light_ptr[i].color = color;
 		l_list.light_ptr[i].pos = pos;
+		l_list.light_ptr[i].power = 1000.0f;
 	}
 
 	CUdeviceptr d_lights;
@@ -1594,7 +1595,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&d_lights , (void *)&d_volume_ptr, &kernel_params };
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
