@@ -99,6 +99,10 @@ using json = nlohmann::json;
 #include <OpenImageDenoise/oidn.hpp>
 
 
+// Atmosphere
+
+#include "atmosphere/model.h"
+
 CUmodule cuRenderModule;
 CUmodule cuTextureModule;
 CUfunction cuRaycastKernel;

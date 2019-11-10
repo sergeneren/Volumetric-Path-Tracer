@@ -43,8 +43,6 @@ of the following C++ code.
 
 #include "atmosphere/model.h"
 
-#include <glad/glad.h>
-
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -119,8 +117,8 @@ illuminance mode to convert the radiance values computed by the
 <code>Init</code> method for more details).
 */
 
-#include "atmosphere/definitions.glsl.inc"
-#include "atmosphere/functions.glsl.inc"
+#include "definitions.glsl.inc"
+#include "functions.glsl.inc"
 
 const char kComputeTransmittanceShader[] = R"(
     layout(location = 0) out vec3 transmittance;
