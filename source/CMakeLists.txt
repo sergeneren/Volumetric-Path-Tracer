@@ -57,6 +57,12 @@ get_filename_component(ASSET_DIR ${CMAKE_SOURCE_DIR}/../assets ABSOLUTE)
 add_definitions(-DASSET_PATH="${ASSET_DIR}/")
 ###################################################################
 
+file( GLOB ATMOSPHERE
+		"${CMAKE_SOURCE_DIR}/atmosphere/*.h"
+		"${CMAKE_SOURCE_DIR}/atmosphere/*.glsl"
+		"${CMAKE_SOURCE_DIR}/atmosphere/*.cc")
+
+
 file( GLOB	HEADERS 
 	"*.h"
 	"${CMAKE_SOURCE_DIR}/gpu_vdb/*.h")
@@ -80,11 +86,13 @@ set(SOURCE_FILES
 	${CUDA_SOURCES}
 	${SOURCE_CPP}
 	${IMGUI_IMPL_SOURCES}
-	${COMMON})
+	${COMMON}
+	${ATMOSPHERE})
 
 source_group(Cuda FILES ${CUDA_SOURCES})
 source_group(Imgui FILES ${IMGUI_IMPL_SOURCES})
 source_group(Helpers FILES ${COMMON})
+source_group(Atmosphere FILES ${ATMOSPHERE})
 
 ## Add custom build command for cuda files 
 
@@ -104,6 +112,7 @@ target_link_libraries(vpt PRIVATE glfw imgui::imgui nlohmann_json::nlohmann_json
 
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/atmosphere)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
 include_directories(${OID_DIR}/include)
