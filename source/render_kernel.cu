@@ -406,9 +406,6 @@ __device__ inline float3 Tr(
 	float t = 0.0f;
 	float inv_max_density = 1 / gpu_vdb.vdb_info.max_density;
 
-	//int k = 1;
-	//kernel_params.debug_buffer[0] = WHITE;
-
 	while (true) {
 		if (tr.x < 0.0000001) break;
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
@@ -416,8 +413,6 @@ __device__ inline float3 Tr(
 		if (!gpu_vdb.inVolumeBbox(p)) break;
 		float density = get_density(p, gpu_vdb);
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
-		//kernel_params.debug_buffer[k] = tr;
-		//k++;
 	}
 	return tr;
 }

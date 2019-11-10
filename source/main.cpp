@@ -1268,7 +1268,7 @@ int main(const int argc, const char* argv[])
 	std::mt19937 e2(std::random_device{}());
 	std::uniform_real_distribution<> dist(0, 1);
 
-	int num_lights = 3;
+	int num_lights = 0;
 	
 	light_list l_list(num_lights);
 	l_list.light_ptr = (point_light*)malloc(num_lights * sizeof(point_light));
