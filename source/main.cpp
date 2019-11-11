@@ -101,8 +101,6 @@ using json = nlohmann::json;
 
 // Atmosphere
 
-#include "atmosphere/model.h"
-
 CUmodule cuRenderModule;
 CUmodule cuTextureModule;
 CUfunction cuRaycastKernel;
