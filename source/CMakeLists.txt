@@ -69,7 +69,7 @@ file( GLOB	HEADERS
 
 file ( GLOB COMMON "${CMAKE_SOURCE_DIR}/common/*.h"	)
 
-file( GLOB CUDA_SOURCES 
+file( GLOB_RECURSE CUDA_SOURCES 
 	"*.cu"
 	"*.cuh")
 	
