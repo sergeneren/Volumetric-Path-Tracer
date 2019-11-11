@@ -103,10 +103,11 @@ class atmosphere {
 
 public:
 
+	__device__ __host__ atmosphere(){}
+	__device__ __host__ ~atmosphere(){}
 
-
-
-
+	__host__ bool init();
+	__host__ bool precompute();
 
 
 

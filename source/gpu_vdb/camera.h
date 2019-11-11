@@ -42,12 +42,6 @@
 #include <curand_kernel.h>
 #include <helper_math.h>
 
-
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 typedef curandStatePhilox4_32_10_t Rand_state;
 #define rand(state) curand_uniform(state)
 
