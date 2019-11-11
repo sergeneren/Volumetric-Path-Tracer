@@ -52,8 +52,12 @@
 #define ALIGN(x)	__align__(x)
 
 
-
 struct ALIGN(16) DensityProfileLayer {
+
+	__device__ __host__ DensityProfileLayer() : DensityProfileLayer(.0f, .0f, .0f, .0f, .0f) {}
+	__device__ __host__ DensityProfileLayer(float width, float exp_term, float exp_scale, 
+											float linear_term, float const_term)
+		: width(width), exp_term(exp_term), exp_scale(exp_scale), linear_term(linear_term), const_term(const_term){}
 
 	float width;
 	float exp_term;
