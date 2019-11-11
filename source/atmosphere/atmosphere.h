@@ -38,6 +38,92 @@
 //-----------------------------------------------
 
 
+#ifndef  __ATMOSPHERE_H__
+#define __ATMOSPHERE_H__
+
+#include "texture_types.h"
+#include "matrix_math.h"
+#include <string>
+
+#include "helper_math.h"
+#include "constants.h"
+
+
+#define ALIGN(x)	__align__(x)
 
 
 
+struct ALIGN(16) DensityProfileLayer {
+
+	float width;
+	float exp_term;
+	float exp_scale;
+	float linear_term;
+	float const_term;
+};
+
+struct ALIGN(16) DensityProfile {
+
+	DensityProfileLayer layers[2];
+
+};
+
+
+struct ALIGN(16) AtmosphereParameters {
+
+	float3 solar_irradiance;
+	float angle;
+	float bottom_radius;
+	float top_radius;
+	
+	DensityProfile rayleigh_density;
+	float3 rayleigh_scattering;
+
+	DensityProfile mie_density;
+	float3 mie_scattering;
+	float3 mie_extinction;
+	float mie_phase_function_g; 
+
+	DensityProfile absorption_density;
+	float3 absorption_extinction; 
+
+	float3 ground_albedo;
+
+	float mu_s_min;
+
+};
+
+
+
+
+
+class atmosphere {
+
+
+
+public:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+};
+
+
+#endif // ! __ATMOSPHERE_H__
