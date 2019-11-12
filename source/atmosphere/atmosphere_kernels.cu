@@ -1,281 +1,26 @@
-﻿
-
-
-#ifndef __ATMOSPHERE_FUNCTIONS_H__
-#define __ATMOSPHERE_FUNCTIONS_H__
 
 #include "helper_math.h"
 #include "constants.h"
 #include "definitions.h"
-#include "atmosphere.h"
+#include <assert.h>
 
-
-__device__ __forceinline__ float atmosphere::DistanceToTopAtmosphereBoundary(
-	const AtmosphereParameters atmosphere,
-	float r, float mu) {
-
-	float discriminant = r * r * (mu * mu - 1.0) + atmosphere.top_radius * atmosphere.top_radius;
-	return fmaxf(-r * mu + fmaxf(0.0f, sqrtf(discriminant)), .0f);
-}
-
-__device__ __forceinline__ float atmosphere::GetTextureCoordFromUnitRange(float x, int texture_size) {
-	return 0.5 / float(texture_size) + x * (1.0 - 1.0 / float(texture_size));
-}
-
-__device__ __forceinline__ float  atmosphere::GetUnitRangeFromTextureCoord(float u, int texture_size) {
-	return (u - 0.5 / float(texture_size)) / (1.0 - 1.0 / float(texture_size));
-}
-
-
-__device__ __forceinline__ float2 atmosphere::GetTransmittanceTextureUvFromRMu(
-	const AtmosphereParameters atmosphere,
-	float r, float mu_s) {
-
-	float2 uv = make_float2(.0f, .0f);
-
-	if (r < atmosphere.bottom_radius || r > atmosphere.top_radius) return uv;
-	if (mu_s < -1.0f || mu_s > 1.0f) return uv;
-
-	float H = sqrt(atmosphere.top_radius * atmosphere.top_radius - atmosphere.bottom_radius * atmosphere.bottom_radius);
-	float rho = fmaxf(0.0f, sqrtf(r * r - atmosphere.bottom_radius * atmosphere.bottom_radius));
-
-	float d = DistanceToTopAtmosphereBoundary(atmosphere, r, mu_s);
-	float d_min = atmosphere.top_radius - r;
-	float d_max = rho + H;
-	float x_mu = (d - d_min) / (d_max - d_min);
-	float x_r = rho / H;
-	uv = make_float2(GetTextureCoordFromUnitRange(x_mu, TRANSMITTANCE_TEXTURE_WIDTH), GetTextureCoordFromUnitRange(x_r, TRANSMITTANCE_TEXTURE_HEIGHT));
-
-	return uv;
-
-}
-
-__device__ __forceinline__ float2 atmosphere::GetIrradianceTextureUvFromRMuS(
-	const AtmosphereParameters atmosphere,
-	float r, float mu_s) {
-
-	float2 uv = make_float2(.0f, .0f);
-
-	if (r < atmosphere.bottom_radius || r > atmosphere.top_radius) return uv;
-	if (mu_s < -1.0f || mu_s > 1.0f) return uv;
-
-	float x_r = (r - atmosphere.bottom_radius) /
-		(atmosphere.top_radius - atmosphere.bottom_radius);
-	float x_mu_s = mu_s * 0.5 + 0.5;
-	uv = make_float2(GetTextureCoordFromUnitRange(x_mu_s, IRRADIANCE_TEXTURE_WIDTH), GetTextureCoordFromUnitRange(x_r, IRRADIANCE_TEXTURE_HEIGHT));
-
-	return uv;
-}
-
-__device__ __forceinline__ float atmosphere::GetTransmittanceToTopAtmosphereBoundary(
-	const AtmosphereParameters atmosphere,
-	const cudaTextureObject_t transmittance_texture,
-	float r, float mu_s) {
-
-	float tr = .0f;
-
-	if (r >= atmosphere.bottom_radius && r <= atmosphere.top_radius) {
-
-		float2 uv = GetTransmittanceTextureUvFromRMu(atmosphere, r, mu_s);
-
-		const float texval = tex2D<float>(transmittance_texture, uv.x, uv.y);
-
-		tr = texval;
-	}
-
-	return tr;
-
-}
-
-__device__ __forceinline__ float3 atmosphere::getIrradiance(
-	const AtmosphereParameters atmosphere,
-	const cudaTextureObject_t irradiance_texture,
-	float r, float mu_s) {
-
-
-	float2 uv = GetIrradianceTextureUvFromRMuS(atmosphere, r, mu_s);
-
-	const float4 texval = tex2D<float4>(irradiance_texture, uv.x, uv.y);
-
-	float3 val = make_float3(texval.x, texval.y, texval.z);
-
-	return val;
-}
-
-
-__device__ __forceinline__ float atmosphere::getTransmittanceToSun(
-	const AtmosphereParameters atmosphere,
-	const cudaTextureObject_t transmittance_texture,
-	float r, float mu_s) {
-
-	float sin_theta_h = atmosphere.bottom_radius / r;
-	float cos_theta_h = -sqrtf(max(1.0 - sin_theta_h * sin_theta_h, 0.0));
-
-	return GetTransmittanceToTopAtmosphereBoundary(atmosphere, transmittance_texture, r, mu_s) *
-		smoothstep(-sin_theta_h * sun_angular_radius,
-			sin_theta_h * sun_angular_radius,
-			mu_s - cos_theta_h);
-
-}
-
-__device__ __forceinline__ bool atmosphere::RayIntersectsGround(const AtmosphereParameters atmosphere, float r, float mu) {
-	if (r < atmosphere.bottom_radius) return false;
-	if (mu < -1.0 || mu > 1.0) return false;
-
-	return mu < 0.0 && r * r * (mu * mu - 1.0) +
-		atmosphere.bottom_radius * atmosphere.bottom_radius >= 0.0;
-}
-
-__device__ __forceinline__ float atmosphere::GetTransmittance(
-	const AtmosphereParameters atmosphere,
-	const cudaTextureObject_t transmittance_texture,
-	float r, float mu, float d, bool ray_r_mu_intersects_ground)
-{
-	if(r < atmosphere.bottom_radius || r > atmosphere.top_radius) return .0f;
-	if(mu < -1.0 || mu > 1.0) return .0f;
-	if(d < 0.0) return .0f;
-
-	float r_d = clamp(sqrt(d * d + 2.0 * r * mu * d + r * r), atmosphere.bottom_radius, atmosphere.top_radius);
-	float mu_d = ClampCosine((r * mu + d) / r_d);
-
-	if (ray_r_mu_intersects_ground) {
-		return min(
-			GetTransmittanceToTopAtmosphereBoundary(
-				atmosphere, transmittance_texture, r_d, -mu_d) /
-			GetTransmittanceToTopAtmosphereBoundary(
-				atmosphere, transmittance_texture, r, -mu),
-			float(1.0));
-	}
-	else {
-		return min(
-			GetTransmittanceToTopAtmosphereBoundary(
-				atmosphere, transmittance_texture, r, mu) /
-			GetTransmittanceToTopAtmosphereBoundary(
-				atmosphere, transmittance_texture, r_d, mu_d),
-			float(1.0));
-	}
-}
-
-
-__device__ __forceinline__ float3 atmosphere::GetSkyRadianceToPoint(
-	const AtmosphereParameters atmosphere,
-	const cudaTextureObject_t transmittance_texture,
-	const cudaTextureObject_t scattering_texture,
-	const cudaTextureObject_t single_mie_scattering_texture,
-	float3 camera, float3 point, float shadow_length,
-	float3 sun_direction, float transmittance) {
-	// Compute the distance to the top atmosphere boundary along the view ray,
-	// assuming the viewer is in space (or NaN if the view ray does not intersect
-	// the atmosphere).
-	float3 view_ray = normalize(point - camera);
-	float r = length(camera);
-	float rmu = dot(camera, view_ray);
-	float distance_to_top_atmosphere_boundary = -rmu -
-		sqrt(rmu * rmu - r * r + atmosphere.top_radius * atmosphere.top_radius);
-	// If the viewer is in space and the view ray intersects the atmosphere, move
-	// the viewer to the top atmosphere boundary (along the view ray):
-	if (distance_to_top_atmosphere_boundary > 0.0f) {
-		camera = camera + view_ray * distance_to_top_atmosphere_boundary;
-		r = atmosphere.top_radius;
-		rmu += distance_to_top_atmosphere_boundary;
-	}
-
-	// Compute the r, mu, mu_s and nu parameters for the first texture lookup.
-	float mu = rmu / r;
-	float mu_s = dot(camera, sun_direction) / r;
-	float nu = dot(view_ray, sun_direction);
-	float d = length(point - camera);
-	bool ray_r_mu_intersects_ground = RayIntersectsGround(atmosphere, r, mu);
-
-	transmittance = GetTransmittance(atmosphere, transmittance_texture,
-		r, mu, d, ray_r_mu_intersects_ground);
-
-	float3 single_mie_scattering;
-	float3 scattering = GetCombinedScattering(
-		atmosphere, scattering_texture, single_mie_scattering_texture,
-		r, mu, mu_s, nu, ray_r_mu_intersects_ground,
-		single_mie_scattering);
-
-	// Compute the r, mu, mu_s and nu parameters for the second texture lookup.
-	// If shadow_length is not 0 (case of light shafts), we want to ignore the
-	// scattering along the last shadow_length meters of the view ray, which we
-	// do by subtracting shadow_length from d (this way scattering_p is equal to
-	// the S|x_s=x_0-lv term in Eq. (17) of our paper).
-	d = max(d - shadow_length, 0.0f);
-	float r_p = clamp(sqrt(d * d + 2.0 * r * mu * d + r * r), atmosphere.bottom_radius, atmosphere.top_radius);
-	float mu_p = (r * mu + d) / r_p;
-	float mu_s_p = (r * mu_s + d * nu) / r_p;
-
-	float3 single_mie_scattering_p;
-	float3 scattering_p = GetCombinedScattering(
-		atmosphere, scattering_texture, single_mie_scattering_texture,
-		r_p, mu_p, mu_s_p, nu, ray_r_mu_intersects_ground,
-		single_mie_scattering_p);
-
-	// Combine the lookup results to get the scattering between camera and point.
-	float shadow_transmittance = transmittance;
-	if (shadow_length > 0.0f) {
-		// This is the T(x,x_s) term in Eq. (17) of our paper, for light shafts.
-		shadow_transmittance = GetTransmittance(atmosphere, transmittance_texture,
-			r, mu, d, ray_r_mu_intersects_ground);
-	}
-	scattering = scattering - shadow_transmittance * scattering_p;
-	single_mie_scattering =
-		single_mie_scattering - shadow_transmittance * single_mie_scattering_p;
-#ifdef COMBINED_SCATTERING_TEXTURES
-	single_mie_scattering = GetExtrapolatedSingleMieScattering(
-		atmosphere, vec4(scattering, single_mie_scattering.r));
-#endif
-
-	// Hack to avoid rendering artifacts when the sun is below the horizon.
-	single_mie_scattering = single_mie_scattering *
-		smoothstep(float(0.0), float(0.01), mu_s);
-
-	return scattering * RayleighPhaseFunction(nu) + single_mie_scattering *
-		MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
-}
-
-__device__ __forceinline__ float3 atmosphere::getSunAndSkyIrradiance(
-	const AtmosphereParameters atmosphere,
-	const cudaTextureObject_t transmittance_texture,
-	const cudaTextureObject_t irradiance_texture,
-	const float3 position, const float3 normal, const float3 sun_direction,
-	float3 &sky_irradiance) {
-
-	float r = length(position);
-	float mu_s = dot(position, sun_direction) / r;
-
-	sky_irradiance = getIrradiance(atmosphere, irradiance_texture, r, mu_s) * (1.0f + dot(normal, position) / r) * 0.5f;
-
-	return atmosphere.solar_irradiance * getTransmittanceToSun(atmosphere, transmittance_texture, r, mu_s) * fmaxf(dot(normal, sun_direction), .0f);
-
-}
-
-
-#endif
-
-
-
-
-
-
-__device__ __forceinline__ Number atmosphere::ClampCosine(Number mu) {
+__global__ Number ClampCosine(Number mu) {
 	return clamp(mu, Number(-1.0), Number(1.0));
 }
 
-__device__ __forceinline__ Length atmosphere::ClampDistance(Length d) {
+__global__ Length ClampDistance(Length d) {
 	return max(d, 0.0 * m);
 }
 
-__device__ __forceinline__ Length atmosphere::ClampRadius(const AtmosphereParameters atmosphere, Length r) {
+__global__ Length ClampRadius(const AtmosphereParameters atmosphere, Length r) {
 	return clamp(r, atmosphere.bottom_radius, atmosphere.top_radius);
 }
 
-__device__ __forceinline__ Length atmosphere::SafeSqrt(Area a) {
+__global__ Length SafeSqrt(Area a) {
 	return sqrt(max(a, 0.0 * m2));
 }
 
-__device__ __forceinline__ Length atmosphere::DistanceToTopAtmosphereBoundary(IN(AtmosphereParameters) atmosphere,
+__global__ Length DistanceToTopAtmosphereBoundary(const AtmosphereParameters atmosphere,
 	Length r, Number mu) {
 	assert(r <= atmosphere.top_radius);
 	assert(mu >= -1.0 && mu <= 1.0);
@@ -284,7 +29,7 @@ __device__ __forceinline__ Length atmosphere::DistanceToTopAtmosphereBoundary(IN
 	return ClampDistance(-r * mu + SafeSqrt(discriminant));
 }
 
-__device__ __forceinline__ Length atmosphere::DistanceToBottomAtmosphereBoundary(IN(AtmosphereParameters) atmosphere,
+__global__ Length DistanceToBottomAtmosphereBoundary(const AtmosphereParameters atmosphere,
 	Length r, Number mu) {
 	assert(r >= atmosphere.bottom_radius);
 	assert(mu >= -1.0 && mu <= 1.0);
@@ -293,7 +38,7 @@ __device__ __forceinline__ Length atmosphere::DistanceToBottomAtmosphereBoundary
 	return ClampDistance(-r * mu - SafeSqrt(discriminant));
 }
 
-__device__ __forceinline__ bool atmosphere::RayIntersectsGround(IN(AtmosphereParameters) atmosphere,
+__global__ bool RayIntersectsGround(const AtmosphereParameters atmosphere,
 	Length r, Number mu) {
 	assert(r >= atmosphere.bottom_radius);
 	assert(mu >= -1.0 && mu <= 1.0);
@@ -301,20 +46,20 @@ __device__ __forceinline__ bool atmosphere::RayIntersectsGround(IN(AtmospherePar
 		atmosphere.bottom_radius * atmosphere.bottom_radius >= 0.0 * m2;
 }
 
-__device__ __forceinline__ Number atmosphere::GetLayerDensity(IN(DensityProfileLayer) layer, Length altitude) {
+__global__ Number GetLayerDensity(const DensityProfileLayer layer, Length altitude) {
 	Number density = layer.exp_term * exp(layer.exp_scale * altitude) +
-		layer.linear_term * altitude + layer.constant_term;
+		layer.linear_term * altitude + layer.const_term;
 	return clamp(density, Number(0.0), Number(1.0));
 }
 
-__device__ __forceinline__ Number atmosphere::GetProfileDensity(IN(DensityProfile) profile, Length altitude) {
+__global__ Number GetProfileDensity(const DensityProfile profile, Length altitude) {
 	return altitude < profile.layers[0].width ?
 		GetLayerDensity(profile.layers[0], altitude) :
 		GetLayerDensity(profile.layers[1], altitude);
 }
 
-__device__ __forceinline__ Length atmosphere::ComputeOpticalLengthToTopAtmosphereBoundary(
-	IN(AtmosphereParameters) atmosphere, IN(DensityProfile) profile,
+__global__ Length ComputeOpticalLengthToTopAtmosphereBoundary(
+	const AtmosphereParameters atmosphere, const DensityProfile profile,
 	Length r, Number mu) {
 	assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
 	assert(mu >= -1.0 && mu <= 1.0);
@@ -339,11 +84,11 @@ __device__ __forceinline__ Length atmosphere::ComputeOpticalLengthToTopAtmospher
 	return result;
 }
 
-__device__ __forceinline__ DimensionlessSpectrum atmosphere::ComputeTransmittanceToTopAtmosphereBoundary(
-	IN(AtmosphereParameters) atmosphere, Length r, Number mu) {
+__global__ DimensionlessSpectrum ComputeTransmittanceToTopAtmosphereBoundary(
+	const AtmosphereParameters atmosphere, Length r, Number mu) {
 	assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
 	assert(mu >= -1.0 && mu <= 1.0);
-	return exp(-(
+	return expf(-(
 		atmosphere.rayleigh_scattering *
 		ComputeOpticalLengthToTopAtmosphereBoundary(
 			atmosphere, atmosphere.rayleigh_density, r, mu) +
@@ -355,15 +100,15 @@ __device__ __forceinline__ DimensionlessSpectrum atmosphere::ComputeTransmittanc
 			atmosphere, atmosphere.absorption_density, r, mu)));
 }
 
-__device__ __forceinline__ Number atmosphere::GetTextureCoordFromUnitRange(Number x, int texture_size) {
+__global__ Number GetTextureCoordFromUnitRange(Number x, int texture_size) {
 	return 0.5 / Number(texture_size) + x * (1.0 - 1.0 / Number(texture_size));
 }
 
-__device__ __forceinline__ Number atmosphere::GetUnitRangeFromTextureCoord(Number u, int texture_size) {
+__global__ Number GetUnitRangeFromTextureCoord(Number u, int texture_size) {
 	return (u - 0.5 / Number(texture_size)) / (1.0 - 1.0 / Number(texture_size));
 }
 
-__device__ __forceinline__ vec2 atmosphere::GetTransmittanceTextureUvFromRMu(IN(AtmosphereParameters) atmosphere,
+__global__ float2 GetTransmittanceTextureUvFromRMu(const AtmosphereParameters atmosphere,
 	Length r, Number mu) {
 	assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
 	assert(mu >= -1.0 && mu <= 1.0);
@@ -380,12 +125,12 @@ __device__ __forceinline__ vec2 atmosphere::GetTransmittanceTextureUvFromRMu(IN(
 	Length d_max = rho + H;
 	Number x_mu = (d - d_min) / (d_max - d_min);
 	Number x_r = rho / H;
-	return vec2(GetTextureCoordFromUnitRange(x_mu, TRANSMITTANCE_TEXTURE_WIDTH),
+	return make_float2(GetTextureCoordFromUnitRange(x_mu, TRANSMITTANCE_TEXTURE_WIDTH),
 		GetTextureCoordFromUnitRange(x_r, TRANSMITTANCE_TEXTURE_HEIGHT));
 }
 
-__device__ __forceinline__ void atmosphere::GetRMuFromTransmittanceTextureUv(IN(AtmosphereParameters) atmosphere,
-	IN(vec2) uv, OUT(Length) r, OUT(Number) mu) {
+__global__ void GetRMuFromTransmittanceTextureUv(const AtmosphereParameters atmosphere,
+	const float2 uv, Length& r, Number& mu) {
 	assert(uv.x >= 0.0 && uv.x <= 1.0);
 	assert(uv.y >= 0.0 && uv.y <= 1.0);
 	Number x_mu = GetUnitRangeFromTextureCoord(uv.x, TRANSMITTANCE_TEXTURE_WIDTH);
@@ -406,10 +151,9 @@ __device__ __forceinline__ void atmosphere::GetRMuFromTransmittanceTextureUv(IN(
 	mu = ClampCosine(mu);
 }
 
-__device__ __forceinline__ DimensionlessSpectrum atmosphere::ComputeTransmittanceToTopAtmosphereBoundaryTexture(
-	IN(AtmosphereParameters) atmosphere, IN(vec2) frag_coord) {
-	const vec2 TRANSMITTANCE_TEXTURE_SIZE =
-		vec2(TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
+__global__ DimensionlessSpectrum ComputeTransmittanceToTopAtmosphereBoundaryTexture(
+	const AtmosphereParameters atmosphere, const float2 frag_coord) {
+	const float2 TRANSMITTANCE_TEXTURE_SIZE = make_float2(TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
 	Length r;
 	Number mu;
 	GetRMuFromTransmittanceTextureUv(
@@ -418,18 +162,18 @@ __device__ __forceinline__ DimensionlessSpectrum atmosphere::ComputeTransmittanc
 }
 
 
-__device__ __forceinline__ DimensionlessSpectrum atmosphere::GetTransmittanceToTopAtmosphereBoundary(
-	IN(AtmosphereParameters) atmosphere,
+__global__ DimensionlessSpectrum GetTransmittanceToTopAtmosphereBoundary(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	Length r, Number mu) {
 	assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
-	vec2 uv = GetTransmittanceTextureUvFromRMu(atmosphere, r, mu);
+	float2 uv = GetTransmittanceTextureUvFromRMu(atmosphere, r, mu);
 	return DimensionlessSpectrum(texture(transmittance_texture, uv));
 }
 
 
-__device__ __forceinline__ DimensionlessSpectrum atmosphere::GetTransmittance(
-	IN(AtmosphereParameters) atmosphere,
+__global__ DimensionlessSpectrum GetTransmittance(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	Length r, Number mu, Length d, bool ray_r_mu_intersects_ground) {
 	assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
@@ -457,8 +201,8 @@ __device__ __forceinline__ DimensionlessSpectrum atmosphere::GetTransmittance(
 	}
 }
 
-__device__ __forceinline__ DimensionlessSpectrum atmosphere::GetTransmittanceToSun(
-	IN(AtmosphereParameters) atmosphere,
+__global__ DimensionlessSpectrum GetTransmittanceToSun(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	Length r, Number mu_s) {
 	Number sin_theta_h = atmosphere.bottom_radius / r;
@@ -470,8 +214,8 @@ __device__ __forceinline__ DimensionlessSpectrum atmosphere::GetTransmittanceToS
 			mu_s - cos_theta_h);
 }
 
-__device__ __forceinline__ void atmosphere::ComputeSingleScatteringIntegrand(
-	IN(AtmosphereParameters) atmosphere,
+__global__ void ComputeSingleScatteringIntegrand(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	Length r, Number mu, Number mu_s, Number nu, Length d,
 	bool ray_r_mu_intersects_ground,
@@ -490,7 +234,7 @@ __device__ __forceinline__ void atmosphere::ComputeSingleScatteringIntegrand(
 		atmosphere.mie_density, r_d - atmosphere.bottom_radius);
 }
 
-__device__ __forceinline__ Length atmosphere::DistanceToNearestAtmosphereBoundary(IN(AtmosphereParameters) atmosphere,
+__global__ Length DistanceToNearestAtmosphereBoundary(const AtmosphereParameters atmosphere,
 	Length r, Number mu, bool ray_r_mu_intersects_ground) {
 	if (ray_r_mu_intersects_ground) {
 		return DistanceToBottomAtmosphereBoundary(atmosphere, r, mu);
@@ -500,8 +244,8 @@ __device__ __forceinline__ Length atmosphere::DistanceToNearestAtmosphereBoundar
 	}
 }
 
-__device__ __forceinline__ void atmosphere::ComputeSingleScattering(
-	IN(AtmosphereParameters) atmosphere,
+__global__ void ComputeSingleScattering(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	Length r, Number mu, Number mu_s, Number nu,
 	bool ray_r_mu_intersects_ground,
@@ -538,17 +282,17 @@ __device__ __forceinline__ void atmosphere::ComputeSingleScattering(
 }
 
 
-__device__ __forceinline__ InverseSolidAngle atmosphere::RayleighPhaseFunction(Number nu) {
+__global__ InverseSolidAngle RayleighPhaseFunction(Number nu) {
 	InverseSolidAngle k = 3.0 / (16.0 * PI * sr);
 	return k * (1.0 + nu * nu);
 }
 
-__device__ __forceinline__ InverseSolidAngle atmosphere::MiePhaseFunction(Number g, Number nu) {
+__global__ InverseSolidAngle MiePhaseFunction(Number g, Number nu) {
 	InverseSolidAngle k = 3.0 / (8.0 * PI * sr) * (1.0 - g * g) / (2.0 + g * g);
 	return k * (1.0 + nu * nu) / pow(1.0 + g * g - 2.0 * g * nu, 1.5);
 }
 
-__device__ __forceinline__ vec4 atmosphere::GetScatteringTextureUvwzFromRMuMuSNu(IN(AtmosphereParameters) atmosphere,
+__global__ vec4 GetScatteringTextureUvwzFromRMuMuSNu(const AtmosphereParameters atmosphere,
 	Length r, Number mu, Number mu_s, Number nu,
 	bool ray_r_mu_intersects_ground) {
 	assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
@@ -604,9 +348,9 @@ __device__ __forceinline__ vec4 atmosphere::GetScatteringTextureUvwzFromRMuMuSNu
 	return vec4(u_nu, u_mu_s, u_mu, u_r);
 }
 
-__device__ __forceinline__ void atmosphere::GetRMuMuSNuFromScatteringTextureUvwz(IN(AtmosphereParameters) atmosphere,
-	IN(vec4) uvwz, OUT(Length) r, OUT(Number) mu, OUT(Number) mu_s,
-	OUT(Number) nu, OUT(bool) ray_r_mu_intersects_ground) {
+__global__ void GetRMuMuSNuFromScatteringTextureUvwz(const AtmosphereParameters atmosphere,
+	IN(vec4) uvwz, Length& r, Number& mu, Number& mu_s,
+	Number& nu, OUT(bool) ray_r_mu_intersects_ground) {
 	assert(uvwz.x >= 0.0 && uvwz.x <= 1.0);
 	assert(uvwz.y >= 0.0 && uvwz.y <= 1.0);
 	assert(uvwz.z >= 0.0 && uvwz.z <= 1.0);
@@ -660,9 +404,9 @@ __device__ __forceinline__ void atmosphere::GetRMuMuSNuFromScatteringTextureUvwz
 }
 
 
-__device__ __forceinline__ void atmosphere::GetRMuMuSNuFromScatteringTextureFragCoord(
-	IN(AtmosphereParameters) atmosphere, IN(vec3) frag_coord,
-	OUT(Length) r, OUT(Number) mu, OUT(Number) mu_s, OUT(Number) nu,
+__global__ void GetRMuMuSNuFromScatteringTextureFragCoord(
+	const AtmosphereParameters atmosphere, IN(vec3) frag_coord,
+	Length& r, Number& mu, Number& mu_s, Number& nu,
 	OUT(bool) ray_r_mu_intersects_ground) {
 	const vec4 SCATTERING_TEXTURE_SIZE = vec4(
 		SCATTERING_TEXTURE_NU_SIZE - 1,
@@ -683,7 +427,7 @@ __device__ __forceinline__ void atmosphere::GetRMuMuSNuFromScatteringTextureFrag
 		mu * mu_s + sqrt((1.0 - mu * mu) * (1.0 - mu_s * mu_s)));
 }
 
-__device__ __forceinline__ void atmosphere::ComputeSingleScatteringTexture(IN(AtmosphereParameters) atmosphere,
+__global__ void ComputeSingleScatteringTexture(const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture, IN(vec3) frag_coord,
 	OUT(IrradianceSpectrum) rayleigh, OUT(IrradianceSpectrum) mie) {
 	Length r;
@@ -699,8 +443,8 @@ __device__ __forceinline__ void atmosphere::ComputeSingleScatteringTexture(IN(At
 
 
 TEMPLATE(AbstractSpectrum)
-__device__ __forceinline__ AbstractSpectrum atmosphere::GetScattering(
-	IN(AtmosphereParameters) atmosphere,
+__global__ AbstractSpectrum GetScattering(
+	const AtmosphereParameters atmosphere,
 	IN(AbstractScatteringTexture TEMPLATE_ARGUMENT(AbstractSpectrum))
 	scattering_texture,
 	Length r, Number mu, Number mu_s, Number nu,
@@ -719,8 +463,8 @@ __device__ __forceinline__ AbstractSpectrum atmosphere::GetScattering(
 }
 
 
-__device__ __forceinline__ RadianceSpectrum atmosphere::GetScattering(
-	IN(AtmosphereParameters) atmosphere,
+__global__ RadianceSpectrum GetScattering(
+	const AtmosphereParameters atmosphere,
 	IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
 	IN(ReducedScatteringTexture) single_mie_scattering_texture,
 	IN(ScatteringTexture) multiple_scattering_texture,
@@ -744,14 +488,14 @@ __device__ __forceinline__ RadianceSpectrum atmosphere::GetScattering(
 	}
 }
 
-__device__ __forceinline__ IrradianceSpectrum atmosphere::GetIrradiance(
-	IN(AtmosphereParameters) atmosphere,
+__global__ IrradianceSpectrum GetIrradiance(
+	const AtmosphereParameters atmosphere,
 	IN(IrradianceTexture) irradiance_texture,
 	Length r, Number mu_s);
 
 
-__device__ __forceinline__ RadianceDensitySpectrum atmosphere::ComputeScatteringDensity(
-	IN(AtmosphereParameters) atmosphere,
+__global__ RadianceDensitySpectrum ComputeScatteringDensity(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
 	IN(ReducedScatteringTexture) single_mie_scattering_texture,
@@ -850,8 +594,8 @@ __device__ __forceinline__ RadianceDensitySpectrum atmosphere::ComputeScattering
 }
 
 
-__device__ __forceinline__ RadianceSpectrum atmosphere::ComputeMultipleScattering(
-	IN(AtmosphereParameters) atmosphere,
+__global__ RadianceSpectrum ComputeMultipleScattering(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	IN(ScatteringDensityTexture) scattering_density_texture,
 	Length r, Number mu, Number mu_s, Number nu,
@@ -898,8 +642,8 @@ __device__ __forceinline__ RadianceSpectrum atmosphere::ComputeMultipleScatterin
 }
 
 
-__device__ __forceinline__ RadianceDensitySpectrum atmosphere::ComputeScatteringDensityTexture(
-	IN(AtmosphereParameters) atmosphere,
+__global__ RadianceDensitySpectrum ComputeScatteringDensityTexture(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
 	IN(ReducedScatteringTexture) single_mie_scattering_texture,
@@ -919,11 +663,11 @@ __device__ __forceinline__ RadianceDensitySpectrum atmosphere::ComputeScattering
 		scattering_order);
 }
 
-__device__ __forceinline__ RadianceSpectrum atmosphere::ComputeMultipleScatteringTexture(
-	IN(AtmosphereParameters) atmosphere,
+__global__ RadianceSpectrum ComputeMultipleScatteringTexture(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	IN(ScatteringDensityTexture) scattering_density_texture,
-	IN(vec3) frag_coord, OUT(Number) nu) {
+	IN(vec3) frag_coord, Number& nu) {
 	Length r;
 	Number mu;
 	Number mu_s;
@@ -935,8 +679,8 @@ __device__ __forceinline__ RadianceSpectrum atmosphere::ComputeMultipleScatterin
 		ray_r_mu_intersects_ground);
 }
 
-__device__ __forceinline__ IrradianceSpectrum atmosphere::ComputeDirectIrradiance(
-	IN(AtmosphereParameters) atmosphere,
+__global__ IrradianceSpectrum ComputeDirectIrradiance(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	Length r, Number mu_s) {
 	assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
@@ -955,8 +699,8 @@ __device__ __forceinline__ IrradianceSpectrum atmosphere::ComputeDirectIrradianc
 
 }
 
-__device__ __forceinline__ IrradianceSpectrum atmosphere::ComputeIndirectIrradiance(
-	IN(AtmosphereParameters) atmosphere,
+__global__ IrradianceSpectrum ComputeIndirectIrradiance(
+	const AtmosphereParameters atmosphere,
 	IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
 	IN(ReducedScatteringTexture) single_mie_scattering_texture,
 	IN(ScatteringTexture) multiple_scattering_texture,
@@ -992,19 +736,19 @@ __device__ __forceinline__ IrradianceSpectrum atmosphere::ComputeIndirectIrradia
 }
 
 
-__device__ __forceinline__ vec2 atmosphere::GetIrradianceTextureUvFromRMuS(IN(AtmosphereParameters) atmosphere,
+__global__ float2 GetIrradianceTextureUvFromRMuS(const AtmosphereParameters atmosphere,
 	Length r, Number mu_s) {
 	assert(r >= atmosphere.bottom_radius && r <= atmosphere.top_radius);
 	assert(mu_s >= -1.0 && mu_s <= 1.0);
 	Number x_r = (r - atmosphere.bottom_radius) /
 		(atmosphere.top_radius - atmosphere.bottom_radius);
 	Number x_mu_s = mu_s * 0.5 + 0.5;
-	return vec2(GetTextureCoordFromUnitRange(x_mu_s, IRRADIANCE_TEXTURE_WIDTH),
+	return float2(GetTextureCoordFromUnitRange(x_mu_s, IRRADIANCE_TEXTURE_WIDTH),
 		GetTextureCoordFromUnitRange(x_r, IRRADIANCE_TEXTURE_HEIGHT));
 }
 
-__device__ __forceinline__ void atmosphere::GetRMuSFromIrradianceTextureUv(IN(AtmosphereParameters) atmosphere,
-	IN(vec2) uv, OUT(Length) r, OUT(Number) mu_s) {
+__global__ void GetRMuSFromIrradianceTextureUv(const AtmosphereParameters atmosphere,
+	const float2 uv, Length& r, Number& mu_s) {
 	assert(uv.x >= 0.0 && uv.x <= 1.0);
 	assert(uv.y >= 0.0 && uv.y <= 1.0);
 	Number x_mu_s = GetUnitRangeFromTextureCoord(uv.x, IRRADIANCE_TEXTURE_WIDTH);
@@ -1014,12 +758,12 @@ __device__ __forceinline__ void atmosphere::GetRMuSFromIrradianceTextureUv(IN(At
 	mu_s = ClampCosine(2.0 * x_mu_s - 1.0);
 }
 
-const vec2 IRRADIANCE_TEXTURE_SIZE = vec2(IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
+const float2 IRRADIANCE_TEXTURE_SIZE = float2(IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
 
-__device__ __forceinline__ IrradianceSpectrum atmosphere::ComputeDirectIrradianceTexture(
-	IN(AtmosphereParameters) atmosphere,
+__global__ IrradianceSpectrum ComputeDirectIrradianceTexture(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
-	IN(vec2) frag_coord) {
+	const float2 frag_coord) {
 	Length r;
 	Number mu_s;
 	GetRMuSFromIrradianceTextureUv(
@@ -1027,12 +771,12 @@ __device__ __forceinline__ IrradianceSpectrum atmosphere::ComputeDirectIrradianc
 	return ComputeDirectIrradiance(atmosphere, transmittance_texture, r, mu_s);
 }
 
-__device__ __forceinline__ IrradianceSpectrum atmosphere::ComputeIndirectIrradianceTexture(
-	IN(AtmosphereParameters) atmosphere,
+__global__ IrradianceSpectrum ComputeIndirectIrradianceTexture(
+	const AtmosphereParameters atmosphere,
 	IN(ReducedScatteringTexture) single_rayleigh_scattering_texture,
 	IN(ReducedScatteringTexture) single_mie_scattering_texture,
 	IN(ScatteringTexture) multiple_scattering_texture,
-	IN(vec2) frag_coord, int scattering_order) {
+	const float2 frag_coord, int scattering_order) {
 	Length r;
 	Number mu_s;
 	GetRMuSFromIrradianceTextureUv(
@@ -1043,17 +787,17 @@ __device__ __forceinline__ IrradianceSpectrum atmosphere::ComputeIndirectIrradia
 }
 
 
-__device__ __forceinline__ IrradianceSpectrum atmosphere::GetIrradiance(
-	IN(AtmosphereParameters) atmosphere,
+__global__ IrradianceSpectrum GetIrradiance(
+	const AtmosphereParameters atmosphere,
 	IN(IrradianceTexture) irradiance_texture,
 	Length r, Number mu_s) {
-	vec2 uv = GetIrradianceTextureUvFromRMuS(atmosphere, r, mu_s);
+	float2 uv = GetIrradianceTextureUvFromRMuS(atmosphere, r, mu_s);
 	return IrradianceSpectrum(texture(irradiance_texture, uv));
 }
 
 #ifdef COMBINED_SCATTERING_TEXTURES
-__device__ __forceinline__ vec3 atmosphere::GetExtrapolatedSingleMieScattering(
-	IN(AtmosphereParameters) atmosphere, IN(vec4) scattering) {
+__global__ vec3 GetExtrapolatedSingleMieScattering(
+	const AtmosphereParameters atmosphere, IN(vec4) scattering) {
 	if (scattering.r == 0.0) {
 		return vec3(0.0);
 	}
@@ -1064,8 +808,8 @@ __device__ __forceinline__ vec3 atmosphere::GetExtrapolatedSingleMieScattering(
 #endif
 
 
-__device__ __forceinline__ IrradianceSpectrum atmosphere::GetCombinedScattering(
-	IN(AtmosphereParameters) atmosphere,
+__global__ IrradianceSpectrum GetCombinedScattering(
+	const AtmosphereParameters atmosphere,
 	IN(ReducedScatteringTexture) scattering_texture,
 	IN(ReducedScatteringTexture) single_mie_scattering_texture,
 	Length r, Number mu, Number mu_s, Number nu,
@@ -1098,8 +842,8 @@ __device__ __forceinline__ IrradianceSpectrum atmosphere::GetCombinedScattering(
 	return scattering;
 }
 
-__device__ __forceinline__ RadianceSpectrum atmosphere::GetSkyRadiance(
-	IN(AtmosphereParameters) atmosphere,
+__global__ RadianceSpectrum GetSkyRadiance(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	IN(ReducedScatteringTexture) scattering_texture,
 	IN(ReducedScatteringTexture) single_mie_scattering_texture,
@@ -1167,8 +911,8 @@ __device__ __forceinline__ RadianceSpectrum atmosphere::GetSkyRadiance(
 }
 
 
-__device__ __forceinline__ RadianceSpectrum atmosphere::GetSkyRadianceToPoint(
-	IN(AtmosphereParameters) atmosphere,
+__global__ RadianceSpectrum GetSkyRadianceToPoint(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	IN(ReducedScatteringTexture) scattering_texture,
 	IN(ReducedScatteringTexture) single_mie_scattering_texture,
@@ -1246,8 +990,8 @@ __device__ __forceinline__ RadianceSpectrum atmosphere::GetSkyRadianceToPoint(
 }
 
 
-__device__ __forceinline__ IrradianceSpectrum atmosphere::GetSunAndSkyIrradiance(
-	IN(AtmosphereParameters) atmosphere,
+__global__ IrradianceSpectrum GetSunAndSkyIrradiance(
+	const AtmosphereParameters atmosphere,
 	IN(TransmittanceTexture) transmittance_texture,
 	IN(IrradianceTexture) irradiance_texture,
 	IN(Position) point, IN(Direction) normal, IN(Direction) sun_direction,
