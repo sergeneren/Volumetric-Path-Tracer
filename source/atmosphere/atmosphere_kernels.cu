@@ -1037,8 +1037,8 @@ extern "C" __global__ void fill_transmittance_buffer(
 
 	//calculate direction
 
-	float azimuth = float(x) / float(width) * float(M_PI) * 2.0f;
-	float elevation = float(y) / float(height) * float(M_PI);
+	float azimuth = float(x) / float(width) * float(PI) * 2.0f;
+	float elevation = float(y) / float(height) * float(PI);
 
 	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
 	pos.y += 1000 + 6360e3f;
@@ -1062,8 +1062,8 @@ extern "C" __global__ void fill_scattering_buffer(
 
 	//calculate direction
 
-	float azimuth = float(x) / float(width) * float(M_PI) * 2.0f;
-	float elevation = float(y) / float(height) * float(M_PI);
+	float azimuth = float(x) / float(width) * float(PI) * 2.0f;
+	float elevation = float(y) / float(height) * float(PI);
 
 	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
 	pos.y += 1000 + 6360e3f;
@@ -1085,8 +1085,8 @@ extern "C" __global__ void fill_irradiance_buffer(
 
 	//calculate direction
 
-	float azimuth = float(x) / float(width) * float(M_PI) * 2.0f;
-	float elevation = float(y) / float(height) * float(M_PI);
+	float azimuth = float(x) / float(width) * float(PI) * 2.0f;
+	float elevation = float(y) / float(height) * float(PI);
 
 	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
 	pos.y += 1000 + 6360e3f;

@@ -118,6 +118,11 @@ float	fov;
 float	aspect;
 float	aperture;
 
+// Atmosphere
+
+atmosphere earth;
+
+
 #define check_success(expr) \
     do { \
         if(!(expr)) { \
@@ -1382,6 +1387,13 @@ int main(const int argc, const char* argv[])
 	float rot_amount = 0.0f;
 
 
+	// Init atmosphere 
+	CUmodule atmosphere_module;
+	error = cuModuleLoad(&atmosphere_module, "atmosphere_kernels.ptx");
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+
+	earth.init_functions(atmosphere_module);
+	
 	// Create OIDN devices 
 
 	oidn::DeviceRef oidn_device = oidn::newDevice();
