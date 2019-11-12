@@ -73,6 +73,7 @@
 #include "gpu_vdb/gpu_vdb.h"
 #include "gpu_vdb/camera.h"
 #include "light.h"
+#include "atmosphere.h"
 
 // Image Writers 
 #define STB_IMAGE_WRITE_IMPLEMENTATION

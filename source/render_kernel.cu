@@ -47,6 +47,7 @@
 #include <curand_kernel.h>
 #include <device_launch_parameters.h>
 #include "helper_math.h"
+#include "atmosphere/functions.h"
 
 typedef unsigned char		uchar;
 typedef unsigned int		uint;
