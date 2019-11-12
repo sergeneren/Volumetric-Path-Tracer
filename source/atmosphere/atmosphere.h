@@ -42,24 +42,44 @@
 #define __ATMOSPHERE_H__
 
 #include "texture_types.h"
+#include "definitions.h"
 
 class atmosphere {
 
+
 public:
 
-	__device__ __host__ atmosphere(){}
-	__device__ __host__ ~atmosphere(){}
 
-	__host__ bool init();
-	__host__ bool precompute();
+	enum atmosphere_error_t {
 
-	// Variables that can be modified in main 
-	   
+		ATMO_INIT_ERR,
+		ATMO_INIT_FUNC_ERR,
+		ATMO_RECOMPUTE_ERR,
+		ATMO_FILL_TEX_ERR
+
+	};
+
+
+
+	atmosphere(){}
+	~atmosphere(){}
+
+	atmosphere_error_t init();
+	atmosphere_error_t init_functions(CUmodule &cuda_module);
+	atmosphere_error_t recompute(float azimuth, float elevation, float exposure);
+	atmosphere_error_t fill_transmittance_texture();
+	atmosphere_error_t fill_scattering_texture();
+	atmosphere_error_t fill_irradiance_texture();
+
 private:
 	
-	cudaTextureObject_t transmittance_texture;
-	cudaTextureObject_t scattering_texture;
-	cudaTextureObject_t irradiance_texture;
+	AtmosphereParameters atmosphere_parameters;
+
+	CUfunction *transmittance_texture_function;
+	CUfunction *scattering_texture_function;
+	CUfunction *irradiance_texture_function;
+
+	AtmosphereTextures atmosphere_textures;
 
 };
 
