@@ -69,36 +69,34 @@ meter (m), nanometer (nm), radian (rad), steradian (sr), watt (watt) and lumen
 (lm):
 */
 
-const Length m = 1.0;
-const Wavelength nm = 1.0;
-const Angle rad = 1.0;
-const SolidAngle sr = 1.0;
-const Power watt = 1.0;
-const LuminousPower lm = 1.0;
+__device__ const Length m = 1.0;
+__device__ const Wavelength nm = 1.0;
+__device__ const Angle rad = 1.0;
+__device__ const SolidAngle sr = 1.0;
+__device__ const Power watt = 1.0;
+__device__ const LuminousPower lm = 1.0;
 
 /*
 <p>From which we can derive the units for some derived physical quantities,
 as well as some derived units (kilometer km, kilocandela kcd, degree deg):
 */
 
-const float PI = 3.14159265358979323846;
+__device__ const float PI = 3.14159265358979323846;
 
-const Length km = 1000.0 * m;
-const Area m2 = m * m;
-const Volume m3 = m * m * m;
-const Angle pi = PI * rad;
-const Angle deg = pi / 180.0;
-const Irradiance watt_per_square_meter = watt / m2;
-const Radiance watt_per_square_meter_per_sr = watt / (m2 * sr);
-const SpectralIrradiance watt_per_square_meter_per_nm = watt / (m2 * nm);
-const SpectralRadiance watt_per_square_meter_per_sr_per_nm =
-watt / (m2 * sr * nm);
-const SpectralRadianceDensity watt_per_cubic_meter_per_sr_per_nm =
-watt / (m3 * sr * nm);
-const LuminousIntensity cd = lm / sr;
-const LuminousIntensity kcd = 1000.0 * cd;
-const Luminance cd_per_square_meter = cd / m2;
-const Luminance kcd_per_square_meter = kcd / m2;
+__device__ constexpr Length km() { return 1000.0 * m; }
+__device__ constexpr Area m2() { return m * m; }
+__device__ constexpr Volume m3() { return m * m * m; }
+__device__ constexpr Angle pi() { return PI / rad; }
+__device__ constexpr Angle deg() { return pi() / 180.0; }
+__device__ constexpr Irradiance watt_per_square_meter() { return watt / m2() ; }
+__device__ constexpr Radiance watt_per_square_meter_per_sr() { return watt / (m2() * sr); }
+__device__ constexpr SpectralIrradiance watt_per_square_meter_per_nm() { return watt / (m2() * nm); }
+__device__ constexpr SpectralRadiance watt_per_square_meter_per_sr_per_nm() { return watt / (m2() * sr * nm); }
+__device__ constexpr SpectralRadianceDensity watt_per_cubic_meter_per_sr_per_nm() { return watt / (m3() * sr * nm); }
+__device__ constexpr LuminousIntensity cd() { return lm / sr; }
+__device__ constexpr LuminousIntensity kcd() { return 1000.0 * cd(); }
+__device__ constexpr Luminance cd_per_square_meter() { return cd() / m2(); }
+__device__ constexpr Luminance kcd_per_square_meter() { return kcd() / m2(); }
 
 struct ALIGN(16) DensityProfileLayer {
 
@@ -139,7 +137,7 @@ struct ALIGN(16) AtmosphereParameters {
 	float3 absorption_extinction;
 
 	float3 ground_albedo;
-
+	float sun_angular_radius;
 	float mu_s_min;
 
 };
