@@ -1,4 +1,9 @@
 
+
+#include <device_launch_parameters.h>
+#include <cuda_runtime.h> 
+#include <curand_kernel.h>
+
 #include "helper_math.h"
 #include "constants.h"
 #include "definitions.h"
@@ -1015,3 +1020,77 @@ __device__  float3 GetSunAndSkyIrradiance(
 			atmosphere, transmittance_texture, r, mu_s) *
 		max(dot(normal, sun_direction), 0.0);
 }
+
+
+
+
+
+extern "C" __global__ void fill_transmittance_buffer(
+	const AtmosphereParameters kernel_params, 
+	const int width, const int height) {
+
+
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	if (x >= width || y >= height) return;
+	const unsigned int idx = y * width + x;
+
+	//calculate direction
+
+	float azimuth = float(x) / float(width) * float(M_PI) * 2.0f;
+	float elevation = float(y) / float(height) * float(M_PI);
+
+	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
+	pos.y += 1000 + 6360e3f;
+	float3 dir = make_float3(sinf(elevation) * cosf(azimuth), cosf(elevation), sinf(elevation) * sinf(azimuth)); // polar to cartesian 
+	
+
+
+}
+
+
+extern "C" __global__ void fill_scattering_buffer(
+	const AtmosphereParameters kernel_params, 
+	const cudaTextureObject_t transmittance_texture, 
+	const int width, const int height) {
+
+
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	if (x >= width || y >= height) return;
+	const unsigned int idx = y * width + x;
+
+	//calculate direction
+
+	float azimuth = float(x) / float(width) * float(M_PI) * 2.0f;
+	float elevation = float(y) / float(height) * float(M_PI);
+
+	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
+	pos.y += 1000 + 6360e3f;
+	float3 dir = make_float3(sinf(elevation) * cosf(azimuth), cosf(elevation), sinf(elevation) * sinf(azimuth)); // polar to cartesian 
+	
+}
+
+extern "C" __global__ void fill_irradiance_buffer(
+	const AtmosphereParameters kernel_params, 
+	const cudaTextureObject_t transmittance_texture, 
+	const cudaTextureObject_t scattering_texture, 
+	const int width, const int height) {
+
+
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	if (x >= width || y >= height) return;
+	const unsigned int idx = y * width + x;
+
+	//calculate direction
+
+	float azimuth = float(x) / float(width) * float(M_PI) * 2.0f;
+	float elevation = float(y) / float(height) * float(M_PI);
+
+	float3 pos = make_float3(0.0f, 0.0f, 0.0f);
+	pos.y += 1000 + 6360e3f;
+	float3 dir = make_float3(sinf(elevation) * cosf(azimuth), cosf(elevation), sinf(elevation) * sinf(azimuth)); // polar to cartesian 
+
+}
+

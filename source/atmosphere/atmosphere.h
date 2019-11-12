@@ -59,10 +59,7 @@ class atmosphere {
 
 
 public:
-
-
 	
-
 	atmosphere();
 	~atmosphere();
 
@@ -80,6 +77,10 @@ private:
 	CUfunction *transmittance_texture_function;
 	CUfunction *scattering_texture_function;
 	CUfunction *irradiance_texture_function;
+
+	float3 *transmittance_buffer;
+	float4 *scattering_buffer;
+	float3 *irradiance_buffer;
 
 	AtmosphereTextures atmosphere_textures;
 

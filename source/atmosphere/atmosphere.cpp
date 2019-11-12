@@ -47,13 +47,13 @@
 atmosphere_error_t atmosphere::init_functions(CUmodule &cuda_module) {
 
 	CUresult error;
-	error = cuModuleGetFunction(transmittance_texture_function, cuda_module, "fill_transmittance_texture");
+	error = cuModuleGetFunction(transmittance_texture_function, cuda_module, "fill_transmittance_buffer");
 	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
 	
-	error = cuModuleGetFunction(scattering_texture_function, cuda_module, "fill_scattering_texture");
+	error = cuModuleGetFunction(scattering_texture_function, cuda_module, "fill_scattering_buffer");
 	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
 
-	error = cuModuleGetFunction(irradiance_texture_function, cuda_module, "fill_irradiance_texture");
+	error = cuModuleGetFunction(irradiance_texture_function, cuda_module, "fill_irradiance_buffer");
 	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
 	
 	return ATMO_NO_ERR;
