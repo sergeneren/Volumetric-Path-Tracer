@@ -56,6 +56,8 @@ atmosphere_error_t atmosphere::init_functions(CUmodule &cuda_module) {
 	error = cuModuleGetFunction(irradiance_texture_function, cuda_module, "fill_irradiance_texture");
 	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
 	
+	return ATMO_NO_ERR;
+
 }
 
 atmosphere::~atmosphere() {
@@ -71,7 +73,4 @@ atmosphere::atmosphere() {
 	transmittance_texture_function = new CUfunction;
 	scattering_texture_function = new CUfunction;
 	irradiance_texture_function = new CUfunction;
-
-	init();
-
 }
