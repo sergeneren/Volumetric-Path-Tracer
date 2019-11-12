@@ -1105,8 +1105,8 @@ static void update_camera(double dx, double dy, double mx, double my, int zoom_d
 	float dist = length(lookfrom - lookat);
 	// Rotation
 
-	lookfrom -= cam.u * float(dx) * rot_speed * dist * 0.01;
-	lookfrom += cam.v * float(dy) * rot_speed * dist * 0.01;
+	lookfrom -= cam.u * float(dx) * rot_speed * dist * 0.01f;
+	lookfrom += cam.v * float(dy) * rot_speed * dist * 0.01f;
 
 	//Pan
 	lookfrom -= cam.u * float(mx) * rot_speed;

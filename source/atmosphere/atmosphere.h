@@ -42,50 +42,23 @@
 #define __ATMOSPHERE_H__
 
 #include "texture_types.h"
-#include "texture_indirect_functions.h"
-#include "texture_fetch_functions.h"
-#include "matrix_math.h"
-#include <string>
-
-#include "helper_math.h"
-#include "constants.h"
-#include "definitions.h"
-
-
 
 class atmosphere {
-
-
 
 public:
 
 	__device__ __host__ atmosphere(){}
 	__device__ __host__ ~atmosphere(){}
 
-	__device__ Number atmosphere::ClampCosine(Number mu);
-	__device__ Length atmosphere::ClampDistance(Length d);
-
-
 	__host__ bool init();
 	__host__ bool precompute();
-	   
-
 
 	// Variables that can be modified in main 
-
-	float sun_zenith_angle; // in radians 
-	float sun_azimuth_angle; // in radians
-	float sun_angular_radius;
-
-
-
+	   
 private:
 	
-	uint num_precomputed_wavelengths;
-
 	cudaTextureObject_t transmittance_texture;
 	cudaTextureObject_t scattering_texture;
-	cudaTextureObject_t optional_mie_scattering_texture;
 	cudaTextureObject_t irradiance_texture;
 
 };
