@@ -1,3 +1,4 @@
+
 //--------------------------------------------------------------------------------
 //
 //	Redistribution and use in source and binary forms, with or without
@@ -29,59 +30,48 @@
 // All rights reserved.
 //----------------------------------------------------------------------------------
 // 
-//	Version 1.0: Sergen Eren, 11/11/2019
+//	Version 1.0: Sergen Eren, 12/11/2019
 //
-// File: This is the header file for atmosphere class that implements 
-//		 bruneton model sky in cuda. This file contains device side function 
-//		 definitions and host side function declerations
+// File: This is the implementation file for atmosphere class functions 
 //
 //-----------------------------------------------
 
 
-#ifndef  __ATMOSPHERE_H__
-#define __ATMOSPHERE_H__
+#include <vector>
+#include <string>
 
-#include "texture_types.h"
-#include "definitions.h"
-#include <cuda.h>
-
-enum atmosphere_error_t {
-
-	ATMO_INIT_ERR,
-	ATMO_INIT_FUNC_ERR,
-	ATMO_RECOMPUTE_ERR,
-	ATMO_FILL_TEX_ERR
-
-};
-
-class atmosphere {
+#include "atmosphere.h"
 
 
-public:
 
+atmosphere_error_t atmosphere::init_functions(CUmodule &cuda_module) {
 
+	CUresult error;
+	error = cuModuleGetFunction(transmittance_texture_function, cuda_module, "fill_transmittance_texture");
+	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
 	
+	error = cuModuleGetFunction(scattering_texture_function, cuda_module, "fill_scattering_texture");
+	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
 
-	atmosphere();
-	~atmosphere();
-
-	atmosphere_error_t init();
-	atmosphere_error_t init_functions(CUmodule &cuda_module);
-	atmosphere_error_t recompute(float azimuth, float elevation, float exposure);
-	atmosphere_error_t fill_transmittance_texture();
-	atmosphere_error_t fill_scattering_texture();
-	atmosphere_error_t fill_irradiance_texture();
-
-private:
+	error = cuModuleGetFunction(irradiance_texture_function, cuda_module, "fill_irradiance_texture");
+	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
 	
-	AtmosphereParameters atmosphere_parameters;
+}
 
-	CUfunction *transmittance_texture_function;
-	CUfunction *scattering_texture_function;
-	CUfunction *irradiance_texture_function;
+atmosphere::~atmosphere() {
 
-	AtmosphereTextures atmosphere_textures;
+	transmittance_texture_function = nullptr;
+	scattering_texture_function = nullptr;
+	irradiance_texture_function = nullptr;
 
-};
+}
 
-#endif // ! __ATMOSPHERE_H__
+atmosphere::atmosphere() {
+
+	transmittance_texture_function = new CUfunction;
+	scattering_texture_function = new CUfunction;
+	irradiance_texture_function = new CUfunction;
+
+	init();
+
+}

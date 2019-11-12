@@ -59,8 +59,7 @@ add_definitions(-DASSET_PATH="${ASSET_DIR}/")
 
 file( GLOB ATMOSPHERE
 		"${CMAKE_SOURCE_DIR}/atmosphere/*.h"
-		"${CMAKE_SOURCE_DIR}/atmosphere/*.glsl"
-		"${CMAKE_SOURCE_DIR}/atmosphere/*.cc")
+		"${CMAKE_SOURCE_DIR}/atmosphere/*.cpp")
 
 
 file( GLOB	HEADERS 
@@ -113,7 +112,6 @@ target_link_libraries(vpt PRIVATE glfw imgui::imgui nlohmann_json::nlohmann_json
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/atmosphere)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/dimensional_types)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
 include_directories(${OID_DIR}/include)
