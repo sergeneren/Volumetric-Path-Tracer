@@ -5,8 +5,8 @@
 #include <curand_kernel.h>
 
 #include "helper_math.h"
-#include "constants.h"
-#include "definitions.h"
+#include "atmosphere/constants.h"
+#include "atmosphere/definitions.h"
 #include <assert.h>
 
 #define COMBINED_SCATTERING_TEXTURES

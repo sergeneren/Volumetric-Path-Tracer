@@ -42,7 +42,7 @@
 #define __ATMOSPHERE_H__
 
 #include "texture_types.h"
-#include "definitions.h"
+#include "atmosphere/definitions.h"
 #include <cuda.h>
 
 enum atmosphere_error_t {
@@ -63,7 +63,7 @@ public:
 	atmosphere();
 	~atmosphere();
 
-	atmosphere_error_t init();
+	atmosphere_error_t init(bool , bool);
 	atmosphere_error_t init_functions(CUmodule &cuda_module);
 	atmosphere_error_t recompute(float azimuth, float elevation, float exposure);
 	atmosphere_error_t fill_transmittance_texture();

@@ -104,6 +104,7 @@ using json = nlohmann::json;
 
 CUmodule cuRenderModule;
 CUmodule cuTextureModule;
+CUmodule atmosphere_module;
 CUfunction cuRaycastKernel;
 CUfunction cuTextureKernel;
 
@@ -269,6 +270,40 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 
 
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
+}
+
+// Initialize atmosphere
+bool init_atmosphere(float azimuth, float elevation, float exposure) {
+
+	CUresult error;
+	atmosphere_error_t atmos_err;
+
+	// First initialize our atmosphere parameters 
+	atmos_err = earth.init();
+	if (atmos_err != ATMO_NO_ERR) {
+		printf("ERROR: Unable to initialize atmosphere core!");
+		return false;
+	}
+
+	// Load in the ptx file and initialize kernel functions 
+	error = cuModuleLoad(&atmosphere_module, "atmosphere_kernels.ptx");
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+
+	atmos_err = earth.init_functions(atmosphere_module);
+
+	if (atmos_err != ATMO_NO_ERR) { 
+		printf("ERROR: Unable to initialize atmosphere functions!");
+		return false;
+	}
+
+	// Compute the textures that will be sent to the render kernel 
+	atmos_err = earth.recompute(azimuth, elevation, exposure);
+	if (atmos_err != ATMO_NO_ERR) {
+		printf("ERROR: Unable to compote atmosphere textures!");
+		return false;
+	}
+
+	return true;
 }
 
 // Save Exr Images
@@ -1388,12 +1423,15 @@ int main(const int argc, const char* argv[])
 
 
 	// Init atmosphere 
-	CUmodule atmosphere_module;
-	error = cuModuleLoad(&atmosphere_module, "atmosphere_kernels.ptx");
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
 
-	earth.init_functions(atmosphere_module);
+	bool success = init_atmosphere(azimuth, elevation, 10.0f);
+	if (!success) {
+		
+		printf("Error: Unable to initialize atmosphere!");
+		exit(-1);
 	
+	}
+
 	// Create OIDN devices 
 
 	oidn::DeviceRef oidn_device = oidn::newDevice();
