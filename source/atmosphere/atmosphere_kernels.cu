@@ -158,12 +158,7 @@ __device__  float3 GetTransmittanceToTopAtmosphereBoundary(const AtmosphereParam
 {
 
 	float2 uv = GetTransmittanceTextureUvFromRMu(atmosphere, r, mu);
-	int x = int(floor(uv.x * TRANSMITTANCE_TEXTURE_WIDTH));
-	int y = int(floor(uv.y * TRANSMITTANCE_TEXTURE_HEIGHT));
-	int idx = (y * TRANSMITTANCE_TEXTURE_WIDTH) + x;
-	idx = clamp(idx, 0, TRANSMITTANCE_TEXTURE_WIDTH*TRANSMITTANCE_TEXTURE_HEIGHT);
-	
-	const float3 texval = atmosphere.transmittance_buffer[idx];	
+	const float3 texval = make_float3(tex2D<float4>(atmosphere.transmittance_texture, uv.x, uv.y));	
 	return texval;
 }
 
@@ -600,15 +595,10 @@ __device__  float3 ComputeIndirectIrradianceTexture(const AtmosphereParameters a
 	return ComputeIndirectIrradiance(atmosphere, r, mu_s, scattering_order);
 }
 
-__device__  float3 GetIrradiance(const AtmosphereParameters atmosphere, float r, float mu_s) {
+__device__  float3 GetIrradiance(const AtmosphereParameters atmosphere, float r, float mu_s) 
+{
 	float2 uv = GetIrradianceTextureUvFromRMuS(atmosphere, r, mu_s);
-
-	int x = int(floor(uv.x * IRRADIANCE_TEXTURE_WIDTH));
-	int y = int(floor(uv.y * IRRADIANCE_TEXTURE_HEIGHT));
-	int idx = (y * IRRADIANCE_TEXTURE_WIDTH) + x;
-	idx = clamp(idx, 0, IRRADIANCE_TEXTURE_WIDTH*IRRADIANCE_TEXTURE_HEIGHT);
-
-	const float3 val = atmosphere.irradiance_buffer[idx];
+	const float3 val = make_float3(tex2D<float4>(atmosphere.irradiance_texture, uv.x, uv.y));
 	return val;
 }
 
@@ -793,7 +783,7 @@ extern "C" __global__ void calculate_transmittance(const AtmosphereParameters at
 
 	float2 frag_coord = make_float2(x, y);
 	frag_coord += make_float2(0.5f, 0.5f);
-	atmosphere.transmittance_buffer[idx] = ComputeTransmittanceToTopAtmosphereBoundaryTexture(atmosphere, frag_coord);
+	atmosphere.transmittance_buffer[idx] = make_float4(ComputeTransmittanceToTopAtmosphereBoundaryTexture(atmosphere, frag_coord));
 
 }
 
@@ -807,11 +797,11 @@ extern "C" __global__ void calculate_direct_irradiance(const AtmosphereParameter
 	float2 frag_coord = make_float2(x, y);
 	frag_coord += make_float2(0.5f, 0.5f);
 
-	if(!blend) atmosphere.irradiance_buffer[idx] = make_float3(.0f);
+	if(!blend) atmosphere.irradiance_buffer[idx] = make_float4(.0f);
 	
-	float3 temp_val = atmosphere.irradiance_buffer[idx];
+	float4 temp_val = atmosphere.irradiance_buffer[idx];
 
-	atmosphere.delta_irradience_buffer[idx] = ComputeDirectIrradianceTexture(atmosphere, frag_coord);
+	atmosphere.delta_irradience_buffer[idx] = make_float4( ComputeDirectIrradianceTexture(atmosphere, frag_coord));
 	
 	if(blend) atmosphere.irradiance_buffer[idx] += temp_val;
 	
@@ -831,7 +821,7 @@ extern "C" __global__ void calculate_indirect_irradiance(const AtmosphereParamet
 
 	float4 temp_val = atmosphere.irradiance_buffer[idx];
 
-	atmosphere.irradiance_buffer[idx] = luminance_from_radiance * delta_irradiance_value;
+	atmosphere.irradiance_buffer[idx] = make_float4( luminance_from_radiance * delta_irradiance_value);
 
 	atmosphere.delta_irradience_buffer[idx] = atmosphere.irradiance_buffer[idx];
 

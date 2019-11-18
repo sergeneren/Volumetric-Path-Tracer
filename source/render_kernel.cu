@@ -352,7 +352,7 @@ __device__ inline float sample_double_hg(
 
 // Atmosphere Functions
 
-//#define COMBINED_SCATTERING_TEXTURES
+#define COMBINED_SCATTERING_TEXTURES
 
 __device__  float ClampCosine(float mu)
 {
@@ -485,16 +485,20 @@ __device__  void GetRMuFromTransmittanceTextureUv(const AtmosphereParameters atm
 	mu = ClampCosine(mu);
 }
 
+__device__  float3 ComputeTransmittanceToTopAtmosphereBoundaryTexture(const AtmosphereParameters atmosphere, float2 frag_coord)
+{
+	const float2 TRANSMITTANCE_TEXTURE_SIZE = make_float2(TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
+	float r;
+	float mu;
+	GetRMuFromTransmittanceTextureUv(atmosphere, (frag_coord / TRANSMITTANCE_TEXTURE_SIZE), r, mu);
+	return ComputeTransmittanceToTopAtmosphereBoundary(atmosphere, r, mu);
+}
+
 __device__  float3 GetTransmittanceToTopAtmosphereBoundary(const AtmosphereParameters atmosphere, float r, float mu)
 {
 
 	float2 uv = GetTransmittanceTextureUvFromRMu(atmosphere, r, mu);
-	int x = int(floor(uv.x * TRANSMITTANCE_TEXTURE_WIDTH));
-	int y = int(floor(uv.y * TRANSMITTANCE_TEXTURE_HEIGHT));
-	int idx = (y * TRANSMITTANCE_TEXTURE_WIDTH) + x;
-	idx = clamp(idx, 0, TRANSMITTANCE_TEXTURE_WIDTH*TRANSMITTANCE_TEXTURE_HEIGHT);
-
-	const float3 texval = atmosphere.transmittance_buffer[idx];
+	const float3 texval = make_float3(tex2D<float4>(atmosphere.transmittance_texture, uv.x, uv.y));
 	return texval;
 }
 
@@ -885,17 +889,12 @@ __device__  void GetRMuSFromIrradianceTextureUv(const AtmosphereParameters atmos
 	mu_s = ClampCosine(2.0 * x_mu_s - 1.0);
 }
 
-__device__  float3 GetIrradiance(const AtmosphereParameters atmosphere, float r, float mu_s) {
+__device__  float3 GetIrradiance(const AtmosphereParameters atmosphere, float r, float mu_s)
+{
 	float2 uv = GetIrradianceTextureUvFromRMuS(atmosphere, r, mu_s);
-
-	int x = int(floor(uv.x * IRRADIANCE_TEXTURE_WIDTH));
-	int y = int(floor(uv.y * IRRADIANCE_TEXTURE_HEIGHT));
-	int idx = (y * IRRADIANCE_TEXTURE_WIDTH) + x;
-	idx = clamp(idx, 0, IRRADIANCE_TEXTURE_WIDTH*IRRADIANCE_TEXTURE_HEIGHT);
-
-	const float3 val = atmosphere.irradiance_buffer[idx];
+	const float3 val = make_float3(tex2D<float4>(atmosphere.irradiance_texture, uv.x, uv.y));
 	return val;
-}
+} 
 
 
 // Rendering kernels 
@@ -922,19 +921,13 @@ __device__  float3 GetCombinedScattering(const AtmosphereParameters atmosphere, 
 	float3 uvw0 = make_float3((tex_x + uvwz.y) / float(SCATTERING_TEXTURE_NU_SIZE), uvwz.z, uvwz.w);
 	float3 uvw1 = make_float3((tex_x + 1.0 + uvwz.y) / float(SCATTERING_TEXTURE_NU_SIZE), uvwz.z, uvwz.w);
 
-	int3 uvw0_i = make_int3(uvw0.x * SCATTERING_TEXTURE_WIDTH, uvw0.y * SCATTERING_TEXTURE_HEIGHT, uvw0.z * SCATTERING_TEXTURE_DEPTH);
-	int3 uvw1_i = make_int3(uvw1.x * SCATTERING_TEXTURE_WIDTH, uvw1.y * SCATTERING_TEXTURE_HEIGHT, uvw1.z * SCATTERING_TEXTURE_DEPTH);
-
-	int index0 = uvw0_i.x + SCATTERING_TEXTURE_WIDTH * (uvw0_i.y + SCATTERING_TEXTURE_HEIGHT * uvw0_i.z);
-	int index1 = uvw1_i.x + SCATTERING_TEXTURE_WIDTH * (uvw1_i.y + SCATTERING_TEXTURE_HEIGHT * uvw1_i.z);
-
 #ifdef COMBINED_SCATTERING_TEXTURES
-	float4 combined_scattering = atmosphere.scattering_buffer[index0] * (1.0 - lerp) + atmosphere.scattering_buffer[index1] * lerp;
+	float4 combined_scattering = tex3D<float4>(atmosphere.scattering_texture, uvw0.x, uvw0.y, uvw0.z) * (1.0 - lerp) + tex3D<float4>(atmosphere.scattering_texture, uvw1.x, uvw1.y, uvw1.z) * lerp;
 	float3 scattering = make_float3(combined_scattering);
 	single_mie_scattering = GetExtrapolatedSingleMieScattering(atmosphere, combined_scattering);
 #else
-	float3 scattering = make_float3(atmosphere.scattering_buffer[index0] * (1.0 - lerp) + atmosphere.scattering_buffer[index1] * lerp);
-	single_mie_scattering = make_float3(atmosphere.optional_mie_single_scattering_buffer[index0] * (1.0 - lerp) + atmosphere.optional_mie_single_scattering_buffer[index1] * lerp);
+	float3 scattering = make_float3(tex3D<float4>(atmosphere.scattering_texture, uvw0.x, uvw0.y, uvw0.z) * (1.0 - lerp) + tex3D<float4>(atmosphere.scattering_texture, uvw1.x, uvw1.y, uvw1.z) * lerp);
+	single_mie_scattering = make_float3(tex3D<float4>(atmosphere.single_mie_scattering_texture, uvw0.x, uvw0.y, uvw0.z) * (1.0 - lerp) + tex3D<float4>(atmosphere.single_mie_scattering_texture, uvw1.x, uvw1.y, uvw1.z) * lerp);
 #endif
 	return scattering;
 }
@@ -999,8 +992,7 @@ __device__  float3 GetSkyRadianceToPoint(const AtmosphereParameters atmosphere, 
 	float3 view_ray = normalize(point - camera);
 	float r = length(camera);
 	float rmu = dot(camera, view_ray);
-	float distance_to_top_atmosphere_boundary = -rmu -
-		sqrt(rmu * rmu - r * r + atmosphere.top_radius * atmosphere.top_radius);
+	float distance_to_top_atmosphere_boundary = -rmu - sqrt(rmu * rmu - r * r + atmosphere.top_radius * atmosphere.top_radius);
 	// If the viewer is in space and the view ray intersects the atmosphere, move
 	// the viewer to the top atmosphere boundary (along the view ray):
 	if (distance_to_top_atmosphere_boundary > 0.0 * m) {
@@ -1064,6 +1056,7 @@ __device__  float3 GetSunAndSkyIrradiance(const AtmosphereParameters atmosphere,
 	// Direct irradiance.
 	return atmosphere.solar_irradiance * GetTransmittanceToSun(atmosphere, r, mu_s) * max(dot(normal, sun_direction), 0.0);
 }
+
 
 
 // Light Samplers 
