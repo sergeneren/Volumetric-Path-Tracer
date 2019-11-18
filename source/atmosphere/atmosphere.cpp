@@ -42,8 +42,11 @@
 #include <string>
 #include <fstream>
 
+
 #ifdef DEBUG_TEXTURES
-	#define STB_IMAGE_WRITE_IMPLEMENTATION
+	#ifndef STB_IMAGE_WRITE_IMPLEMENTATION
+		#define STB_IMAGE_WRITE_IMPLEMENTATION
+	#endif // !STB_IMAGE_WRITE_IMPLEMENTATION
 	#include "stb_image_write.h"
 #endif // DEBUG_TEXTURES
 
@@ -58,22 +61,40 @@ atmosphere_error_t atmosphere::init_functions(CUmodule &cuda_module) {
 
 	CUresult error;
 	error = cuModuleGetFunction(&transmittance_function, cuda_module, "calculate_transmittance");
-	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
+	if (error != CUDA_SUCCESS) {
+		printf("Unable to bind transmittance function!\n");
+		return ATMO_INIT_FUNC_ERR;
+	}
 	
 	error = cuModuleGetFunction(&direct_irradiance_function, cuda_module, "calculate_direct_irradiance");
-	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
+	if (error != CUDA_SUCCESS) {
+		printf("Unable to bind direct irradiance function!\n");
+		return ATMO_INIT_FUNC_ERR;
+	}
 	
 	error = cuModuleGetFunction(&indirect_irradiance_function, cuda_module, "calculate_indirect_irradiance");
-	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
+	if (error != CUDA_SUCCESS) {
+		printf("Unable to bind indirect irradiance function!\n");
+		return ATMO_INIT_FUNC_ERR;
+	}
 	
 	error = cuModuleGetFunction(&multiple_scattering_function, cuda_module, "calculate_multiple_scattering");
-	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
+	if(error != CUDA_SUCCESS) {
+		printf("Unable to bind multiple scattering function!\n");
+		return ATMO_INIT_FUNC_ERR;
+	}
 	
 	error = cuModuleGetFunction(&scattering_density_function, cuda_module, "calculate_scattering_density");
-	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
+	if (error != CUDA_SUCCESS) {
+		printf("Unable to bind scattering density function!\n");
+		return ATMO_INIT_FUNC_ERR;
+	}
 	
 	error = cuModuleGetFunction(&single_scattering_function, cuda_module, "calculate_single_scattering");
-	if (error != CUDA_SUCCESS) return ATMO_INIT_FUNC_ERR;
+	if (error != CUDA_SUCCESS) {
+		printf("Unable to bind single scattering function!\n");
+		return ATMO_INIT_FUNC_ERR;
+	}
 	
 	
 	return ATMO_NO_ERR;
@@ -225,28 +246,8 @@ void atmosphere::print_texture(float4 * buffer, const char * filename, const int
 #endif
 }
 
-// Precomputes the textures that will be sent to the render kernel
-atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_from_radiance, bool blend, int num_scattering_orders) {
-
-	float3 lambdas;
-	int BLEND = blend ? 1 : 0;
-
-	mat4 lfrm; // luminance_from_radiance_matrix
-
-	if (lambda_ptr == nullptr)	lambdas = make_float3(kDefaultLambdas[0], kDefaultLambdas[1], kDefaultLambdas[2]);
-	else lambdas = make_float3(lambda_ptr[0], lambda_ptr[1], lambda_ptr[2]);
-	if (luminance_from_radiance == nullptr) luminance_from_radiance = kDefaultLuminanceFromRadiance;
-
-	lfrm = lfrm.toMatrix(luminance_from_radiance);
-
-	if (m_use_luminance == PRECOMPUTED) {
-		sky_k_r = sky_k_g = sky_k_b = MAX_LUMINOUS_EFFICACY;
-	}
-	else {
-		compute_spectral_radiance_to_luminance_factors(m_wave_lengths, m_solar_irradiance, -3 /* lambda_power */, sky_k_r, sky_k_g, sky_k_b);
-	}
-
-	compute_spectral_radiance_to_luminance_factors(m_wave_lengths, m_solar_irradiance, 0, sun_k_r, sun_k_g, sun_k_b);
+// Updates atmosphere_parameters by internal parameters 
+void atmosphere::update_model(const float3 lambdas) {
 
 	atmosphere_parameters.sky_spectral_radiance_to_luminance = make_float3(sky_k_r, sky_k_g, sky_k_b);
 	atmosphere_parameters.sun_spectral_radiance_to_luminance = make_float3(sun_k_r, sun_k_g, sun_k_b);
@@ -297,6 +298,79 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	const double max_sun_zenith_angle = (m_half_precision ? 102.0 : 120.0) / 180.0 * kPi;
 	atmosphere_parameters.mu_s_min = cos(max_sun_zenith_angle);
 
+}
+
+// Precomputes the textures that will be sent to the render kernel
+atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_from_radiance, bool blend, int num_scattering_orders) {
+
+	float3 lambdas;
+	int BLEND = blend ? 1 : 0;
+
+	mat4 lfrm; // luminance_from_radiance_matrix
+
+	if (lambda_ptr == nullptr)	lambdas = make_float3(kDefaultLambdas[0], kDefaultLambdas[1], kDefaultLambdas[2]);
+	else lambdas = make_float3(lambda_ptr[0], lambda_ptr[1], lambda_ptr[2]);
+	if (luminance_from_radiance == nullptr) luminance_from_radiance = kDefaultLuminanceFromRadiance;
+
+	lfrm = lfrm.toMatrix(luminance_from_radiance);
+
+	if (m_use_luminance == PRECOMPUTED) {
+		sky_k_r = sky_k_g = sky_k_b = MAX_LUMINOUS_EFFICACY;
+	}
+	else {
+		compute_spectral_radiance_to_luminance_factors(m_wave_lengths, m_solar_irradiance, -3 /* lambda_power */, sky_k_r, sky_k_g, sky_k_b);
+	}
+
+	compute_spectral_radiance_to_luminance_factors(m_wave_lengths, m_solar_irradiance, 0, sun_k_r, sun_k_g, sun_k_b);
+
+	
+	atmosphere_parameters.sky_spectral_radiance_to_luminance = make_float3(sky_k_r, sky_k_g, sky_k_b);
+	atmosphere_parameters.sun_spectral_radiance_to_luminance = make_float3(sun_k_r, sun_k_g, sun_k_b);
+
+	atmosphere_parameters.solar_irradiance.x = interpolate(m_wave_lengths, m_solar_irradiance, lambdas.x);
+	atmosphere_parameters.solar_irradiance.y = interpolate(m_wave_lengths, m_solar_irradiance, lambdas.y);
+	atmosphere_parameters.solar_irradiance.z = interpolate(m_wave_lengths, m_solar_irradiance, lambdas.z);
+
+
+	atmosphere_parameters.sun_angular_radius = m_sun_angular_radius;
+	atmosphere_parameters.bottom_radius = m_bottom_radius / m_length_unit_in_meters;
+	atmosphere_parameters.top_radius = m_top_radius / m_length_unit_in_meters;
+
+	DensityProfile rayleigh_density;
+	rayleigh_density.layers[0] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
+	rayleigh_density.layers[1] = { 0.0, 1.0, -1.0 / kRayleighScaleHeight, 0.0, 0.0 };
+	atmosphere_parameters.rayleigh_density = adjust_units(rayleigh_density);
+	atmosphere_parameters.rayleigh_scattering.x = interpolate(m_wave_lengths, m_rayleigh_scattering, lambdas.x) * m_length_unit_in_meters;
+	atmosphere_parameters.rayleigh_scattering.y = interpolate(m_wave_lengths, m_rayleigh_scattering, lambdas.y) * m_length_unit_in_meters;
+	atmosphere_parameters.rayleigh_scattering.z = interpolate(m_wave_lengths, m_rayleigh_scattering, lambdas.z) * m_length_unit_in_meters;
+
+	DensityProfile mie_density;
+	mie_density.layers[0] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
+	mie_density.layers[1] = { 0.0, 1.0, -1.0 / kMieScaleHeight, 0.0, 0.0 };
+	atmosphere_parameters.mie_density = adjust_units(mie_density);
+	atmosphere_parameters.mie_scattering.x = interpolate(m_wave_lengths, m_mie_scattering, lambdas.x) * m_length_unit_in_meters;
+	atmosphere_parameters.mie_scattering.y = interpolate(m_wave_lengths, m_mie_scattering, lambdas.y) * m_length_unit_in_meters;
+	atmosphere_parameters.mie_scattering.z = interpolate(m_wave_lengths, m_mie_scattering, lambdas.z) * m_length_unit_in_meters;
+	atmosphere_parameters.mie_extinction.x = interpolate(m_wave_lengths, m_mie_scattering, lambdas.x) * m_length_unit_in_meters;
+	atmosphere_parameters.mie_extinction.y = interpolate(m_wave_lengths, m_mie_scattering, lambdas.y) * m_length_unit_in_meters;
+	atmosphere_parameters.mie_extinction.z = interpolate(m_wave_lengths, m_mie_scattering, lambdas.z) * m_length_unit_in_meters;
+
+	DensityProfile ozone_density;
+	ozone_density.layers[0] = { 25000.0, 0.0, 0.0, 1.0 / 15000.0, -2.0 / 3.0 };
+	ozone_density.layers[1] = { 0.0, 0.0, 0.0, -1.0 / 15000.0, 8.0 / 3.0 };
+	atmosphere_parameters.absorption_density = adjust_units(ozone_density);
+
+	atmosphere_parameters.absorption_extinction.x = interpolate(m_wave_lengths, m_absorption_extinction, lambdas.x) * m_length_unit_in_meters;
+	atmosphere_parameters.absorption_extinction.y = interpolate(m_wave_lengths, m_absorption_extinction, lambdas.y) * m_length_unit_in_meters;
+	atmosphere_parameters.absorption_extinction.z = interpolate(m_wave_lengths, m_absorption_extinction, lambdas.z) * m_length_unit_in_meters;
+
+	atmosphere_parameters.ground_albedo.x = interpolate(m_wave_lengths, m_ground_albedo, lambdas.x);
+	atmosphere_parameters.ground_albedo.y = interpolate(m_wave_lengths, m_ground_albedo, lambdas.y);
+	atmosphere_parameters.ground_albedo.z = interpolate(m_wave_lengths, m_ground_albedo, lambdas.z);
+
+	const double max_sun_zenith_angle = (m_half_precision ? 102.0 : 120.0) / 180.0 * kPi;
+	atmosphere_parameters.mu_s_min = cos(max_sun_zenith_angle);
+
 
 	// STARTING PRECOMPUTE
 	
@@ -320,6 +394,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	}
 
 #ifdef DEBUG_TEXTURES // Print transmittance values
+
 	float3 *host_transmittance_buffer = new float3[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
 
 	cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost);
@@ -530,8 +605,6 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 	atmosphere_parameters.mie_extinction.x = interpolate(m_wave_lengths, m_mie_scattering, lambdas.x) * m_length_unit_in_meters;
 	atmosphere_parameters.mie_extinction.y = interpolate(m_wave_lengths, m_mie_scattering, lambdas.y) * m_length_unit_in_meters;
 	atmosphere_parameters.mie_extinction.z = interpolate(m_wave_lengths, m_mie_scattering, lambdas.z) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_phase_function_g = m_mie_phase_function_g;
-
 
 	DensityProfile ozone_density;
 	ozone_density.layers[0] = { 25000.0, 0.0, 0.0, 1.0 / 15000.0, -2.0 / 3.0 };
@@ -582,10 +655,14 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 }
 
 // Initialization function that fills the atmosphere parameters 
-atmosphere_error_t atmosphere::init(CUmodule &cuda_module, bool use_constant_solar_spectrum_, bool use_ozone_) 
+atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_ozone_) 
 {
 
-	init_functions(cuda_module);
+	// Bind precomputation functions from ptx file 
+	CUresult error = cuModuleLoad(&atmosphere_module, "atmosphere_kernels.ptx");
+	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+
+	init_functions(atmosphere_module);
 
 	m_absorption_density.push_back(new DensityProfileLayer(25000.0f, 0.0f, 0.0f, 1.0f / 15000.0f, -2.0f / 3.0f));
 	m_absorption_density.push_back(new DensityProfileLayer(0.0f, 0.0f, 0.0f, -1.0f / 15000.0f, 8.0f / 3.0f));
@@ -689,5 +766,5 @@ atmosphere::~atmosphere() {
 }
 
 atmosphere::atmosphere() {
-	m_use_luminance = APPROXIMATE;
+	m_use_luminance = PRECOMPUTED;
 }

@@ -12,8 +12,7 @@
 #include "atmosphere/definitions.h"
 //#include <//assert.h>
 
-//#define COMBINED_SCATTERING_TEXTURES
-
+#define COMBINED_SCATTERING_TEXTURES
 
 __device__  float ClampCosine(float mu) 
 {
@@ -707,7 +706,6 @@ __device__  float3 GetSkyRadiance(const AtmosphereParameters atmosphere, float3 
 		MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
 }
 
-
 __device__  float3 GetSkyRadianceToPoint(const AtmosphereParameters atmosphere, float3 camera, float3 point, float shadow_length, float3 sun_direction, float3& transmittance) 
 {
 	// Compute the distance to the top atmosphere boundary along the view ray,
@@ -769,7 +767,6 @@ __device__  float3 GetSkyRadianceToPoint(const AtmosphereParameters atmosphere, 
 
 	return scattering * RayleighPhaseFunction(nu) + single_mie_scattering *	MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
 }
-
 
 __device__  float3 GetSunAndSkyIrradiance(const AtmosphereParameters atmosphere,float3 point, float3 normal, float3 sun_direction, float3 &sky_irradiance) 
 {

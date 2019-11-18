@@ -76,7 +76,7 @@
 #include "atmosphere.h"
 
 // Image Writers 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include "stb_image_write.h"
 
 #define TINYEXR_USE_MINIZ 0
@@ -104,7 +104,6 @@ using json = nlohmann::json;
 
 CUmodule cuRenderModule;
 CUmodule cuTextureModule;
-CUmodule atmosphere_module;
 CUfunction cuRaycastKernel;
 CUfunction cuTextureKernel;
 
@@ -121,7 +120,7 @@ float	aperture;
 
 // Atmosphere
 
-atmosphere earth;
+atmosphere earth_atmosphere;
 
 
 #define check_success(expr) \
@@ -270,40 +269,6 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 
 
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
-}
-
-// Initialize atmosphere
-bool init_atmosphere(float azimuth, float elevation, float exposure) {
-
-	CUresult error;
-	atmosphere_error_t atmos_err;
-
-	// First initialize our atmosphere parameters 
-	atmos_err = earth.init(true , true);
-	if (atmos_err != ATMO_NO_ERR) {
-		printf("ERROR: Unable to initialize atmosphere core!");
-		return false;
-	}
-
-	// Load in the ptx file and initialize kernel functions 
-	error = cuModuleLoad(&atmosphere_module, "atmosphere_kernels.ptx");
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
-
-	atmos_err = earth.init_functions(atmosphere_module);
-
-	if (atmos_err != ATMO_NO_ERR) { 
-		printf("ERROR: Unable to initialize atmosphere functions!");
-		return false;
-	}
-
-	// Compute the textures that will be sent to the render kernel 
-	atmos_err = earth.recompute(azimuth, elevation, exposure);
-	if (atmos_err != ATMO_NO_ERR) {
-		printf("ERROR: Unable to compote atmosphere textures!");
-		return false;
-	}
-
-	return true;
 }
 
 // Save Exr Images
@@ -1141,7 +1106,7 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 static void update_camera(double dx, double dy, double mx, double my, int zoom_delta)
 {
 	float rot_speed = 1;
-	float zoom_speed = 50;
+	float zoom_speed = 500;
 	float dist = length(lookfrom - lookat);
 	// Rotation
 
@@ -1359,7 +1324,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.sky_color = make_float3(1.0f, 1.0f, 1.0f);
 	kernel_params.sky_mult = 1.0f;
 	kernel_params.env_sample_tex_res = 360;
-	kernel_params.integrator = 1;
+	kernel_params.integrator = 0;
 
 	std::string bn_path = ASSET_PATH;
 	bn_path.append("BN0.bmp");
@@ -1388,7 +1353,7 @@ int main(const int argc, const char* argv[])
 	double energy = .0f;
 	float azimuth = 120.0f;
 	float elevation = 30.0f;
-	int integrator = 1;
+	int integrator = 0;
 	bool render = true;
 
 
@@ -1423,14 +1388,8 @@ int main(const int argc, const char* argv[])
 
 
 	// Init atmosphere 
-
-	bool success = init_atmosphere(azimuth, elevation, 10.0f);
-	if (!success) {
-		
-		printf("Error: Unable to initialize atmosphere!");
-		exit(-1);
-	
-	}
+	earth_atmosphere.init(true, true);
+	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
 
 	// Create OIDN devices 
 
@@ -1473,7 +1432,7 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
 		ImGui::InputInt("Ray Depth", &ray_depth, 10);
-		ImGui::InputInt("Integrator", &integrator, 1);
+		ImGui::InputInt("Integrator", &integrator, 0);
 		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
@@ -1643,7 +1602,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, &kernel_params };
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)atmos_params, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 

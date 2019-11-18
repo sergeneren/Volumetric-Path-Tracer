@@ -114,10 +114,11 @@ public:
 	atmosphere();
 	~atmosphere();
 
-	atmosphere_error_t init(CUmodule &cuda_module, bool , bool);
+	atmosphere_error_t init(bool use_constant_solar_spectrum, bool use_ozone_layer);
 	atmosphere_error_t precompute(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
 	
 private:
+	void update_model(const float3 lambdas);
 	atmosphere_error_t init_functions(CUmodule &cuda_module);
 	atmosphere_error_t compute_transmittance(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
 	DensityProfile adjust_units(DensityProfile density);
@@ -129,7 +130,8 @@ private:
 	static double interpolate(const std::vector<double>& wavelengths, const std::vector<double>& wavelength_function, double wavelength);
 	static void compute_spectral_radiance_to_luminance_factors(const std::vector<double>& wavelengths, const std::vector<double>& solar_irradiance, double lambda_power, double& k_r, double& k_g, double& k_b);
 
-public:
+private:
+
 	std::vector<double> m_wave_lengths;
 	std::vector<double> m_solar_irradiance;
 	
@@ -160,7 +162,13 @@ public:
 	bool m_combine_scattering_textures;
 	bool m_half_precision = false;
 
+public:
+
 	AtmosphereParameters atmosphere_parameters;
+
+private:
+
+	CUmodule atmosphere_module;
 
 	CUfunction transmittance_function;
 	CUfunction direct_irradiance_function;
@@ -168,7 +176,6 @@ public:
 	CUfunction multiple_scattering_function;
 	CUfunction scattering_density_function;
 	CUfunction single_scattering_function;
-	   
 };
 
 #endif // ! __ATMOSPHERE_H__
