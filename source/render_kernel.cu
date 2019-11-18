@@ -1073,13 +1073,14 @@ __device__ inline float3 sample_atmosphere(
 	const AtmosphereParameters &atmosphere,
 	const float3 pos, const float3 dir)
 {
-	float3 earth_center = make_float3(.0f, atmosphere.bottom_radius / 1000.0f - 100.0f, .0f);
+	float3 earth_center = make_float3(.0f, -atmosphere.bottom_radius, .0f);
+	float3 sun_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
 	float3 sky_irradiance;
-	float3 sun_irradiance = GetSunAndSkyIrradiance(atmosphere, -earth_center, dir, make_float3(.25, .1, 0), sky_irradiance);
+	float3 sun_irradiance = GetSunAndSkyIrradiance(atmosphere, -earth_center, dir, sun_dir, sky_irradiance);
 	
 	float3 transmittance;
-	float3 in_scatter = GetSkyRadianceToPoint(atmosphere, pos - earth_center, -earth_center, 0.0, make_float3(0, 1, 0), transmittance);
+	float3 in_scatter = GetSkyRadianceToPoint(atmosphere, pos - earth_center, -earth_center, 0.0, degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation), transmittance);
 	float3 sphere_radiance = (1.0 / M_PI) * (sun_irradiance + sky_irradiance);
 	sphere_radiance = sphere_radiance * transmittance + in_scatter;
 	sphere_radiance = powf(make_float3(1, 1, 1) - expf(-sphere_radiance / make_float3(1, 1, 1) * kernel_params.exposure_scale), make_float3(1.0 / 2.2));

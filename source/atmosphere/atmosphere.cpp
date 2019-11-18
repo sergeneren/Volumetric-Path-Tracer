@@ -766,5 +766,5 @@ atmosphere::~atmosphere() {
 }
 
 atmosphere::atmosphere() {
-	m_use_luminance = PRECOMPUTED;
+	m_use_luminance = NONE;
 }
