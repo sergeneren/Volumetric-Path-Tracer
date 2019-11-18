@@ -279,7 +279,7 @@ bool init_atmosphere(float azimuth, float elevation, float exposure) {
 	atmosphere_error_t atmos_err;
 
 	// First initialize our atmosphere parameters 
-	atmos_err = earth.init();
+	atmos_err = earth.init(true , true);
 	if (atmos_err != ATMO_NO_ERR) {
 		printf("ERROR: Unable to initialize atmosphere core!");
 		return false;

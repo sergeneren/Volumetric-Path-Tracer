@@ -137,9 +137,7 @@ atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_
 		rayleigh_scattering.push_back(kRayleigh * pow(lambda, -4));
 		mie_scattering.push_back(mie * kMieSingleScatteringAlbedo);
 		mie_extinction.push_back(mie);
-		absorption_extinction.push_back(use_ozone_ ?
-			kMaxOzoneNumberDensity * kOzoneCrossSection[(l - kLambdaMin) / 10] :
-			0.0);
+		absorption_extinction.push_back(use_ozone_ ? kMaxOzoneNumberDensity * kOzoneCrossSection[(l - kLambdaMin) / 10] :	0.0);
 		ground_albedo.push_back(kGroundAlbedo);
 	}
 
