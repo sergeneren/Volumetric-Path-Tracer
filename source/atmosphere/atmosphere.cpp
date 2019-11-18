@@ -55,6 +55,8 @@
 
 #include "helper_math.h"
 #include "matrix_math.h"
+#include "driver_types.h"
+#include <helper_cuda.h>
 
 // Functions that hold the texture calculation kernels from atmosphere_kernels.ptx file
 atmosphere_error_t atmosphere::init_functions(CUmodule &cuda_module) {
@@ -244,6 +246,164 @@ void atmosphere::print_texture(float4 * buffer, const char * filename, const int
 	stbi_flip_vertically_on_write(1);
 	stbi_write_png(filename, width, height, 4, (void*)data,0);
 #endif
+}
+
+// Copy transmitance buffer to transmittance texture
+void atmosphere::copy_transmittance_texture() {
+
+	cudaArray_t *data_array = 0;
+
+	const int rx = TRANSMITTANCE_TEXTURE_WIDTH;
+	const int ry = TRANSMITTANCE_TEXTURE_HEIGHT;
+
+	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float4>();
+	cudaMallocArray(data_array, &channel_desc, rx, ry);
+
+	cudaMemcpy2DToArray(*data_array, 0, 0, atmosphere_parameters.transmittance_buffer, rx * sizeof(float4), rx * sizeof(float4), ry, cudaMemcpyDeviceToDevice);
+
+	cudaResourceDesc res_desc;
+	memset(&res_desc, 0, sizeof(res_desc));
+	res_desc.resType = cudaResourceTypeArray;
+	res_desc.res.array.array = *data_array;
+
+	cudaTextureDesc tex_desc;
+	memset(&tex_desc, 0, sizeof(tex_desc));
+	tex_desc.addressMode[0] = cudaAddressModeWrap;
+	tex_desc.addressMode[1] = cudaAddressModeClamp;
+	tex_desc.addressMode[2] = cudaAddressModeWrap;
+	tex_desc.filterMode = cudaFilterModeLinear;
+	tex_desc.readMode = cudaReadModeElementType;
+	tex_desc.normalizedCoords = 1;
+
+	cudaCreateTextureObject(&atmosphere_parameters.transmittance_texture, &res_desc, &tex_desc, NULL);
+}
+
+// Copy irradiance buffer to irradiance texture
+void atmosphere::copy_irradiance_texture() {
+
+	cudaArray_t *data_array = 0;
+
+	const int rx = IRRADIANCE_TEXTURE_WIDTH;
+	const int ry = IRRADIANCE_TEXTURE_HEIGHT;
+
+	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float4>();
+	cudaMallocArray(data_array, &channel_desc, rx, ry);
+
+	cudaMemcpy2DToArray(*data_array, 0, 0, atmosphere_parameters.irradiance_buffer, rx * sizeof(float4), rx * sizeof(float4), ry, cudaMemcpyDeviceToDevice);
+
+	cudaResourceDesc res_desc;
+	memset(&res_desc, 0, sizeof(res_desc));
+	res_desc.resType = cudaResourceTypeArray;
+	res_desc.res.array.array = *data_array;
+
+	cudaTextureDesc tex_desc;
+	memset(&tex_desc, 0, sizeof(tex_desc));
+	tex_desc.addressMode[0] = cudaAddressModeWrap;
+	tex_desc.addressMode[1] = cudaAddressModeClamp;
+	tex_desc.addressMode[2] = cudaAddressModeWrap;
+	tex_desc.filterMode = cudaFilterModeLinear;
+	tex_desc.readMode = cudaReadModeElementType;
+	tex_desc.normalizedCoords = 1;
+
+	cudaCreateTextureObject(&atmosphere_parameters.irradiance_texture, &res_desc, &tex_desc, NULL);
+}
+
+// Copy scattering buffer to scattering texture
+void atmosphere::copy_scattering_texture() {
+
+	cudaArray *data_array = 0;
+
+	const int rx = SCATTERING_TEXTURE_WIDTH;
+	const int ry = SCATTERING_TEXTURE_HEIGHT;
+	const int rz = SCATTERING_TEXTURE_DEPTH;
+
+	cudaExtent extent;
+	extent.width = rx;
+	extent.height = ry; 
+	extent.depth = rz; 
+	
+	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float4>();
+	checkCudaErrors(cudaMalloc3DArray(&data_array, &channelDesc, extent));
+
+	float4 *volume_data_host = (float4 *)malloc(rx * ry * rz * sizeof(float4));
+	cudaMemcpy(volume_data_host, atmosphere_parameters.scattering_buffer, rx*ry*rz * sizeof(float4), cudaMemcpyDeviceToHost);
+	
+	cudaMemcpy3DParms copyParams = { 0 };
+	copyParams.srcPtr = make_cudaPitchedPtr(volume_data_host, extent.width * sizeof(float), extent.width, extent.height);
+	copyParams.dstArray = data_array;
+	copyParams.extent = extent;
+	copyParams.kind = cudaMemcpyHostToDevice;
+	checkCudaErrors(cudaMemcpy3D(&copyParams));
+	
+	cudaResourceDesc            texRes;
+	memset(&texRes, 0, sizeof(cudaResourceDesc));
+
+	texRes.resType = cudaResourceTypeArray;
+	texRes.res.array.array = data_array;
+
+	cudaTextureDesc             texDescr;
+	memset(&texDescr, 0, sizeof(cudaTextureDesc));
+
+	texDescr.normalizedCoords = true; // access with normalized texture coordinates
+	texDescr.filterMode = cudaFilterModeLinear; // linear interpolation
+
+	texDescr.addressMode[0] = cudaAddressModeClamp;  // clamp texture coordinates
+	texDescr.addressMode[1] = cudaAddressModeClamp;
+	texDescr.addressMode[2] = cudaAddressModeClamp;
+
+	texDescr.readMode = cudaReadModeElementType;
+	//texDescr.readMode = cudaReadModeNormalizedFloat;
+
+	checkCudaErrors(cudaCreateTextureObject(&atmosphere_parameters.scattering_texture, &texRes, &texDescr, NULL));
+}
+
+// Copy single scattering buffer to single scattering texture
+void atmosphere::copy_single_scattering_texture() {
+
+	cudaArray *data_array = 0;
+
+	const int rx = SCATTERING_TEXTURE_WIDTH;
+	const int ry = SCATTERING_TEXTURE_HEIGHT;
+	const int rz = SCATTERING_TEXTURE_DEPTH;
+
+	cudaExtent extent;
+	extent.width = rx;
+	extent.height = ry;
+	extent.depth = rz;
+
+	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float4>();
+	checkCudaErrors(cudaMalloc3DArray(&data_array, &channelDesc, extent));
+
+	float4 *volume_data_host = (float4 *)malloc(rx * ry * rz * sizeof(float4));
+	cudaMemcpy(volume_data_host, atmosphere_parameters.optional_mie_single_scattering_buffer, rx*ry*rz * sizeof(float4), cudaMemcpyDeviceToHost);
+
+	cudaMemcpy3DParms copyParams = { 0 };
+	copyParams.srcPtr = make_cudaPitchedPtr(volume_data_host, extent.width * sizeof(float), extent.width, extent.height);
+	copyParams.dstArray = data_array;
+	copyParams.extent = extent;
+	copyParams.kind = cudaMemcpyHostToDevice;
+	checkCudaErrors(cudaMemcpy3D(&copyParams));
+
+	cudaResourceDesc            texRes;
+	memset(&texRes, 0, sizeof(cudaResourceDesc));
+
+	texRes.resType = cudaResourceTypeArray;
+	texRes.res.array.array = data_array;
+
+	cudaTextureDesc             texDescr;
+	memset(&texDescr, 0, sizeof(cudaTextureDesc));
+
+	texDescr.normalizedCoords = true; // access with normalized texture coordinates
+	texDescr.filterMode = cudaFilterModeLinear; // linear interpolation
+
+	texDescr.addressMode[0] = cudaAddressModeClamp;  // clamp texture coordinates
+	texDescr.addressMode[1] = cudaAddressModeClamp;
+	texDescr.addressMode[2] = cudaAddressModeClamp;
+
+	texDescr.readMode = cudaReadModeElementType;
+	//texDescr.readMode = cudaReadModeNormalizedFloat;
+
+	checkCudaErrors(cudaCreateTextureObject(&atmosphere_parameters.single_mie_scattering_texture, &texRes, &texDescr, NULL));
 }
 
 // Updates atmosphere_parameters by internal parameters 

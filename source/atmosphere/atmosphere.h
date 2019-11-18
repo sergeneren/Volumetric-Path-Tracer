@@ -119,6 +119,11 @@ public:
 	
 private:
 	void update_model(const float3 lambdas);
+	void copy_transmittance_texture();
+	void copy_scattering_texture();
+	void copy_irradiance_texture();
+	void copy_single_scattering_texture();
+
 	atmosphere_error_t init_functions(CUmodule &cuda_module);
 	atmosphere_error_t compute_transmittance(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
 	DensityProfile adjust_units(DensityProfile density);

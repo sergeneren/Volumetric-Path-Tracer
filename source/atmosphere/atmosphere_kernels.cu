@@ -829,7 +829,7 @@ extern "C" __global__ void calculate_indirect_irradiance(const AtmosphereParamet
 
 	float3 delta_irradiance_value = ComputeIndirectIrradianceTexture(atmosphere, frag_coord, scattering_order-1);
 
-	float3 temp_val = atmosphere.irradiance_buffer[idx];
+	float4 temp_val = atmosphere.irradiance_buffer[idx];
 
 	atmosphere.irradiance_buffer[idx] = luminance_from_radiance * delta_irradiance_value;
 
