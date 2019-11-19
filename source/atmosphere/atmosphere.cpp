@@ -241,7 +241,8 @@ void atmosphere::print_texture(float4 * buffer, const char * filename, const int
 			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
 			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
 			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].w * 255)), 255);
+			//data[idx++] = min(max(0, unsigned char(buffer[index].w * 255)), 255);
+			data[idx++] = 255;
 		}
 	}
 	stbi_flip_vertically_on_write(1);
@@ -565,7 +566,6 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		printf("Unable to launch direct transmittance function! \n");
 		return ATMO_LAUNCH_ERR;
 	}
-	copy_transmittance_texture();
 
 #ifdef DEBUG_TEXTURES // Print transmittance values
 
@@ -593,7 +593,6 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		printf("Unable to launch direct irradiance function! \n");
 		return ATMO_LAUNCH_ERR;
 	}
-	copy_irradiance_texture();
 #ifdef DEBUG_TEXTURES // Print irradiance values
 
 	float4 *host_irradiance_buffer = new float4[IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT];
@@ -626,7 +625,6 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		printf("Unable to launch direct single scattering function! \n");
 		return ATMO_LAUNCH_ERR;
 	}
-	copy_scattering_texture();
 #ifdef DEBUG_TEXTURES // Print single scattering values
 
 	float4 *host_scattering_buffer = new float4[SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH];
@@ -686,7 +684,6 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 			printf("Unable to launch direct irradiance function! \n");
 			return ATMO_LAUNCH_ERR;
 		}
-		copy_irradiance_texture();
 #ifdef DEBUG_TEXTURES // Print indirect irradiance values
 
 		cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost);
@@ -708,7 +705,6 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 			printf("Unable to launch direct scattering density function! \n");
 			return ATMO_LAUNCH_ERR;
 		}
-		copy_scattering_texture();
 
 #ifdef DEBUG_TEXTURES // Print multiple scattering values
 
@@ -816,8 +812,6 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 		return ATMO_LAUNCH_ERR;
 	}
 
-	copy_transmittance_texture();
-
 #ifdef DEBUG_TEXTURES // Print transmittance values
 	float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
 
@@ -847,8 +841,7 @@ atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_
 
 	for (int l = kLambdaMin; l <= kLambdaMax; l += 10) {
 		double lambda = static_cast<double>(l) * 1e-3;  // micro-meters
-		double mie =
-			kMieAngstromBeta / kMieScaleHeight * pow(lambda, -kMieAngstromAlpha);
+		double mie = kMieAngstromBeta / kMieScaleHeight * pow(lambda, -kMieAngstromAlpha);
 		m_wave_lengths.push_back(l);
 		if (use_constant_solar_spectrum_) {
 			m_solar_irradiance.push_back(kConstantSolarIrradiance);
@@ -872,7 +865,7 @@ atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_
 	m_mie_density = new DensityProfileLayer(0.0f, 1.0f, -1.0f / float(kMieScaleHeight), 0.0f, 0.0f);
 	m_mie_phase_function_g = 0.8;
 	m_max_sun_zenith_angle = 102.0 / 180.0 * kPi;
-	m_length_unit_in_meters = 1.0f;
+	m_length_unit_in_meters = 1000.0f;
 
 	int num_scattering_orders = 4;
 	// Start precomputation
@@ -922,7 +915,7 @@ atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_
 			printf("Unable to precompute!");
 			return ATMO_INIT_ERR;
 		}
-
+		copy_transmittance_texture();
 	}
 
 	// copy textures and free buffers
@@ -962,5 +955,5 @@ atmosphere::~atmosphere() {
 }
 
 atmosphere::atmosphere() {
-	m_use_luminance = NONE;
+	m_use_luminance = APPROXIMATE;
 }

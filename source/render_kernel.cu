@@ -1211,7 +1211,7 @@ __device__ inline float3 direct_integrator(
 	float3 beta = WHITE;
 	float3 t = gpu_vdb[0].rayBoxIntersect(ray_pos, ray_dir);
 	bool mi = false;
-	
+	float3 env_pos = ray_pos;
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
 
@@ -1234,13 +1234,14 @@ __device__ inline float3 direct_integrator(
 			}
 		
 		}
+
 	}
 	ray_dir = normalize(ray_dir);
 	
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, atmosphere) * beta;
-		else L += sample_atmosphere(kernel_params, atmosphere,ray_pos, ray_dir) * beta;
+		else L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta;
 
 	}
 	else {

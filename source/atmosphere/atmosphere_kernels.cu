@@ -158,7 +158,13 @@ __device__  float3 GetTransmittanceToTopAtmosphereBoundary(const AtmosphereParam
 {
 
 	float2 uv = GetTransmittanceTextureUvFromRMu(atmosphere, r, mu);
-	const float3 texval = make_float3(tex2D<float4>(atmosphere.transmittance_texture, uv.x, uv.y));	
+
+	int x = int(floor(uv.x * TRANSMITTANCE_TEXTURE_WIDTH));
+	int y = int(floor(uv.y * TRANSMITTANCE_TEXTURE_HEIGHT));
+	int idx = (y * TRANSMITTANCE_TEXTURE_WIDTH) + x;
+	idx = clamp(idx, 0, TRANSMITTANCE_TEXTURE_WIDTH*TRANSMITTANCE_TEXTURE_HEIGHT);
+
+	const float3 texval = make_float3(atmosphere.transmittance_buffer[idx]);
 	return texval;
 }
 
@@ -598,7 +604,13 @@ __device__  float3 ComputeIndirectIrradianceTexture(const AtmosphereParameters a
 __device__  float3 GetIrradiance(const AtmosphereParameters atmosphere, float r, float mu_s) 
 {
 	float2 uv = GetIrradianceTextureUvFromRMuS(atmosphere, r, mu_s);
-	const float3 val = make_float3(tex2D<float4>(atmosphere.irradiance_texture, uv.x, uv.y));
+
+	int x = int(floor(uv.x * IRRADIANCE_TEXTURE_WIDTH));
+	int y = int(floor(uv.y * IRRADIANCE_TEXTURE_HEIGHT));
+	int idx = (y * IRRADIANCE_TEXTURE_WIDTH) + x;
+	idx = clamp(idx, 0, IRRADIANCE_TEXTURE_WIDTH*IRRADIANCE_TEXTURE_HEIGHT);
+
+	const float3 val = make_float3(atmosphere.irradiance_buffer[idx]);
 	return val;
 }
 

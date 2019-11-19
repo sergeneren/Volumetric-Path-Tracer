@@ -1106,7 +1106,7 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 static void update_camera(double dx, double dy, double mx, double my, int zoom_delta)
 {
 	float rot_speed = 1;
-	float zoom_speed = 50;
+	float zoom_speed = 500;
 	float dist = length(lookfrom - lookat);
 	// Rotation
 
