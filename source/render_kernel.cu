@@ -666,6 +666,7 @@ __device__  float3 GetCombinedScattering(const AtmosphereParameters atmosphere, 
 	float3 uvw0 = make_float3((tex_x + uvwz.y) / float(SCATTERING_TEXTURE_NU_SIZE), uvwz.z, uvwz.w);
 	float3 uvw1 = make_float3((tex_x + 1.0 + uvwz.y) / float(SCATTERING_TEXTURE_NU_SIZE), uvwz.z, uvwz.w);
 
+
 #ifdef COMBINED_SCATTERING_TEXTURES
 	float4 combined_scattering = tex3D<float4>(atmosphere.scattering_texture, uvw0.x, uvw0.y, uvw0.z) * (1.0 - lerp) + tex3D<float4>(atmosphere.scattering_texture, uvw1.x, uvw1.y, uvw1.z) * lerp;
 	float3 scattering = make_float3(combined_scattering);
@@ -811,7 +812,7 @@ __device__ inline float3 sample_atmosphere(
 	const AtmosphereParameters &atmosphere,
 	const float3 pos, const float3 dir)
 {
-	float3 earth_center = make_float3(.0f, -atmosphere.bottom_radius, .0f);
+	float3 earth_center = make_float3(.0f, .0f, -atmosphere.bottom_radius);
 	float3 sun_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
 	float3 sky_irradiance;
@@ -1228,6 +1229,17 @@ __device__ inline float3 direct_integrator(
 
 }
 
+
+__device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kernel_params kernel_params, const AtmosphereParameters atmosphere) {
+
+
+
+
+}
+
+
+
+
 // Main kernel accessors
 
 
@@ -1265,8 +1277,10 @@ extern "C" __global__ void volume_rt_kernel(
 	
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
+		
+		value = render_earth(ray_pos, ray_dir, kernel_params, atmosphere);
+		//if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
+		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
 		
 	}
 	
