@@ -1054,7 +1054,8 @@ __device__ inline float3 estimate_sun(
 	Rand_state &randstate,
 	const float3 &ray_pos,
 	float3 &ray_dir,
-	const GPU_VDB *gpu_vdb)
+	const GPU_VDB *gpu_vdb, 
+	const AtmosphereParameters atmosphere)
 {
 	float3 Ld = BLACK;
 	float3 wi;
@@ -1072,8 +1073,9 @@ __device__ inline float3 estimate_sun(
 	// Check visibility of light source 
 	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb[0]);
 
+
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
-	Ld = kernel_params.sun_color * tr  * phase_pdf;
+	Ld = GetSolarRadiance(atmosphere) * tr  * phase_pdf;
 
 	// No need for sampling BSDF with importance sampling
 	// please see: http://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Direct_Lighting.html#fragment-SampleBSDFwithmultipleimportancesampling-0
@@ -1101,7 +1103,7 @@ __device__ inline float3 uniform_sample_one_light(
 	if (light_num < 1) {
 
 		if(kernel_params.sun_mult > .0f)
-			L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb) * kernel_params.sun_mult;
+			L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, atmosphere) * kernel_params.sun_mult;
 	}
 	else if (light_num >= 1 && light_num < 2) {
 		
@@ -1229,13 +1231,12 @@ __device__ inline float3 direct_integrator(
 			
 			if (mi) { // medium interaction 
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
-				if (kernel_params.sun_mult > .0f) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb) * beta * kernel_params.sun_mult;
 			}
 		
 		}
-		
 	}
 	ray_dir = normalize(ray_dir);
+	
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, atmosphere) * beta;

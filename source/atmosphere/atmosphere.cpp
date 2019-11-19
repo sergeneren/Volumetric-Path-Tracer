@@ -872,7 +872,7 @@ atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_
 	m_mie_density = new DensityProfileLayer(0.0f, 1.0f, -1.0f / float(kMieScaleHeight), 0.0f, 0.0f);
 	m_mie_phase_function_g = 0.8;
 	m_max_sun_zenith_angle = 102.0 / 180.0 * kPi;
-	m_length_unit_in_meters = 100.0f;
+	m_length_unit_in_meters = 1.0f;
 
 	int num_scattering_orders = 4;
 	// Start precomputation
