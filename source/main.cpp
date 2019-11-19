@@ -1106,12 +1106,12 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 static void update_camera(double dx, double dy, double mx, double my, int zoom_delta)
 {
 	float rot_speed = 1;
-	float zoom_speed = 500;
+	float zoom_speed = 50;
 	float dist = length(lookfrom - lookat);
 	// Rotation
 
-	lookfrom -= cam.u * float(dx) * rot_speed * dist * 0.01f;
-	lookfrom += cam.v * float(dy) * rot_speed * dist * 0.01f;
+	lookfrom -= cam.u * float(dx) * rot_speed  * 0.01f;
+	lookfrom += cam.v * float(dy) * rot_speed  * 0.01f;
 
 	//Pan
 	lookfrom -= cam.u * float(mx) * rot_speed;
