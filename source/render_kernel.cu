@@ -812,21 +812,47 @@ __device__ float3 GetSolarRadiance(const AtmosphereParameters atmosphere) {
 __device__ inline float3 sample_atmosphere(
 	const Kernel_params &kernel_params,
 	const AtmosphereParameters &atmosphere,
-	const float3 pos, const float3 dir)
+	const float3 ray_pos, const float3 ray_dir)
 {
-	float3 earth_center = make_float3(.0f, .0f, -atmosphere.bottom_radius);
-	float3 sun_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
+	float3 earth_center = make_float3(.0f, -atmosphere.bottom_radius, .0f);
+	float3 sun_direction = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
-	float3 sky_irradiance;
-	float3 sun_irradiance = GetSunAndSkyIrradiance(atmosphere, -earth_center, dir, sun_dir, sky_irradiance);
-	
-	float3 transmittance;
-	float3 in_scatter = GetSkyRadianceToPoint(atmosphere, pos - earth_center, -earth_center, 0.0, degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation), transmittance);
-	float3 sphere_radiance = (1.0 / M_PI) * (sun_irradiance + sky_irradiance);
-	sphere_radiance = sphere_radiance * transmittance + in_scatter;
-	sphere_radiance = powf(make_float3(1, 1, 1) - expf(-sphere_radiance / make_float3(1, 1, 1) * kernel_params.exposure_scale), make_float3(1.0 / 2.2));
+	float3 p = ray_pos - earth_center;
+	float p_dot_v = dot(p, ray_dir);
+	float p_dot_p = dot(p, p);
+	float ray_earth_center_squared_distance = p_dot_p - p_dot_v * p_dot_v;
+	float distance_to_intersection = -p_dot_v - sqrt(earth_center.y * earth_center.y - ray_earth_center_squared_distance);
 
-	return sphere_radiance;
+	float ground_alpha = 0.0;
+	float3 ground_radiance = make_float3(0.0);
+
+	if (distance_to_intersection > 0.0) {
+		float3 point = ray_pos + ray_dir * distance_to_intersection;
+		float3 normal = normalize(point - earth_center);
+
+		// Compute the radiance reflected by the ground.
+		float3 sky_irradiance;
+		float3 sun_irradiance = GetSunAndSkyIrradiance(atmosphere, point - earth_center, normal, sun_direction, sky_irradiance);
+		ground_radiance = atmosphere.ground_albedo * (1.0 / M_PI) * (sun_irradiance + sky_irradiance);
+
+		float3 transmittance;
+		float3 in_scatter = GetSkyRadianceToPoint(atmosphere, ray_pos - earth_center, point - earth_center, .0f, sun_direction, transmittance);
+		ground_radiance = ground_radiance * transmittance + in_scatter;
+		ground_alpha = 1.0;
+	}
+
+	float3 transmittance_sky;
+	float3 radiance_sky = GetSkyRadiance(atmosphere, ray_pos - earth_center, ray_dir, .0f, sun_direction, transmittance_sky);
+
+	float2 sun_size = make_float2(tanf(atmosphere.sun_angular_radius), cosf(atmosphere.sun_angular_radius));
+
+	if (dot(ray_dir, sun_direction) > sun_size.y) {
+		radiance_sky = radiance_sky + transmittance_sky * GetSolarRadiance(atmosphere);
+	}
+
+	ground_radiance = lerp(radiance_sky, ground_radiance, ground_alpha);
+
+	return ground_radiance;
 
 	/*
 	float azimuth = atan2f(-dir.z, -dir.x) * INV_2_PI + 0.5f;
@@ -1317,9 +1343,9 @@ extern "C" __global__ void volume_rt_kernel(
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		
-		value = render_earth(ray_pos, ray_dir, kernel_params, atmosphere);
-		//if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
-		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
+		//value = render_earth(ray_pos, ray_dir, kernel_params, atmosphere);
+		if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
+		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
 		
 	}
 	
