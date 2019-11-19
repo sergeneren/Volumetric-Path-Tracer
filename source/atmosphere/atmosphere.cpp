@@ -925,6 +925,24 @@ atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_
 
 	}
 
+	// copy textures and free buffers
+
+	copy_transmittance_texture();
+	copy_irradiance_texture();
+	copy_scattering_texture();
+	copy_single_scattering_texture();
+
+	cudaFree(atmosphere_parameters.transmittance_buffer);
+	cudaFree(atmosphere_parameters.delta_irradience_buffer);
+	cudaFree(atmosphere_parameters.delta_mie_scattering_buffer);
+	cudaFree(atmosphere_parameters.delta_multiple_scattering_buffer);
+	cudaFree(atmosphere_parameters.delta_rayleigh_scattering_buffer);
+	cudaFree(atmosphere_parameters.delta_scattering_density_buffer);
+	cudaFree(atmosphere_parameters.irradiance_buffer);
+	cudaFree(atmosphere_parameters.optional_mie_single_scattering_buffer);
+	cudaFree(atmosphere_parameters.scattering_buffer);
+
+
 	return ATMO_NO_ERR;
 
 }

@@ -1446,7 +1446,7 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
 		ImGui::InputFloat("Sky Multiplier", &kernel_params.sky_mult, 0.0f, 100.0f);
 		ImGui::SliderFloat("Azimuth", &azimuth, 0, 360);
-		ImGui::SliderFloat("Elevation", &elevation, 0, 90);
+		ImGui::SliderFloat("Elevation", &elevation, -90, 90);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		ImGui::End();
 		ImGui::Render();
@@ -1518,7 +1518,7 @@ int main(const int argc, const char* argv[])
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
 
-			create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
+			//create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
 			kernel_params.iteration = 0;
 
 		}
