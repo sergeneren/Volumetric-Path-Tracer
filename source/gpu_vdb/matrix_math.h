@@ -43,7 +43,6 @@
 #include "cuda_runtime.h"
 #include "helper_cuda.h"
 
-
 struct mat4 {
 	float m[4][4];
 
@@ -331,6 +330,16 @@ struct mat4 {
 	}
 
 	__host__ __device__ __forceinline__ mat4 toMatrix(double *arr) {
+
+		m[0][0] = arr[0]; m[1][0] = arr[1]; m[2][0] = arr[2]; m[3][0] = 0.0f;
+		m[0][1] = arr[3]; m[1][1] = arr[4]; m[2][1] = arr[5]; m[3][1] = 0.0f;
+		m[0][2] = arr[6]; m[1][2] = arr[7]; m[2][2] = arr[8]; m[3][2] = 0.0f;
+		m[0][3] = .0f; m[1][3] = .0f; m[2][3] = 0.0f; m[3][3] = 1.0f;
+
+		return *this;
+	}
+
+	__host__ __device__ __forceinline__ mat4 toMatrix(float *arr) {
 
 		m[0][0] = arr[0]; m[1][0] = arr[1]; m[2][0] = arr[2]; m[3][0] = 0.0f;
 		m[0][1] = arr[3]; m[1][1] = arr[4]; m[2][1] = arr[5]; m[3][1] = 0.0f;

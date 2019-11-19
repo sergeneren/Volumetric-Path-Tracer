@@ -1390,7 +1390,6 @@ int main(const int argc, const char* argv[])
 	// Init atmosphere 
 	earth_atmosphere.init(true, true);
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
-
 	// Create OIDN devices 
 
 	oidn::DeviceRef oidn_device = oidn::newDevice();

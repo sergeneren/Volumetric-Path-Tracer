@@ -404,42 +404,6 @@ __device__  float GetProfileDensity(const DensityProfile profile, float altitude
 	return altitude < profile.layers[0].width ? GetLayerDensity(profile.layers[0], altitude) : GetLayerDensity(profile.layers[1], altitude);
 }
 
-__device__  float ComputeOpticalLengthToTopAtmosphereBoundary(const AtmosphereParameters atmosphere, const DensityProfile profile, float r, float mu)
-{
-	// float of intervals for the numerical integration.
-	const int SAMPLE_COUNT = 500;
-	// The integration step, i.e. the float of each integration interval.
-	float dx = DistanceToTopAtmosphereBoundary(atmosphere, r, mu) / float(SAMPLE_COUNT);
-	// Integration loop.
-	float result = 0.0 * m;
-	for (int i = 0; i <= SAMPLE_COUNT; ++i) {
-		float d_i = float(i) * dx;
-		// Distance between the current sample point and the planet center.
-		float r_i = sqrt(d_i * d_i + 2.0 * r * mu * d_i + r * r);
-		// float density at the current sample point (divided by the float density
-		// at the bottom of the atmosphere, yielding a dimensionless float).
-		float y_i = GetProfileDensity(profile, r_i - atmosphere.bottom_radius);
-		// Sample weight (from the trapezoidal rule).
-		float weight_i = i == 0 || i == SAMPLE_COUNT ? 0.5 : 1.0;
-		result += y_i * weight_i * dx;
-	}
-	return result;
-}
-
-__device__  float3 ComputeTransmittanceToTopAtmosphereBoundary(const AtmosphereParameters atmosphere, float r, float mu)
-{
-	return expf(-(
-		atmosphere.rayleigh_scattering *
-		ComputeOpticalLengthToTopAtmosphereBoundary(
-			atmosphere, atmosphere.rayleigh_density, r, mu) +
-		atmosphere.mie_extinction *
-		ComputeOpticalLengthToTopAtmosphereBoundary(
-			atmosphere, atmosphere.mie_density, r, mu) +
-		atmosphere.absorption_extinction *
-		ComputeOpticalLengthToTopAtmosphereBoundary(
-			atmosphere, atmosphere.absorption_density, r, mu)));
-}
-
 __device__  float GetTextureCoordFromUnitRange(float x, int texture_size)
 {
 	return 0.5 / float(texture_size) + x * (1.0 - 1.0 / float(texture_size));
@@ -485,15 +449,6 @@ __device__  void GetRMuFromTransmittanceTextureUv(const AtmosphereParameters atm
 	mu = ClampCosine(mu);
 }
 
-__device__  float3 ComputeTransmittanceToTopAtmosphereBoundaryTexture(const AtmosphereParameters atmosphere, float2 frag_coord)
-{
-	const float2 TRANSMITTANCE_TEXTURE_SIZE = make_float2(TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
-	float r;
-	float mu;
-	GetRMuFromTransmittanceTextureUv(atmosphere, (frag_coord / TRANSMITTANCE_TEXTURE_SIZE), r, mu);
-	return ComputeTransmittanceToTopAtmosphereBoundary(atmosphere, r, mu);
-}
-
 __device__  float3 GetTransmittanceToTopAtmosphereBoundary(const AtmosphereParameters atmosphere, float r, float mu)
 {
 
@@ -528,15 +483,6 @@ __device__  float3 GetTransmittanceToSun(const AtmosphereParameters atmosphere, 
 			mu_s - cos_theta_h);
 }
 
-__device__  void ComputeSingleScatteringIntegrand(const AtmosphereParameters atmosphere, float r, float mu, float mu_s, float nu, float d, bool ray_r_mu_intersects_ground, float3 &rayleigh, float3 &mie)
-{
-	float r_d = ClampRadius(atmosphere, sqrt(d * d + 2.0 * r * mu * d + r * r));
-	float mu_s_d = ClampCosine((r * mu_s + d * nu) / r_d);
-	float3 transmittance = GetTransmittance(atmosphere, r, mu, d, ray_r_mu_intersects_ground) * GetTransmittanceToSun(atmosphere, r_d, mu_s_d);
-	rayleigh = transmittance * GetProfileDensity(atmosphere.rayleigh_density, r_d - atmosphere.bottom_radius);
-	mie = transmittance * GetProfileDensity(atmosphere.mie_density, r_d - atmosphere.bottom_radius);
-}
-
 __device__  float DistanceToNearestAtmosphereBoundary(const AtmosphereParameters atmosphere, float r, float mu, bool ray_r_mu_intersects_ground)
 {
 	if (ray_r_mu_intersects_ground) {
@@ -545,32 +491,6 @@ __device__  float DistanceToNearestAtmosphereBoundary(const AtmosphereParameters
 	else {
 		return DistanceToTopAtmosphereBoundary(atmosphere, r, mu);
 	}
-}
-
-__device__  void ComputeSingleScattering(const AtmosphereParameters atmosphere, float r, float mu, float mu_s, float nu, bool ray_r_mu_intersects_ground, float3 &rayleigh, float3 &mie)
-{
-
-	// float of intervals for the numerical integration.
-	const int SAMPLE_COUNT = 50;
-	// The integration step, i.e. the float of each integration interval.
-	float dx =
-		DistanceToNearestAtmosphereBoundary(atmosphere, r, mu, ray_r_mu_intersects_ground) / float(SAMPLE_COUNT);
-	// Integration loop.
-	float3 rayleigh_sum = make_float3(0.0f);
-	float3 mie_sum = make_float3(0.0f);
-	for (int i = 0; i <= SAMPLE_COUNT; ++i) {
-		float d_i = float(i) * dx;
-		// The Rayleigh and Mie single scattering at the current sample point.
-		float3 rayleigh_i;
-		float3 mie_i;
-		ComputeSingleScatteringIntegrand(atmosphere, r, mu, mu_s, nu, d_i, ray_r_mu_intersects_ground, rayleigh_i, mie_i);
-		// Sample weight (from the trapezoidal rule).
-		float weight_i = (i == 0 || i == SAMPLE_COUNT) ? 0.5 : 1.0;
-		rayleigh_sum += rayleigh_i * weight_i;
-		mie_sum += mie_i * weight_i;
-	}
-	rayleigh = rayleigh_sum * dx * atmosphere.solar_irradiance * atmosphere.rayleigh_scattering;
-	mie = mie_sum * dx * atmosphere.solar_irradiance * atmosphere.mie_scattering;
 }
 
 __device__  float RayleighPhaseFunction(float nu)
@@ -696,182 +616,7 @@ __device__  void GetRMuMuSNuFromScatteringTextureFragCoord(const AtmosphereParam
 	nu = clamp(nu, mu * mu_s - sqrt((1.0 - mu * mu) * (1.0 - mu_s * mu_s)), mu * mu_s + sqrt((1.0 - mu * mu) * (1.0 - mu_s * mu_s)));
 }
 
-__device__  float3 GetScattering(const AtmosphereParameters atmosphere, float4 *scattering_buffer, float r, float mu, float mu_s, float nu, bool ray_r_mu_intersects_ground)
-{
-
-	float4 uvwz = GetScatteringTextureUvwzFromRMuMuSNu(atmosphere, r, mu, mu_s, nu, ray_r_mu_intersects_ground);
-	float tex_coord_x = uvwz.x * float(SCATTERING_TEXTURE_NU_SIZE - 1);
-	float tex_x = floor(tex_coord_x);
-	float lerp = tex_coord_x - tex_x;
-	float3 uvw0 = make_float3((tex_x + uvwz.y) / float(SCATTERING_TEXTURE_NU_SIZE), uvwz.z, uvwz.w);
-	float3 uvw1 = make_float3((tex_x + 1.0 + uvwz.y) / float(SCATTERING_TEXTURE_NU_SIZE), uvwz.z, uvwz.w);
-
-	int3 uvw0_i = make_int3(uvw0.x * SCATTERING_TEXTURE_WIDTH, uvw0.y * SCATTERING_TEXTURE_HEIGHT, uvw0.z * SCATTERING_TEXTURE_DEPTH);
-	int3 uvw1_i = make_int3(uvw1.x * SCATTERING_TEXTURE_WIDTH, uvw1.y * SCATTERING_TEXTURE_HEIGHT, uvw1.z * SCATTERING_TEXTURE_DEPTH);
-
-	int index0 = uvw0_i.x + SCATTERING_TEXTURE_WIDTH * (uvw0_i.y + SCATTERING_TEXTURE_HEIGHT * uvw0_i.z);
-	int index1 = uvw1_i.x + SCATTERING_TEXTURE_WIDTH * (uvw1_i.y + SCATTERING_TEXTURE_HEIGHT * uvw1_i.z);
-
-	const float4 val1 = scattering_buffer[index0];
-	const float4 val2 = scattering_buffer[index1];
-
-	return float3(make_float3(val1) * (1.0 - lerp) + make_float3(val2) * lerp);
-}
-
-__device__  float3 GetScattering(const AtmosphereParameters atmosphere, float r, float mu, float mu_s, float nu, bool ray_r_mu_intersects_ground, int scattering_order)
-{
-	if (scattering_order == 1) {
-		float3 rayleigh = GetScattering(atmosphere, atmosphere.delta_rayleigh_scattering_buffer, r, mu, mu_s, nu, ray_r_mu_intersects_ground);
-		float3 mie = GetScattering(atmosphere, atmosphere.delta_mie_scattering_buffer, r, mu, mu_s, nu, ray_r_mu_intersects_ground);
-		return rayleigh * RayleighPhaseFunction(nu) + mie * MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
-	}
-	else {
-		return GetScattering(atmosphere, atmosphere.scattering_buffer, r, mu, mu_s, nu, ray_r_mu_intersects_ground);
-	}
-}
-
 __device__  float3 GetIrradiance(const AtmosphereParameters atmosphere, float r, float mu_s);
-
-__device__  float3 ComputeScatteringDensity(const AtmosphereParameters atmosphere, float r, float mu, float mu_s, float nu, int scattering_order)
-{
-	// Compute unit float3 vectors for the zenith, the view float3 omega and
-	// and the sun float3 omega_s, such that the cosine of the view-zenith
-	// float is mu, the cosine of the sun-zenith float is mu_s, and the cosine of
-	// the view-sun float is nu. The goal is to simplify computations below.
-	float3 zenith_direction = make_float3(0.0, 0.0, 1.0);
-	float3 omega = make_float3(sqrt(1.0f - mu * mu), 0.0, mu);
-	float sun_dir_x = omega.x == 0.0 ? 0.0 : (nu - mu * mu_s) / omega.x;
-	float sun_dir_y = sqrt(max(1.0 - sun_dir_x * sun_dir_x - mu_s * mu_s, 0.0));
-	float3 omega_s = make_float3(sun_dir_x, sun_dir_y, mu_s);
-
-	const int SAMPLE_COUNT = 16;
-	const float dphi = pi() / float(SAMPLE_COUNT);
-	const float dtheta = pi() / float(SAMPLE_COUNT);
-	float3 rayleigh_mie =
-		make_float3(0.0f * watt_per_cubic_meter_per_sr_per_nm());
-
-	// Nested loops for the integral over all the incident directions omega_i.
-	for (int l = 0; l < SAMPLE_COUNT; ++l) {
-		float theta = (float(l) + 0.5) * dtheta;
-		float cos_theta = cos(theta);
-		float sin_theta = sin(theta);
-		bool ray_r_theta_intersects_ground =
-			RayIntersectsGround(atmosphere, r, cos_theta);
-
-		// The distance and transmittance to the ground only depend on theta, so we
-		// can compute them in the outer loop for efficiency.
-		float distance_to_ground = 0.0 * m;
-		float3 transmittance_to_ground = make_float3(0.0f);
-		float3 ground_albedo = make_float3(0.0f);
-		if (ray_r_theta_intersects_ground) {
-			distance_to_ground = DistanceToBottomAtmosphereBoundary(atmosphere, r, cos_theta);
-			transmittance_to_ground = GetTransmittance(atmosphere, r, cos_theta, distance_to_ground, true);
-			ground_albedo = atmosphere.ground_albedo;
-		}
-
-		for (int m = 0; m < 2 * SAMPLE_COUNT; ++m) {
-			float phi = (float(m) + 0.5) * dphi;
-			float3 omega_i = make_float3(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
-			float domega_i = (dtheta / rad) * (dphi / rad) * sin(theta) * sr;
-
-			// The radiance L_i arriving from float3 omega_i after n-1 bounces is
-			// the sum of a term given by the precomputed scattering texture for the
-			// (n-1)-th order:
-			float nu1 = dot(omega_s, omega_i);
-			float3 incident_radiance = GetScattering(atmosphere, r, omega_i.z, mu_s, nu1, ray_r_theta_intersects_ground, scattering_order - 1);
-
-			// and of the contribution from the light paths with n-1 bounces and whose
-			// last bounce is on the ground. This contribution is the product of the
-			// transmittance to the ground, the ground albedo, the ground BRDF, and
-			// the irradiance received on the ground after n-2 bounces.
-			float3 ground_normal = normalize(zenith_direction * r + omega_i * distance_to_ground);
-			float3 ground_irradiance = GetIrradiance(atmosphere, atmosphere.bottom_radius, dot(ground_normal, omega_s));
-			incident_radiance += transmittance_to_ground * ground_albedo * (1.0 / (PI * sr)) * ground_irradiance;
-
-			// The radiance finally scattered from float3 omega_i towards float3
-			// -omega is the product of the incident radiance, the scattering
-			// coefficient, and the phase function for directions omega and omega_i
-			// (all this summed over all particle types, i.e. Rayleigh and Mie).
-			float nu2 = dot(omega, omega_i);
-			float rayleigh_density = GetProfileDensity(atmosphere.rayleigh_density, r - atmosphere.bottom_radius);
-			float mie_density = GetProfileDensity(atmosphere.mie_density, r - atmosphere.bottom_radius);
-			rayleigh_mie += incident_radiance * (
-				atmosphere.rayleigh_scattering * rayleigh_density *
-				RayleighPhaseFunction(nu2) +
-				atmosphere.mie_scattering * mie_density *
-				MiePhaseFunction(atmosphere.mie_phase_function_g, nu2)) *
-				domega_i;
-		}
-	}
-	return rayleigh_mie;
-}
-
-__device__  float3 ComputeMultipleScattering(const AtmosphereParameters atmosphere, float r, float mu, float mu_s, float nu, bool ray_r_mu_intersects_ground)
-{
-	// float of intervals for the numerical integration.
-	const int SAMPLE_COUNT = 50;
-	// The integration step, i.e. the float of each integration interval.
-	float dx =
-		DistanceToNearestAtmosphereBoundary(
-			atmosphere, r, mu, ray_r_mu_intersects_ground) /
-		float(SAMPLE_COUNT);
-	// Integration loop.
-	float3 rayleigh_mie_sum =
-		make_float3(0.0f * watt_per_square_meter_per_sr_per_nm());
-	for (int i = 0; i <= SAMPLE_COUNT; ++i) {
-		float d_i = float(i) * dx;
-
-		// The r, mu and mu_s parameters at the current integration point (see the
-		// single scattering section for a detailed explanation).
-		float r_i =
-			ClampRadius(atmosphere, sqrt(d_i * d_i + 2.0 * r * mu * d_i + r * r));
-		float mu_i = ClampCosine((r * mu + d_i) / r_i);
-		float mu_s_i = ClampCosine((r * mu_s + d_i * nu) / r_i);
-
-		// The Rayleigh and Mie multiple scattering at the current sample point.
-		float3 rayleigh_mie_i =
-			GetScattering(atmosphere, atmosphere.delta_scattering_density_buffer, r_i, mu_i, mu_s_i, nu, ray_r_mu_intersects_ground) *
-			GetTransmittance(atmosphere, r, mu, d_i, ray_r_mu_intersects_ground) *	dx;
-		// Sample weight (from the trapezoidal rule).
-		float weight_i = (i == 0 || i == SAMPLE_COUNT) ? 0.5 : 1.0;
-		rayleigh_mie_sum += rayleigh_mie_i * weight_i;
-	}
-	return rayleigh_mie_sum;
-}
-
-__device__  float3 ComputeDirectIrradiance(const AtmosphereParameters atmosphere, float r, float mu_s) {
-
-	float alpha_s = atmosphere.sun_angular_radius / rad;
-	// Approximate average of the cosine factor mu_s over the visible fraction of
-	// the Sun disc.
-
-	float average_cosine_factor = mu_s < -alpha_s ? 0.0 : (mu_s > alpha_s ? mu_s : (mu_s + alpha_s) * (mu_s + alpha_s) / (4.0 * alpha_s));
-	return atmosphere.solar_irradiance * GetTransmittanceToTopAtmosphereBoundary(atmosphere, r, mu_s) * average_cosine_factor;
-}
-
-__device__  float3 ComputeIndirectIrradiance(const AtmosphereParameters atmosphere, float r, float mu_s, int scattering_order)
-{
-
-	const int SAMPLE_COUNT = 32;
-	const float dphi = pi() / float(SAMPLE_COUNT);
-	const float dtheta = pi() / float(SAMPLE_COUNT);
-
-	float3 result = make_float3(0.0f * watt_per_square_meter_per_nm());
-	float3 omega_s = make_float3(sqrt(1.0 - mu_s * mu_s), 0.0, mu_s);
-	for (int j = 0; j < SAMPLE_COUNT / 2; ++j) {
-		float theta = (float(j) + 0.5) * dtheta;
-		for (int i = 0; i < 2 * SAMPLE_COUNT; ++i) {
-			float phi = (float(i) + 0.5) * dphi;
-			float3 omega =
-				make_float3(cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta));
-			float domega = (dtheta / rad) * (dphi / rad) * sin(theta) * sr;
-
-			float nu = dot(omega, omega_s);
-			result += GetScattering(atmosphere, r, omega.z, mu_s, nu, false, scattering_order) * omega.z * domega;
-		}
-	}
-	return result;
-}
 
 __device__  float2 GetIrradianceTextureUvFromRMuS(const AtmosphereParameters atmosphere, float r, float mu_s) {
 	float x_r = (r - atmosphere.bottom_radius) /
@@ -1435,7 +1180,7 @@ __device__ inline float3 direct_integrator(
 	float3 beta = WHITE;
 	float3 t = gpu_vdb[0].rayBoxIntersect(ray_pos, ray_dir);
 	bool mi = false;
-	/*
+	
 	if (t.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t.x;
 
@@ -1465,7 +1210,7 @@ __device__ inline float3 direct_integrator(
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sky(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, atmosphere) * beta;
-		else L += sample_atmosphere(kernel_params, atmosphere, ray_dir) * beta;
+		else L += sample_atmosphere(kernel_params, atmosphere,ray_pos, ray_dir) * beta;
 
 	}
 	else {
@@ -1476,9 +1221,7 @@ __device__ inline float3 direct_integrator(
 			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
 		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
-	*/
-
-	L = sample_atmosphere(kernel_params, atmosphere, ray_pos, ray_dir);
+	
 
 	tr = fminf(tr, 1.0f);
 	return L;
