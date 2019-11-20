@@ -1355,7 +1355,14 @@ int main(const int argc, const char* argv[])
 	float elevation = 30.0f;
 	int integrator = 0;
 	bool render = true;
+	bool debug = false;
+	bool denoise = false;
+	int frame = 0;
+	float rot_amount = 0.0f;
 
+	static const char *items[] = {"NONE", "APPROXIMATE", "PRECOMPUTED"};
+	static int env_comp = 0;
+	int temp_env_comp = 0;
 
 	// End ImGui parameters
 
@@ -1372,26 +1379,14 @@ int main(const int argc, const char* argv[])
 	}
 
 	// Create env map sampling textures
-
-	create_cdf(
-		kernel_params,
-		&env_val_data,
-		&env_func_data,
-		&env_cdf_data,
-		&env_marginal_func_data,
-		&env_marginal_cdf_data);
-
-	bool debug = false;
-	bool denoise = false;
-	int frame = 0;
-	float rot_amount = 0.0f;
-
+	create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
 
 	// Init atmosphere 
 	earth_atmosphere.init(true, true);
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
+	
+	
 	// Create OIDN devices 
-
 	oidn::DeviceRef oidn_device = oidn::newDevice();
 	oidn_device.commit();
 	oidn::FilterRef filter = oidn_device.newFilter("RT");
@@ -1430,7 +1425,7 @@ int main(const int argc, const char* argv[])
 		ImGui::Checkbox("Denoise", &denoise);
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
-		ImGui::InputInt("Ray Depth", &ray_depth, 10);
+		ImGui::InputInt("Ray Depth", &ray_depth, 1);
 		ImGui::InputInt("Integrator", &integrator, 0);
 		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
@@ -1441,13 +1436,17 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
 		ImGui::InputDouble("Energy Injection", &energy, 0.0);
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+
+		ImGui::Begin("Atmosphere Parameters");
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
 		ImGui::InputFloat("Sky Multiplier", &kernel_params.sky_mult, 0.0f, 100.0f);
 		ImGui::SliderFloat("Azimuth", &azimuth, 0, 360);
 		ImGui::SliderFloat("Elevation", &elevation, -90, 90);
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::Combo("Env computation", &env_comp, items, IM_ARRAYSIZE(items));
 		ImGui::End();
 		ImGui::Render();
 
@@ -1517,11 +1516,13 @@ int main(const int argc, const char* argv[])
 
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
-
 			//create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
 			kernel_params.iteration = 0;
-
 		}
+
+		
+
+		
 
 		// Reallocate buffers if window size changed.
 		int nwidth, nheight;
