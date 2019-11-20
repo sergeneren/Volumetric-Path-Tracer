@@ -36,7 +36,7 @@
 //
 //-----------------------------------------------
 
-#define DEBUG_TEXTURES
+//#define DEBUG_TEXTURES
 
 #include <vector>
 #include <string>
@@ -653,7 +653,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		blend_vec = make_float4(.0f);
 
 		void *scattering_density_params[] = { &atmosphere_parameters, &blend_vec, &lfrm, &scattering_order };
-		result = cuLaunchKernel(scattering_density_function, grid_scattering.x, grid_scattering.y, grid_scattering.z, block_sct.x, block_sct.y, block_sct.z, 0, NULL, single_scattering_params, NULL);
+		result = cuLaunchKernel(scattering_density_function, grid_scattering.x, grid_scattering.y, grid_scattering.z, block_sct.x, block_sct.y, block_sct.z, 0, NULL, scattering_density_params, NULL);
 		cudaDeviceSynchronize();
 		if (result != CUDA_SUCCESS) {
 			printf("Unable to launch direct scattering density function! \n");
@@ -699,7 +699,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 		cudaMalloc(&atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size);
 		void *multiple_scattering_params[] = { &atmosphere_parameters, &blend_vec, &lfrm, &scattering_order };
-		result = cuLaunchKernel(multiple_scattering_function, grid_scattering.x, grid_scattering.y, grid_scattering.z, block_sct.x, block_sct.y, block_sct.z, 0, NULL, single_scattering_params, NULL);
+		result = cuLaunchKernel(multiple_scattering_function, grid_scattering.x, grid_scattering.y, grid_scattering.z, block_sct.x, block_sct.y, block_sct.z, 0, NULL, multiple_scattering_params, NULL);
 		cudaDeviceSynchronize();
 		if (result != CUDA_SUCCESS) {
 			printf("Unable to launch direct scattering density function! \n");
