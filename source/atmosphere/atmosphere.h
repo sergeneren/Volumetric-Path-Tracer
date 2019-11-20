@@ -114,7 +114,7 @@ public:
 	atmosphere();
 	~atmosphere();
 
-	atmosphere_error_t init(bool use_constant_solar_spectrum, bool use_ozone_layer);
+	atmosphere_error_t init();
 	atmosphere_error_t precompute(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
 	atmosphere_error_t recompute();
 private:
@@ -162,13 +162,17 @@ private:
 
 	double m_max_sun_zenith_angle;
 	double m_length_unit_in_meters;
-	LUMINANCE m_use_luminance;
+	
 	inline int num_precomputed_wavelengths() { return m_use_luminance == LUMINANCE::PRECOMPUTED ? 15 : 3; }
 	bool m_combine_scattering_textures;
 	bool m_half_precision = false;
+	bool m_use_constant_solar_spectrum = true;
+	bool m_use_ozone = true;
+
 
 public:
 
+	LUMINANCE m_use_luminance;
 	AtmosphereParameters atmosphere_parameters;
 
 private:

@@ -474,6 +474,125 @@ void atmosphere::update_model(const float3 lambdas) {
 
 }
 
+// Recomputes the textures if there is a change
+atmosphere_error_t atmosphere::recompute() {
+
+	// clear vectors 
+
+	m_wave_lengths.clear();
+	m_solar_irradiance.clear();
+	m_rayleigh_density = nullptr;
+	m_rayleigh_scattering.clear();
+	m_mie_density = nullptr;
+	m_mie_scattering.clear();
+	m_mie_extinction.clear();
+
+	m_absorption_density.clear();
+	m_absorption_extinction.clear();
+	m_ground_albedo.clear();
+
+	m_absorption_density.push_back(new DensityProfileLayer(25000.0f, 0.0f, 0.0f, 1.0f / 15000.0f, -2.0f / 3.0f));
+	m_absorption_density.push_back(new DensityProfileLayer(0.0f, 0.0f, 0.0f, -1.0f / 15000.0f, 8.0f / 3.0f));
+
+	for (int l = kLambdaMin; l <= kLambdaMax; l += 10) {
+		double lambda = static_cast<double>(l) * 1e-3;  // micro-meters
+		double mie = kMieAngstromBeta / kMieScaleHeight * pow(lambda, -kMieAngstromAlpha);
+		m_wave_lengths.push_back(l);
+		if (m_use_constant_solar_spectrum) {
+			m_solar_irradiance.push_back(kConstantSolarIrradiance);
+		}
+		else {
+			m_solar_irradiance.push_back(kSolarIrradiance[(l - kLambdaMin) / 10]);
+		}
+		m_rayleigh_scattering.push_back(kRayleigh * pow(lambda, -4));
+		m_mie_scattering.push_back(mie * kMieSingleScatteringAlbedo);
+		m_mie_extinction.push_back(mie);
+		m_absorption_extinction.push_back(m_use_ozone ? kMaxOzoneNumberDensity * kOzoneCrossSection[(l - kLambdaMin) / 10] : 0.0);
+		m_ground_albedo.push_back(kGroundAlbedo);
+	}
+
+	m_half_precision = false;
+	m_combine_scattering_textures = true;
+	m_sun_angular_radius = 0.00935 / 2.0;
+	m_bottom_radius = 6360000.0f;
+	m_top_radius = 6420000.0f;
+	m_rayleigh_density = new DensityProfileLayer(0.0f, 1.0f, -1.0f / float(kRayleighScaleHeight), 0.0f, 0.0f);
+	m_mie_density = new DensityProfileLayer(0.0f, 1.0f, -1.0f / float(kMieScaleHeight), 0.0f, 0.0f);
+	m_mie_phase_function_g = 0.8;
+	m_max_sun_zenith_angle = 102.0 / 180.0 * kPi;
+	m_length_unit_in_meters = 1000.0f;
+
+	int num_scattering_orders = 4;
+	// Start precomputation
+
+	if (num_precomputed_wavelengths() <= 3) {
+		atmosphere_error_t error = precompute(nullptr, nullptr, false, num_scattering_orders);
+		if (error != ATMO_NO_ERR) {
+			printf("Unable to precompute!");
+			return ATMO_INIT_ERR;
+		}
+	}
+	else {
+
+		int num_iterations = (num_precomputed_wavelengths() + 2) / 3;
+		double dlambda = (kLambdaMax - kLambdaMin) / (3.0 * num_iterations);
+
+		for (int i = 0; i < num_iterations; ++i)
+		{
+			double lambdas[] =
+			{
+					kLambdaMin + (3 * i + 0.5) * dlambda,
+					kLambdaMin + (3 * i + 1.5) * dlambda,
+					kLambdaMin + (3 * i + 2.5) * dlambda
+			};
+
+			double luminance_from_radiance[] =
+			{
+					coeff(lambdas[0], 0) * dlambda, coeff(lambdas[1], 0) * dlambda, coeff(lambdas[2], 0) * dlambda,
+					coeff(lambdas[0], 1) * dlambda, coeff(lambdas[1], 1) * dlambda, coeff(lambdas[2], 1) * dlambda,
+					coeff(lambdas[0], 2) * dlambda, coeff(lambdas[1], 2) * dlambda, coeff(lambdas[2], 2) * dlambda
+			};
+
+			bool blend = i > 0;
+			atmosphere_error_t error = precompute(lambdas, luminance_from_radiance, blend, num_scattering_orders);
+			if (error != ATMO_NO_ERR) {
+				printf("Unable to precompute!");
+				return ATMO_INIT_ERR;
+			}
+		}
+
+		// After the above iterations, the transmittance texture contains the
+		// transmittance for the 3 wavelengths used at the last iteration. But we
+		// want the transmittance at kLambdaR, kLambdaG, kLambdaB instead, so we
+		// must recompute it here for these 3 wavelengths:
+		atmosphere_error_t error = compute_transmittance(nullptr, nullptr, false, num_scattering_orders);
+		if (error != ATMO_NO_ERR) {
+			printf("Unable to precompute!");
+			return ATMO_INIT_ERR;
+		}
+	}
+
+	// copy textures and free buffers
+
+	copy_transmittance_texture();
+	copy_irradiance_texture();
+	copy_scattering_texture();
+	copy_single_scattering_texture();
+
+	checkCudaErrors(cudaFree(atmosphere_parameters.transmittance_buffer));
+	checkCudaErrors(cudaFree(atmosphere_parameters.delta_irradience_buffer));
+	checkCudaErrors(cudaFree(atmosphere_parameters.delta_mie_scattering_buffer));
+	checkCudaErrors(cudaFree(atmosphere_parameters.delta_multiple_scattering_buffer));
+	checkCudaErrors(cudaFree(atmosphere_parameters.delta_rayleigh_scattering_buffer));
+	checkCudaErrors(cudaFree(atmosphere_parameters.delta_scattering_density_buffer));
+	checkCudaErrors(cudaFree(atmosphere_parameters.irradiance_buffer));
+	checkCudaErrors(cudaFree(atmosphere_parameters.optional_mie_single_scattering_buffer));
+	checkCudaErrors(cudaFree(atmosphere_parameters.scattering_buffer));
+
+	return ATMO_NO_ERR;
+
+}
+
 // Precomputes the textures that will be sent to the render kernel
 atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_from_radiance, bool blend, int num_scattering_orders) {
 
@@ -735,7 +854,7 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 }
 
 // Initialization function that fills the atmosphere parameters 
-atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_ozone_)
+atmosphere_error_t atmosphere::init()
 {
 	   
 	// Bind precomputation functions from ptx file 
@@ -751,7 +870,7 @@ atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_
 		double lambda = static_cast<double>(l) * 1e-3;  // micro-meters
 		double mie = kMieAngstromBeta / kMieScaleHeight * pow(lambda, -kMieAngstromAlpha);
 		m_wave_lengths.push_back(l);
-		if (use_constant_solar_spectrum_) {
+		if (m_use_constant_solar_spectrum) {
 			m_solar_irradiance.push_back(kConstantSolarIrradiance);
 		}
 		else {
@@ -760,7 +879,7 @@ atmosphere_error_t atmosphere::init(bool use_constant_solar_spectrum_, bool use_
 		m_rayleigh_scattering.push_back(kRayleigh * pow(lambda, -4));
 		m_mie_scattering.push_back(mie * kMieSingleScatteringAlbedo);
 		m_mie_extinction.push_back(mie);
-		m_absorption_extinction.push_back(use_ozone_ ? kMaxOzoneNumberDensity * kOzoneCrossSection[(l - kLambdaMin) / 10] : 0.0);
+		m_absorption_extinction.push_back(m_use_ozone ? kMaxOzoneNumberDensity * kOzoneCrossSection[(l - kLambdaMin) / 10] : 0.0);
 		m_ground_albedo.push_back(kGroundAlbedo);
 	}
 

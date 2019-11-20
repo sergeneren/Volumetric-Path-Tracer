@@ -1382,7 +1382,7 @@ int main(const int argc, const char* argv[])
 	create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
 
 	// Init atmosphere 
-	earth_atmosphere.init(true, true);
+	earth_atmosphere.init();
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
 	
 	
@@ -1520,7 +1520,24 @@ int main(const int argc, const char* argv[])
 			kernel_params.iteration = 0;
 		}
 
-		
+		// Recompute sky if there is a change 
+
+		if (temp_env_comp != env_comp) {
+
+			switch (env_comp)
+			{
+			case 0:
+				earth_atmosphere.m_use_luminance = NONE;
+			case 1:
+				earth_atmosphere.m_use_luminance = APPROXIMATE;
+			case 2:
+				earth_atmosphere.m_use_luminance = PRECOMPUTED;
+			default:
+				break;
+			}
+			earth_atmosphere.recompute();
+			temp_env_comp = env_comp;
+		}
 
 		
 
