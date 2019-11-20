@@ -1361,8 +1361,8 @@ int main(const int argc, const char* argv[])
 	float rot_amount = 0.0f;
 
 	static const char *items[] = {"NONE", "APPROXIMATE", "PRECOMPUTED"};
-	static int env_comp = 0;
-	int temp_env_comp = 0;
+	static int env_comp = 2;
+	int temp_env_comp = 2;
 
 	// End ImGui parameters
 
@@ -1536,6 +1536,7 @@ int main(const int argc, const char* argv[])
 				break;
 			}
 			earth_atmosphere.recompute();
+			atmos_params = &earth_atmosphere.atmosphere_parameters;
 			temp_env_comp = env_comp;
 		}
 

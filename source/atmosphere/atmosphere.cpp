@@ -36,7 +36,7 @@
 //
 //-----------------------------------------------
 
-//#define DEBUG_TEXTURES
+#define DEBUG_TEXTURES
 
 #include <vector>
 #include <string>
@@ -348,7 +348,7 @@ void atmosphere::copy_transmittance_texture() {
 	tex_desc.normalizedCoords = 1;
 
 	checkCudaErrors(cudaCreateTextureObject(&atmosphere_parameters.transmittance_texture, &res_desc, &tex_desc, NULL));
-	
+	delete[] host_transmittance_buffer;
 }
 
 // Copy irradiance buffer to irradiance texture
@@ -384,6 +384,7 @@ void atmosphere::copy_irradiance_texture() {
 	tex_desc.normalizedCoords = 1;
 
 	checkCudaErrors(cudaCreateTextureObject(&atmosphere_parameters.irradiance_texture, &res_desc, &tex_desc, NULL));
+	delete[] host_buffer;
 }
 
 // Copy scattering buffer to scattering texture
@@ -434,6 +435,7 @@ void atmosphere::copy_scattering_texture() {
 
 	checkCudaErrors(cudaCreateTextureObject(&atmosphere_parameters.scattering_texture, &texRes, &texDescr, NULL));
 
+	delete[] volume_data_host;
 }
 
 // Copy single scattering buffer to single scattering texture
@@ -483,6 +485,8 @@ void atmosphere::copy_single_scattering_texture() {
 	texDescr.normalizedCoords = 1;
 
 	checkCudaErrors(cudaCreateTextureObject(&atmosphere_parameters.single_mie_scattering_texture, &texRes, &texDescr, NULL));
+
+	delete[] volume_data_host;
 }
 
 // Updates atmosphere_parameters by internal parameters 
@@ -543,7 +547,7 @@ void atmosphere::update_model(const float3 lambdas) {
 atmosphere_error_t atmosphere::recompute() {
 
 	// clear vectors 
-
+	clear_buffers();
 	m_wave_lengths.clear();
 	m_solar_irradiance.clear();
 	m_rayleigh_density = nullptr;
@@ -644,6 +648,8 @@ atmosphere_error_t atmosphere::recompute() {
 	copy_scattering_texture();
 	copy_single_scattering_texture();
 
+	
+
 	return ATMO_NO_ERR;
 
 }
@@ -699,7 +705,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
 
 	print_texture(host_transmittance_buffer, "transmittance.jpg", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
-
+	delete[] host_transmittance_buffer;
 #endif
 
 	// Compute direct irradiance 
@@ -720,7 +726,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 	checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
 	print_texture(host_irradiance_buffer, "irradiance.jpg", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
-
+	
 #endif
 
 	//***************************************************************************************************************************
@@ -754,6 +760,8 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 	checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_mie_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
 	print_texture(host_scattering_buffer, "delta_mie_scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+
+	
 
 #endif
 
@@ -835,6 +843,8 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 
 	}
+	delete[] host_irradiance_buffer;
+	delete[] host_scattering_buffer;
 
 	return ATMO_NO_ERR;
 
@@ -889,7 +899,7 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
 
 	print_texture(host_transmittance_buffer, "transmittance.jpg", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
-
+	delete[] host_transmittance_buffer;
 #endif
 
 
@@ -995,6 +1005,8 @@ atmosphere_error_t atmosphere::init()
 	copy_scattering_texture();
 	copy_single_scattering_texture();
 
+	clear_buffers();
+
 	return ATMO_NO_ERR;
 
 }
@@ -1039,5 +1051,5 @@ atmosphere::atmosphere() {
 	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_scattering_density_buffer, scattering_size));
 	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size));
 
-	m_use_luminance = NONE;
+	m_use_luminance = PRECOMPUTED;
 }
