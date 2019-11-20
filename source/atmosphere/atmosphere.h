@@ -116,7 +116,7 @@ public:
 
 	atmosphere_error_t init(bool use_constant_solar_spectrum, bool use_ozone_layer);
 	atmosphere_error_t precompute(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
-	
+	atmosphere_error_t recompute();
 private:
 	void update_model(const float3 lambdas);
 	void copy_transmittance_texture();
