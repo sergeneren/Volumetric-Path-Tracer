@@ -650,7 +650,7 @@ __device__  float3 GetExtrapolatedSingleMieScattering(const AtmosphereParameters
 	if (scattering.x == 0.0) {
 		return make_float3(0.0);
 	}
-
+	
 	return make_float3(scattering.x, scattering.y, scattering.z) * scattering.w / scattering.x *
 		(atmosphere.rayleigh_scattering.x / atmosphere.mie_scattering.x) *
 		(atmosphere.mie_scattering / atmosphere.rayleigh_scattering);

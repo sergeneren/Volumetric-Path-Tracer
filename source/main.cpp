@@ -1528,15 +1528,18 @@ int main(const int argc, const char* argv[])
 			{
 			case 0:
 				earth_atmosphere.m_use_luminance = NONE;
+				break;
 			case 1:
 				earth_atmosphere.m_use_luminance = APPROXIMATE;
+				break;
 			case 2:
 				earth_atmosphere.m_use_luminance = PRECOMPUTED;
+				break;
+
 			default:
 				break;
 			}
 			earth_atmosphere.recompute();
-			atmos_params = &earth_atmosphere.atmosphere_parameters;
 			temp_env_comp = env_comp;
 		}
 

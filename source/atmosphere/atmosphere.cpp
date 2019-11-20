@@ -287,6 +287,17 @@ atmosphere_error_t atmosphere::clear_buffers() {
 		printf("Unable to launch clear_transmittance_buffers_function! \n");
 		return ATMO_LAUNCH_ERR;
 	}
+#ifdef DEBUG_TEXTURES // Print transmittance values
+
+	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);
+	float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
+
+	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
+
+	print_texture(host_transmittance_buffer, "transmittance_cleared.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
+	delete[] host_transmittance_buffer;
+#endif
+
 
 	// Clear irradiance buffers 
 	dim3 grid_irradiance(int(IRRADIANCE_TEXTURE_WIDTH / block.x) + 1, int(IRRADIANCE_TEXTURE_HEIGHT / block.y) + 1, 1);
@@ -547,7 +558,7 @@ void atmosphere::update_model(const float3 lambdas) {
 atmosphere_error_t atmosphere::recompute() {
 
 	// clear vectors 
-	clear_buffers();
+	
 	m_wave_lengths.clear();
 	m_solar_irradiance.clear();
 	m_rayleigh_density = nullptr;
@@ -602,7 +613,6 @@ atmosphere_error_t atmosphere::recompute() {
 		}
 	}
 	else {
-
 		int num_iterations = (num_precomputed_wavelengths() + 2) / 3;
 		double dlambda = (kLambdaMax - kLambdaMin) / (3.0 * num_iterations);
 
@@ -640,7 +650,7 @@ atmosphere_error_t atmosphere::recompute() {
 			return ATMO_INIT_ERR;
 		}
 	}
-
+	
 	// copy textures and free buffers
 
 	copy_transmittance_texture();
@@ -648,7 +658,7 @@ atmosphere_error_t atmosphere::recompute() {
 	copy_scattering_texture();
 	copy_single_scattering_texture();
 
-	
+	clear_buffers();
 
 	return ATMO_NO_ERR;
 
@@ -704,7 +714,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
 
-	print_texture(host_transmittance_buffer, "transmittance.jpg", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
+	print_texture(host_transmittance_buffer, "transmittance.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
 	delete[] host_transmittance_buffer;
 #endif
 
@@ -725,7 +735,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	float4 *host_irradiance_buffer = new float4[IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT];
 
 	checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
-	print_texture(host_irradiance_buffer, "irradiance.jpg", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
+	print_texture(host_irradiance_buffer, "irradiance.png", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
 	
 #endif
 
