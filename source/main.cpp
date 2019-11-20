@@ -1385,9 +1385,22 @@ int main(const int argc, const char* argv[])
 	create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
 
 	// Init atmosphere 
+	
+#ifdef DEBUG_TEXTURES
+
+	if (CreateDirectory("./atmosphere_textures", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+	else {
+
+		printf("\nError: unable to create directory for atmosphere textures\n");
+		exit(-1);
+
+	};
+
 	earth_atmosphere.init();
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
-	
+
+#endif // DEBUG_TEXTURES
+
 	
 	// Create OIDN devices 
 	oidn::DeviceRef oidn_device = oidn::newDevice();

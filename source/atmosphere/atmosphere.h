@@ -41,6 +41,7 @@
 #ifndef  __ATMOSPHERE_H__
 #define __ATMOSPHERE_H__
 
+#define DEBUG_TEXTURES
 
 #include <cuda.h>
 #include "texture_types.h"
@@ -173,6 +174,8 @@ public:
 	bool m_use_ozone = true;
 	LUMINANCE m_use_luminance;
 	AtmosphereParameters atmosphere_parameters;
+
+	bool debug_textures = false;
 
 private:
 
