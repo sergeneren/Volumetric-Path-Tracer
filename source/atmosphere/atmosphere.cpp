@@ -497,54 +497,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 	compute_spectral_radiance_to_luminance_factors(m_wave_lengths, m_solar_irradiance, 0, sun_k_r, sun_k_g, sun_k_b);
 
-
-	atmosphere_parameters.sky_spectral_radiance_to_luminance = make_float3(sky_k_r, sky_k_g, sky_k_b);
-	atmosphere_parameters.sun_spectral_radiance_to_luminance = make_float3(sun_k_r, sun_k_g, sun_k_b);
-
-	atmosphere_parameters.solar_irradiance.x = interpolate(m_wave_lengths, m_solar_irradiance, lambdas.x);
-	atmosphere_parameters.solar_irradiance.y = interpolate(m_wave_lengths, m_solar_irradiance, lambdas.y);
-	atmosphere_parameters.solar_irradiance.z = interpolate(m_wave_lengths, m_solar_irradiance, lambdas.z);
-
-
-	atmosphere_parameters.sun_angular_radius = m_sun_angular_radius;
-	atmosphere_parameters.bottom_radius = m_bottom_radius / m_length_unit_in_meters;
-	atmosphere_parameters.top_radius = m_top_radius / m_length_unit_in_meters;
-
-	DensityProfile rayleigh_density;
-	rayleigh_density.layers[0] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
-	rayleigh_density.layers[1] = { 0.0, 1.0, -1.0 / kRayleighScaleHeight, 0.0, 0.0 };
-	atmosphere_parameters.rayleigh_density = adjust_units(rayleigh_density);
-	atmosphere_parameters.rayleigh_scattering.x = interpolate(m_wave_lengths, m_rayleigh_scattering, lambdas.x) * m_length_unit_in_meters;
-	atmosphere_parameters.rayleigh_scattering.y = interpolate(m_wave_lengths, m_rayleigh_scattering, lambdas.y) * m_length_unit_in_meters;
-	atmosphere_parameters.rayleigh_scattering.z = interpolate(m_wave_lengths, m_rayleigh_scattering, lambdas.z) * m_length_unit_in_meters;
-
-	DensityProfile mie_density;
-	mie_density.layers[0] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
-	mie_density.layers[1] = { 0.0, 1.0, -1.0 / kMieScaleHeight, 0.0, 0.0 };
-	atmosphere_parameters.mie_density = adjust_units(mie_density);
-	atmosphere_parameters.mie_scattering.x = interpolate(m_wave_lengths, m_mie_scattering, lambdas.x) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_scattering.y = interpolate(m_wave_lengths, m_mie_scattering, lambdas.y) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_scattering.z = interpolate(m_wave_lengths, m_mie_scattering, lambdas.z) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_extinction.x = interpolate(m_wave_lengths, m_mie_scattering, lambdas.x) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_extinction.y = interpolate(m_wave_lengths, m_mie_scattering, lambdas.y) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_extinction.z = interpolate(m_wave_lengths, m_mie_scattering, lambdas.z) * m_length_unit_in_meters;
-
-	DensityProfile ozone_density;
-	ozone_density.layers[0] = { 25000.0, 0.0, 0.0, 1.0 / 15000.0, -2.0 / 3.0 };
-	ozone_density.layers[1] = { 0.0, 0.0, 0.0, -1.0 / 15000.0, 8.0 / 3.0 };
-	atmosphere_parameters.absorption_density = adjust_units(ozone_density);
-
-	atmosphere_parameters.absorption_extinction.x = interpolate(m_wave_lengths, m_absorption_extinction, lambdas.x) * m_length_unit_in_meters;
-	atmosphere_parameters.absorption_extinction.y = interpolate(m_wave_lengths, m_absorption_extinction, lambdas.y) * m_length_unit_in_meters;
-	atmosphere_parameters.absorption_extinction.z = interpolate(m_wave_lengths, m_absorption_extinction, lambdas.z) * m_length_unit_in_meters;
-
-	atmosphere_parameters.ground_albedo.x = interpolate(m_wave_lengths, m_ground_albedo, lambdas.x);
-	atmosphere_parameters.ground_albedo.y = interpolate(m_wave_lengths, m_ground_albedo, lambdas.y);
-	atmosphere_parameters.ground_albedo.z = interpolate(m_wave_lengths, m_ground_albedo, lambdas.z);
-
-	const double max_sun_zenith_angle = (m_half_precision ? 102.0 : 120.0) / 180.0 * kPi;
-	atmosphere_parameters.mu_s_min = cos(max_sun_zenith_angle);
-
+	update_model(lambdas);
 
 	// STARTING PRECOMPUTE
 
@@ -747,52 +700,7 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 
 	compute_spectral_radiance_to_luminance_factors(m_wave_lengths, m_solar_irradiance, 0, sun_k_r, sun_k_g, sun_k_b);
 
-	atmosphere_parameters.sky_spectral_radiance_to_luminance = make_float3(sky_k_r, sky_k_g, sky_k_b);
-	atmosphere_parameters.sun_spectral_radiance_to_luminance = make_float3(sun_k_r, sun_k_g, sun_k_b);
-
-	atmosphere_parameters.solar_irradiance.x = interpolate(m_wave_lengths, m_solar_irradiance, lambdas.x);
-	atmosphere_parameters.solar_irradiance.y = interpolate(m_wave_lengths, m_solar_irradiance, lambdas.y);
-	atmosphere_parameters.solar_irradiance.z = interpolate(m_wave_lengths, m_solar_irradiance, lambdas.z);
-
-
-	atmosphere_parameters.sun_angular_radius = m_sun_angular_radius;
-	atmosphere_parameters.bottom_radius = m_bottom_radius / m_length_unit_in_meters;
-	atmosphere_parameters.top_radius = m_top_radius / m_length_unit_in_meters;
-
-	DensityProfile rayleigh_density;
-	rayleigh_density.layers[0] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
-	rayleigh_density.layers[1] = { 0.0, 1.0, -1.0 / kRayleighScaleHeight, 0.0, 0.0 };
-	atmosphere_parameters.rayleigh_density = adjust_units(rayleigh_density);
-	atmosphere_parameters.rayleigh_scattering.x = interpolate(m_wave_lengths, m_rayleigh_scattering, lambdas.x) * m_length_unit_in_meters;
-	atmosphere_parameters.rayleigh_scattering.y = interpolate(m_wave_lengths, m_rayleigh_scattering, lambdas.y) * m_length_unit_in_meters;
-	atmosphere_parameters.rayleigh_scattering.z = interpolate(m_wave_lengths, m_rayleigh_scattering, lambdas.z) * m_length_unit_in_meters;
-
-	DensityProfile mie_density;
-	mie_density.layers[0] = { 0.0, 0.0, 0.0, 0.0, 0.0 };
-	mie_density.layers[1] = { 0.0, 1.0, -1.0 / kMieScaleHeight, 0.0, 0.0 };
-	atmosphere_parameters.mie_density = adjust_units(mie_density);
-	atmosphere_parameters.mie_scattering.x = interpolate(m_wave_lengths, m_mie_scattering, lambdas.x) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_scattering.y = interpolate(m_wave_lengths, m_mie_scattering, lambdas.y) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_scattering.z = interpolate(m_wave_lengths, m_mie_scattering, lambdas.z) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_extinction.x = interpolate(m_wave_lengths, m_mie_scattering, lambdas.x) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_extinction.y = interpolate(m_wave_lengths, m_mie_scattering, lambdas.y) * m_length_unit_in_meters;
-	atmosphere_parameters.mie_extinction.z = interpolate(m_wave_lengths, m_mie_scattering, lambdas.z) * m_length_unit_in_meters;
-
-	DensityProfile ozone_density;
-	ozone_density.layers[0] = { 25000.0, 0.0, 0.0, 1.0 / 15000.0, -2.0 / 3.0 };
-	ozone_density.layers[1] = { 0.0, 0.0, 0.0, -1.0 / 15000.0, 8.0 / 3.0 };
-	atmosphere_parameters.absorption_density = adjust_units(ozone_density);
-
-	atmosphere_parameters.absorption_extinction.x = interpolate(m_wave_lengths, m_absorption_extinction, lambdas.x) * m_length_unit_in_meters;
-	atmosphere_parameters.absorption_extinction.y = interpolate(m_wave_lengths, m_absorption_extinction, lambdas.y) * m_length_unit_in_meters;
-	atmosphere_parameters.absorption_extinction.z = interpolate(m_wave_lengths, m_absorption_extinction, lambdas.z) * m_length_unit_in_meters;
-
-	atmosphere_parameters.ground_albedo.x = interpolate(m_wave_lengths, m_ground_albedo, lambdas.x);
-	atmosphere_parameters.ground_albedo.y = interpolate(m_wave_lengths, m_ground_albedo, lambdas.y);
-	atmosphere_parameters.ground_albedo.z = interpolate(m_wave_lengths, m_ground_albedo, lambdas.z);
-
-	const double max_sun_zenith_angle = (m_half_precision ? 102.0 : 120.0) / 180.0 * kPi;
-	atmosphere_parameters.mu_s_min = cos(max_sun_zenith_angle);
+	update_model(lambdas);
 
 
 	// Precompute transmittance 
