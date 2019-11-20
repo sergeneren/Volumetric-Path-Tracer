@@ -59,7 +59,7 @@ struct ALIGN(16) AtmosphereParameters {
 	float angle;
 	float bottom_radius;
 	float top_radius;
-
+	int use_luminance;
 	DensityProfile rayleigh_density;
 	float3 rayleigh_scattering;
 
@@ -93,8 +93,6 @@ struct ALIGN(16) AtmosphereParameters {
 	cudaTextureObject_t scattering_texture;
 	cudaTextureObject_t irradiance_texture;
 	cudaTextureObject_t single_mie_scattering_texture;
-
-
 
 };
 

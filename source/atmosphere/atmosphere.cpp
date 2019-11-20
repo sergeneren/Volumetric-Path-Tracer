@@ -552,6 +552,24 @@ void atmosphere::update_model(const float3 lambdas) {
 	const double max_sun_zenith_angle = (m_half_precision ? 102.0 : 120.0) / 180.0 * kPi;
 	atmosphere_parameters.mu_s_min = cos(max_sun_zenith_angle);
 
+
+	switch (m_use_luminance)
+	{
+	case NONE:
+		atmosphere_parameters.use_luminance = 0;
+		break;
+	case APPROXIMATE:
+		atmosphere_parameters.use_luminance = 1;
+		break;
+	case PRECOMPUTED:
+		atmosphere_parameters.use_luminance = 2;
+		break;
+	default:
+		atmosphere_parameters.use_luminance = 0;
+		break;
+	}
+
+
 }
 
 // Recomputes the textures if there is a change
