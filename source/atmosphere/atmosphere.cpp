@@ -1051,5 +1051,5 @@ atmosphere::atmosphere() {
 	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_scattering_density_buffer, scattering_size));
 	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size));
 
-	m_use_luminance = PRECOMPUTED;
+	m_use_luminance = NONE;
 }

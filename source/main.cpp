@@ -1361,8 +1361,8 @@ int main(const int argc, const char* argv[])
 	float rot_amount = 0.0f;
 
 	static const char *items[] = {"NONE", "APPROXIMATE", "PRECOMPUTED"};
-	static int env_comp = 2;
-	int temp_env_comp = 2;
+	static int env_comp = 0;
+	int temp_env_comp = 0;
 
 	// End ImGui parameters
 
