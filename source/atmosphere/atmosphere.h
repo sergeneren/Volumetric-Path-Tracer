@@ -91,7 +91,7 @@ constexpr double kMieScaleHeight = 1200.0f;
 constexpr double kMieAngstromAlpha = 0.0;
 constexpr double kMieAngstromBeta = 5.328e-3;
 constexpr double kMieSingleScatteringAlbedo = 0.9;
-constexpr double kGroundAlbedo = 0.1;
+constexpr double kGroundAlbedo = 0.01;
 
 static double kDefaultLuminanceFromRadiance[] = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
 static double kDefaultLambdas[] = { 680.0, 550.0, 440.0 };
@@ -167,12 +167,10 @@ private:
 	inline int num_precomputed_wavelengths() { return m_use_luminance == LUMINANCE::PRECOMPUTED ? 15 : 3; }
 	bool m_combine_scattering_textures;
 	bool m_half_precision = false;
+	
+public:
 	bool m_use_constant_solar_spectrum = true;
 	bool m_use_ozone = true;
-
-
-public:
-
 	LUMINANCE m_use_luminance;
 	AtmosphereParameters atmosphere_parameters;
 

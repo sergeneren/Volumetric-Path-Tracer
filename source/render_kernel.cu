@@ -352,7 +352,7 @@ __device__ inline float sample_double_hg(
 
 // Atmosphere Functions
 
-#define COMBINED_SCATTERING_TEXTURES
+//#define COMBINED_SCATTERING_TEXTURES
 
 __device__  float ClampCosine(float mu)
 {
@@ -726,8 +726,11 @@ __device__  float3 GetSkyRadiance(const AtmosphereParameters atmosphere, float3 
 		scattering = scattering * shadow_transmittance;
 		single_mie_scattering = single_mie_scattering * shadow_transmittance;
 	}
-	return scattering * RayleighPhaseFunction(nu) + single_mie_scattering *
-		MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
+
+	float3 sky_radiance = scattering * RayleighPhaseFunction(nu) + single_mie_scattering * MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
+
+	if (atmosphere.use_luminance != 0) sky_radiance *= atmosphere.sky_spectral_radiance_to_luminance;
+	return sky_radiance;
 }
 
 __device__  float3 GetSkyRadianceToPoint(const AtmosphereParameters atmosphere, float3 camera, float3 point, float shadow_length, float3 sun_direction, float3& transmittance)
@@ -788,7 +791,9 @@ __device__  float3 GetSkyRadianceToPoint(const AtmosphereParameters atmosphere, 
 	// Hack to avoid rendering artifacts when the sun is below the horizon.
 	single_mie_scattering = single_mie_scattering * smoothstep(float(0.0), float(0.01), mu_s);
 
-	return scattering * RayleighPhaseFunction(nu) + single_mie_scattering * MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
+	float3 sky_radiance = scattering * RayleighPhaseFunction(nu) + single_mie_scattering * MiePhaseFunction(atmosphere.mie_phase_function_g, nu);
+	if (atmosphere.use_luminance != 0) sky_radiance *= atmosphere.sky_spectral_radiance_to_luminance;
+	return sky_radiance;
 }
 
 __device__  float3 GetSunAndSkyIrradiance(const AtmosphereParameters atmosphere, float3 point, float3 normal, float3 sun_direction, float3 &sky_irradiance)
@@ -798,13 +803,22 @@ __device__  float3 GetSunAndSkyIrradiance(const AtmosphereParameters atmosphere,
 
 	// Indirect irradiance (approximated if the surface is not horizontal).
 	sky_irradiance = GetIrradiance(atmosphere, r, mu_s) * (1.0 + dot(normal, point) / r) * 0.5;
-
+	float3 sun_irradiance = atmosphere.solar_irradiance * GetTransmittanceToSun(atmosphere, r, mu_s) * max(dot(normal, sun_direction), 0.0);
+	
+	if (atmosphere.use_luminance != 0) {
+		
+		sky_irradiance *= atmosphere.sky_spectral_radiance_to_luminance;
+		sun_irradiance *= atmosphere.sun_spectral_radiance_to_luminance;
+	}
 	// Direct irradiance.
-	return atmosphere.solar_irradiance * GetTransmittanceToSun(atmosphere, r, mu_s) * max(dot(normal, sun_direction), 0.0);
+	return sun_irradiance;
 }
 
 __device__ float3 GetSolarRadiance(const AtmosphereParameters atmosphere) {
-	return atmosphere.solar_irradiance / (M_PI * atmosphere.sun_angular_radius * atmosphere.sun_angular_radius);
+
+	float3 solar_radiance = atmosphere.solar_irradiance / (M_PI * atmosphere.sun_angular_radius * atmosphere.sun_angular_radius);
+	if (atmosphere.use_luminance != 0) solar_radiance *= atmosphere.sun_spectral_radiance_to_luminance;
+	return solar_radiance;
 }
 
 // Light Samplers 
@@ -851,6 +865,10 @@ __device__ inline float3 sample_atmosphere(
 	}
 
 	ground_radiance = lerp(radiance_sky, ground_radiance, ground_alpha);
+
+	float3 exposure = atmosphere.use_luminance==0? make_float3(kernel_params.exposure_scale): make_float3(kernel_params.exposure_scale) * 1e-5;
+
+	ground_radiance = powf(make_float3(1.0f) - expf(-ground_radiance / make_float3(1.0f) * exposure), make_float3(1.0 / 2.2));
 
 	return ground_radiance;
 
@@ -1073,9 +1091,11 @@ __device__ inline float3 estimate_sun(
 	// Check visibility of light source 
 	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb[0]);
 
+	float3 sky_irradiance;
+	float3 sun_irradiance = GetSunAndSkyIrradiance(atmosphere, ray_pos, ray_dir, wi, sky_irradiance);
 
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
-	Ld = GetSolarRadiance(atmosphere) * tr  * phase_pdf;
+	Ld = sun_irradiance * tr  * phase_pdf;
 
 	// No need for sampling BSDF with importance sampling
 	// please see: http://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Direct_Lighting.html#fragment-SampleBSDFwithmultipleimportancesampling-0

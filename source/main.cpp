@@ -1364,6 +1364,9 @@ int main(const int argc, const char* argv[])
 	static int env_comp = 0;
 	int temp_env_comp = 0;
 
+	bool use_constant_solar_spectrum = true;
+	bool use_ozone = true;
+
 	// End ImGui parameters
 
 	//Create env texture 
@@ -1413,6 +1416,11 @@ int main(const int argc, const char* argv[])
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
 
+
+		// Update atmosphere
+		earth_atmosphere.m_use_constant_solar_spectrum = use_constant_solar_spectrum;
+		earth_atmosphere.m_use_ozone = use_ozone;
+
 		// Draw imgui 
 		//-------------------------------------------------------------------
 
@@ -1447,6 +1455,8 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("Azimuth", &azimuth, 0, 360);
 		ImGui::SliderFloat("Elevation", &elevation, -90, 90);
 		ImGui::Combo("Env computation", &env_comp, items, IM_ARRAYSIZE(items));
+		ImGui::Checkbox("Const solar", &use_constant_solar_spectrum);
+		ImGui::Checkbox("Use ozone", &use_ozone);
 		ImGui::End();
 		ImGui::Render();
 
@@ -1522,7 +1532,12 @@ int main(const int argc, const char* argv[])
 
 		// Recompute sky if there is a change 
 
-		if (temp_env_comp != env_comp) {
+		if (temp_env_comp != env_comp || 
+			earth_atmosphere.m_use_constant_solar_spectrum != use_constant_solar_spectrum || 
+			earth_atmosphere.m_use_ozone != use_ozone) {
+
+			earth_atmosphere.m_use_constant_solar_spectrum = use_constant_solar_spectrum;
+			earth_atmosphere.m_use_ozone = use_ozone;
 
 			switch (env_comp)
 			{

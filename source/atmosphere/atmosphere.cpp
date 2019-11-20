@@ -125,6 +125,19 @@ atmosphere_error_t atmosphere::init_functions(CUmodule &cuda_module) {
 
 }
 
+double atmosphere::cie_color_matching_function_table_value(double wavelength, int column) {
+
+	if (wavelength <= kLambdaMin || wavelength >= kLambdaMax)
+		return 0.0;
+
+	double u = (wavelength - kLambdaMin) / 5.0;
+	int row = (int)floor(u);
+
+	u -= row;
+	return CIE_2_DEG_COLOR_MATCHING_FUNCTIONS[4 * row + column] * (1.0 - u) + CIE_2_DEG_COLOR_MATCHING_FUNCTIONS[4 * (row + 1) + column] * u;
+
+}
+
 double atmosphere::coeff(double lambda, int component) {
 
 	double x = cie_color_matching_function_table_value(lambda, 1);
@@ -152,19 +165,6 @@ void atmosphere::sky_sun_radiance_to_luminance(float3& sky_spectral_radiance_to_
 
 	sky_spectral_radiance_to_luminance = make_float3((float)sky_k_r, (float)sky_k_g, (float)sky_k_b);
 	sun_spectral_radiance_to_luminance = make_float3((float)sun_k_r, (float)sun_k_g, (float)sun_k_b);
-
-}
-
-double atmosphere::cie_color_matching_function_table_value(double wavelength, int column) {
-
-	if (wavelength <= kLambdaMin || wavelength >= kLambdaMax)
-		return 0.0;
-
-	double u = (wavelength - kLambdaMin) / 5.0;
-	int row = (int)floor(u);
-
-	u -= row;
-	return CIE_2_DEG_COLOR_MATCHING_FUNCTIONS[4 * row + column] * (1.0 - u) + CIE_2_DEG_COLOR_MATCHING_FUNCTIONS[4 * (row + 1) + column] * u;
 
 }
 
@@ -287,17 +287,6 @@ atmosphere_error_t atmosphere::clear_buffers() {
 		printf("Unable to launch clear_transmittance_buffers_function! \n");
 		return ATMO_LAUNCH_ERR;
 	}
-#ifdef DEBUG_TEXTURES // Print transmittance values
-
-	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);
-	float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
-
-	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
-
-	print_texture(host_transmittance_buffer, "transmittance_cleared.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
-	delete[] host_transmittance_buffer;
-#endif
-
 
 	// Clear irradiance buffers 
 	dim3 grid_irradiance(int(IRRADIANCE_TEXTURE_WIDTH / block.x) + 1, int(IRRADIANCE_TEXTURE_HEIGHT / block.y) + 1, 1);
@@ -609,16 +598,8 @@ atmosphere_error_t atmosphere::recompute() {
 		m_ground_albedo.push_back(kGroundAlbedo);
 	}
 
-	m_half_precision = false;
-	m_combine_scattering_textures = true;
-	m_sun_angular_radius = 0.00935 / 2.0;
-	m_bottom_radius = 6360000.0f;
-	m_top_radius = 6420000.0f;
 	m_rayleigh_density = new DensityProfileLayer(0.0f, 1.0f, -1.0f / float(kRayleighScaleHeight), 0.0f, 0.0f);
 	m_mie_density = new DensityProfileLayer(0.0f, 1.0f, -1.0f / float(kMieScaleHeight), 0.0f, 0.0f);
-	m_mie_phase_function_g = 0.8;
-	m_max_sun_zenith_angle = 102.0 / 180.0 * kPi;
-	m_length_unit_in_meters = 1000.0f;
 
 	int num_scattering_orders = 4;
 	// Start precomputation
@@ -926,7 +907,7 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
 
-	print_texture(host_transmittance_buffer, "transmittance.jpg", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
+	print_texture(host_transmittance_buffer, "transmittance.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
 	delete[] host_transmittance_buffer;
 #endif
 
@@ -974,7 +955,7 @@ atmosphere_error_t atmosphere::init()
 	m_mie_density = new DensityProfileLayer(0.0f, 1.0f, -1.0f / float(kMieScaleHeight), 0.0f, 0.0f);
 	m_mie_phase_function_g = 0.8;
 	m_max_sun_zenith_angle = 102.0 / 180.0 * kPi;
-	m_length_unit_in_meters = 1000.0f;
+	m_length_unit_in_meters = 1.0f;
 
 	int num_scattering_orders = 4;
 	// Start precomputation
@@ -1026,7 +1007,7 @@ atmosphere_error_t atmosphere::init()
 		}
 	}
 
-	// copy textures and free buffers
+	// copy textures and clear buffers
 
 	copy_transmittance_texture();
 	copy_irradiance_texture();
