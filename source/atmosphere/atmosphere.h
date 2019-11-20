@@ -118,7 +118,7 @@ public:
 	atmosphere_error_t precompute(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
 	atmosphere_error_t recompute();
 private:
-	void clear_buffers();
+	atmosphere_error_t clear_buffers();
 	void update_model(const float3 lambdas);
 	void copy_transmittance_texture();
 	void copy_scattering_texture();
@@ -186,6 +186,10 @@ private:
 	CUfunction multiple_scattering_function;
 	CUfunction scattering_density_function;
 	CUfunction single_scattering_function;
+	// Buffer cleaner functions 
+	CUfunction clear_transmittance_buffers_function;
+	CUfunction clear_irradiance_buffers_function;
+	CUfunction clear_scattering_buffers_function;
 };
 
 #endif // ! __ATMOSPHERE_H__
