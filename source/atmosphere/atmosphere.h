@@ -118,6 +118,7 @@ public:
 	atmosphere_error_t precompute(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
 	atmosphere_error_t recompute();
 private:
+	void clear_buffers();
 	void update_model(const float3 lambdas);
 	void copy_transmittance_texture();
 	void copy_scattering_texture();

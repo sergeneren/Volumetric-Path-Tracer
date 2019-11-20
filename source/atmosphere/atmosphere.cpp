@@ -58,6 +58,8 @@
 #include <helper_cuda.h>
 #include <helper_math.h>
 
+// TO-DO convert all device pointers to thrust device pointers 
+//#include "thrust/device_ptr.h"
 
 // Functions that hold the texture calculation kernels from atmosphere_kernels.ptx file
 atmosphere_error_t atmosphere::init_functions(CUmodule &cuda_module) {
@@ -579,16 +581,6 @@ atmosphere_error_t atmosphere::recompute() {
 	copy_scattering_texture();
 	copy_single_scattering_texture();
 
-	checkCudaErrors(cudaFree(atmosphere_parameters.transmittance_buffer));
-	checkCudaErrors(cudaFree(atmosphere_parameters.delta_irradience_buffer));
-	checkCudaErrors(cudaFree(atmosphere_parameters.delta_mie_scattering_buffer));
-	checkCudaErrors(cudaFree(atmosphere_parameters.delta_multiple_scattering_buffer));
-	checkCudaErrors(cudaFree(atmosphere_parameters.delta_rayleigh_scattering_buffer));
-	checkCudaErrors(cudaFree(atmosphere_parameters.delta_scattering_density_buffer));
-	checkCudaErrors(cudaFree(atmosphere_parameters.irradiance_buffer));
-	checkCudaErrors(cudaFree(atmosphere_parameters.optional_mie_single_scattering_buffer));
-	checkCudaErrors(cudaFree(atmosphere_parameters.scattering_buffer));
-
 	return ATMO_NO_ERR;
 
 }
@@ -627,13 +619,12 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 	dim3 block(8, 8, 1);
 	dim3 grid_transmittance(int(TRANSMITTANCE_TEXTURE_WIDTH / block.x) + 1, int(TRANSMITTANCE_TEXTURE_HEIGHT / block.y) + 1, 1);
-	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);
 	
-	checkCudaErrors(cudaMalloc(&atmosphere_parameters.transmittance_buffer, transmittance_size));
+	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);
 
 	void *transmittance_params[] = { &atmosphere_parameters };
 	result = cuLaunchKernel(transmittance_function, grid_transmittance.x, grid_transmittance.y, 1, block.x, block.y, 1, 0, NULL, transmittance_params, NULL);
-	cudaDeviceSynchronize();
+	checkCudaErrors(cudaDeviceSynchronize());
 	if (result != CUDA_SUCCESS) {
 		printf("Unable to launch direct transmittance function! \n");
 		return ATMO_LAUNCH_ERR;
@@ -653,9 +644,6 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	//***************************************************************************************************************************
 	dim3 grid_irradiance(int(IRRADIANCE_TEXTURE_WIDTH / block.x) + 1, int(IRRADIANCE_TEXTURE_HEIGHT / block.y) + 1, 1);
 	int irradiance_size = IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT * sizeof(float4);
-
-	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_irradience_buffer, irradiance_size));
-	checkCudaErrors(cudaMalloc(&atmosphere_parameters.irradiance_buffer, irradiance_size));
 
 	void *irradiance_params[] = { &atmosphere_parameters, (void*)&BLEND };
 
@@ -681,11 +669,6 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	dim3 block_sct(8, 8, 8);
 	dim3 grid_scattering(int(SCATTERING_TEXTURE_WIDTH / block_sct.x) + 1, int(SCATTERING_TEXTURE_HEIGHT / block_sct.y) + 1, int(SCATTERING_TEXTURE_DEPTH / block_sct.z) + 1);
 	int scattering_size = SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH * sizeof(float4);
-
-	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_rayleigh_scattering_buffer, scattering_size));
-	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_mie_scattering_buffer, scattering_size));
-	checkCudaErrors(cudaMalloc(&atmosphere_parameters.scattering_buffer, scattering_size));
-	checkCudaErrors(cudaMalloc(&atmosphere_parameters.optional_mie_single_scattering_buffer, scattering_size));
 
 	float4 blend_vec = make_float4(.0f, .0f, BLEND, BLEND);
 
@@ -721,7 +704,6 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		// Compute scattering density
 		//***************************************************************************************************************************
 
-		checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_scattering_density_buffer, scattering_size));
 		blend_vec = make_float4(.0f);
 
 		void *scattering_density_params[] = { &atmosphere_parameters, &blend_vec, &lfrm, &scattering_order };
@@ -769,7 +751,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		// Compute multiple scattering
 		//***************************************************************************************************************************
 
-		checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size));
+		
 		void *multiple_scattering_params[] = { &atmosphere_parameters, &blend_vec, &lfrm, &scattering_order };
 		result = cuLaunchKernel(multiple_scattering_function, grid_scattering.x, grid_scattering.y, grid_scattering.z, block_sct.x, block_sct.y, block_sct.z, 0, NULL, multiple_scattering_params, NULL);
 		checkCudaErrors(cudaDeviceSynchronize());
@@ -950,7 +932,21 @@ atmosphere_error_t atmosphere::init()
 	copy_irradiance_texture();
 	copy_scattering_texture();
 	copy_single_scattering_texture();
-	
+
+	return ATMO_NO_ERR;
+
+}
+
+atmosphere::~atmosphere() {
+
+
+	// Free device memory
+
+	checkCudaErrors(cudaDestroyTextureObject(atmosphere_parameters.transmittance_texture));
+	checkCudaErrors(cudaDestroyTextureObject(atmosphere_parameters.irradiance_texture));
+	checkCudaErrors(cudaDestroyTextureObject(atmosphere_parameters.scattering_texture));
+	checkCudaErrors(cudaDestroyTextureObject(atmosphere_parameters.single_mie_scattering_texture));
+
 	checkCudaErrors(cudaFree(atmosphere_parameters.transmittance_buffer));
 	checkCudaErrors(cudaFree(atmosphere_parameters.delta_irradience_buffer));
 	checkCudaErrors(cudaFree(atmosphere_parameters.delta_mie_scattering_buffer));
@@ -961,19 +957,25 @@ atmosphere_error_t atmosphere::init()
 	checkCudaErrors(cudaFree(atmosphere_parameters.optional_mie_single_scattering_buffer));
 	checkCudaErrors(cudaFree(atmosphere_parameters.scattering_buffer));
 
-	return ATMO_NO_ERR;
-
-}
-
-atmosphere::~atmosphere() {
-
-	cudaDestroyTextureObject(atmosphere_parameters.transmittance_texture);
-	cudaDestroyTextureObject(atmosphere_parameters.irradiance_texture);
-	cudaDestroyTextureObject(atmosphere_parameters.scattering_texture);
-	cudaDestroyTextureObject(atmosphere_parameters.single_mie_scattering_texture);
 
 }
 
 atmosphere::atmosphere() {
+
+	// Allocate device memory for atmosphere_parameters buffers 
+	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);
+	int irradiance_size = IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT * sizeof(float4);
+	int scattering_size = SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH * sizeof(float4);
+
+	checkCudaErrors(cudaMalloc(&atmosphere_parameters.transmittance_buffer, transmittance_size));
+	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_irradience_buffer, irradiance_size));
+	checkCudaErrors(cudaMalloc(&atmosphere_parameters.irradiance_buffer, irradiance_size));
+	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_rayleigh_scattering_buffer, scattering_size));
+	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_mie_scattering_buffer, scattering_size));
+	checkCudaErrors(cudaMalloc(&atmosphere_parameters.scattering_buffer, scattering_size));
+	checkCudaErrors(cudaMalloc(&atmosphere_parameters.optional_mie_single_scattering_buffer, scattering_size));
+	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_scattering_density_buffer, scattering_size));
+	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size));
+
 	m_use_luminance = NONE;
 }

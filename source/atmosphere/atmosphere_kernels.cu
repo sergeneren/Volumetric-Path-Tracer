@@ -747,3 +747,46 @@ extern "C" __global__ void calculate_single_scattering(const AtmosphereParameter
 
 }
 
+
+// Buffer Cleaners 
+
+
+extern "C" __global__ void clear_transmittance_buffers(const AtmosphereParameters atmosphere) {
+
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	if (x >= TRANSMITTANCE_TEXTURE_WIDTH || y >= TRANSMITTANCE_TEXTURE_HEIGHT) return;
+	const unsigned int idx = y * TRANSMITTANCE_TEXTURE_WIDTH + x;
+
+	atmosphere.transmittance_buffer[idx] = make_float4(.0f);
+
+}
+
+extern "C" __global__ void clear_irradiance_buffers(const AtmosphereParameters atmosphere) {
+
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	if (x >= IRRADIANCE_TEXTURE_WIDTH || y >= IRRADIANCE_TEXTURE_HEIGHT) return;
+	const unsigned int idx = y * IRRADIANCE_TEXTURE_WIDTH + x;
+
+	atmosphere.delta_irradience_buffer[idx] = make_float4(.0f);
+	atmosphere.irradiance_buffer[idx] = make_float4(.0f);
+}
+
+extern "C" __global__ void clear_scattering_buffers(const AtmosphereParameters atmosphere) {
+
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+	if (x >= SCATTERING_TEXTURE_WIDTH || y >= SCATTERING_TEXTURE_HEIGHT || z >= SCATTERING_TEXTURE_DEPTH) return;
+
+	const unsigned int idx = x + SCATTERING_TEXTURE_WIDTH * (y + SCATTERING_TEXTURE_HEIGHT * z);
+
+	atmosphere.scattering_buffer[idx] = make_float4(.0f);
+	atmosphere.delta_multiple_scattering_buffer[idx] = make_float4(.0f);
+	atmosphere.delta_scattering_density_buffer[idx] = make_float4(.0f);
+	atmosphere.optional_mie_single_scattering_buffer[idx] = make_float4(.0f);
+	atmosphere.delta_rayleigh_scattering_buffer[idx] = make_float4(.0f);
+	atmosphere.delta_mie_scattering_buffer[idx] = make_float4(.0f);
+}
