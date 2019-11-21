@@ -665,7 +665,7 @@ extern "C" __global__ void calculate_indirect_irradiance(const AtmosphereParamet
 
 	float4 temp_val = atmosphere.irradiance_buffer[idx];
 
-	atmosphere.irradiance_buffer[idx] = make_float4( luminance_from_radiance * delta_irradiance_value);
+	atmosphere.irradiance_buffer[idx] = make_float4( luminance_from_radiance.transform_point(delta_irradiance_value));
 
 	atmosphere.delta_irradience_buffer[idx] = atmosphere.irradiance_buffer[idx];
 
@@ -693,13 +693,13 @@ extern "C" __global__ void calculate_multiple_scattering(const AtmosphereParamet
 
 	atmosphere.delta_multiple_scattering_buffer[idx] = make_float4(delta_multiple_scattering_value, 1.0f);
 
-	atmosphere.scattering_buffer[idx] = make_float4((luminance_from_radiance * delta_multiple_scattering_value) / RayleighPhaseFunction(nu), .0f);
+	atmosphere.scattering_buffer[idx] = make_float4((luminance_from_radiance.transform_point(delta_multiple_scattering_value)) / RayleighPhaseFunction(nu), .0f);
 
 	if (blend) atmosphere.scattering_buffer[idx] += temp_val;
 
 }
 
-extern "C" __global__ void calculate_scattering_density(const AtmosphereParameters atmosphere, const float4 blend, mat4 luminance_from_radiance, const int scattering_order, const int layer){
+extern "C" __global__ void calculate_scattering_density(const AtmosphereParameters atmosphere, const float4 blend, const int scattering_order, const int layer){
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -739,7 +739,7 @@ extern "C" __global__ void calculate_single_scattering(const AtmosphereParameter
 	atmosphere.delta_rayleigh_scattering_buffer[idx] = make_float4(delta_rayleigh, 1.0f);
 	atmosphere.delta_mie_scattering_buffer[idx] = make_float4(delta_mie, 1.0f);
 
-	atmosphere.scattering_buffer[idx] = make_float4(luminance_from_radiance * delta_rayleigh, (luminance_from_radiance * delta_mie).x);
+	atmosphere.scattering_buffer[idx] = make_float4(luminance_from_radiance.transform_point(delta_rayleigh) , (luminance_from_radiance.transform_point(delta_mie) ).x);
 	atmosphere.optional_mie_single_scattering_buffer[idx] = make_float4(delta_mie, 1.0f);
 
 	if (blend.z) atmosphere.scattering_buffer[idx] += temp_scatter;

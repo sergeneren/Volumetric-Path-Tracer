@@ -689,7 +689,7 @@ atmosphere_error_t atmosphere::recompute() {
 					coeff(lambdas[0], 1) * dlambda, coeff(lambdas[1], 1) * dlambda, coeff(lambdas[2], 1) * dlambda,
 					coeff(lambdas[0], 2) * dlambda, coeff(lambdas[1], 2) * dlambda, coeff(lambdas[2], 2) * dlambda
 			};
-
+			
 			bool blend = i > 0;
 			atmosphere_error_t error = precompute(lambdas, luminance_from_radiance, blend, num_scattering_orders);
 			if (error != ATMO_NO_ERR) {
@@ -847,15 +847,14 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		blend_vec = make_float4(.0f);
 		for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
 		
-			void *scattering_density_params[] = { &atmosphere_parameters, &blend_vec, &lfrm, &scattering_order, &i };
+			void *scattering_density_params[] = { &atmosphere_parameters, &blend_vec, &scattering_order, &i };
 			result = cuLaunchKernel(scattering_density_function, grid_scattering.x, grid_scattering.y, 1, block_sct.x, block_sct.y, 1, 0, NULL, scattering_density_params, NULL);
 			checkCudaErrors(cudaDeviceSynchronize());
 			if (result != CUDA_SUCCESS) {
 				printf("Unable to launch direct scattering density function! \n");
 				return ATMO_LAUNCH_ERR;
 			}
-		
-		
+	
 		}
 		
 
@@ -1126,6 +1125,6 @@ atmosphere::atmosphere() {
 	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_scattering_density_buffer, scattering_size));
 	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size));
 
-	m_use_luminance = NONE;
+	m_use_luminance = PRECOMPUTED;
 	m_do_white_balance = true;
 }
