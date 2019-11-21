@@ -818,7 +818,6 @@ static bool create_cdf(
 	kernel_params.env_marginal_int = marginal_int;
 	//printf("\nmarginal distribution integral is %f", marginal_int);
 
-	printf("\n");
 	//divide cdf values with total marginal func integral
 	marginal_cdf_p = marginal_cdf;
 
@@ -1548,7 +1547,7 @@ int main(const int argc, const char* argv[])
 
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
-			//create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
+			create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
 			kernel_params.iteration = 0;
 		}
 
