@@ -728,7 +728,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	float3 lambdas;
 	int BLEND = blend ? 1 : 0;
 
-	mat4 lfrm; // luminance_from_radiance_matrix
+	mat3 lfrm; // luminance_from_radiance_matrix
 
 	if (lambda_ptr == nullptr)	lambdas = make_float3(kDefaultLambdas[0], kDefaultLambdas[1], kDefaultLambdas[2]);
 	else lambdas = make_float3(lambda_ptr[0], lambda_ptr[1], lambda_ptr[2]);

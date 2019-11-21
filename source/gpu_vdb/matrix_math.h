@@ -358,4 +358,243 @@ struct mat4 {
 
 };
 
+
+struct mat3 {
+	float m[3][3];
+
+	__host__ __device__ __forceinline__ mat3() {
+		m[0][0] = 1.0; m[1][0] = 0.0; m[2][0] = 0.0; 
+		m[0][1] = 0.0; m[1][1] = 1.0; m[2][1] = 0.0; 
+		m[0][2] = 0.0; m[1][2] = 0.0; m[2][2] = 1.0; 
+	}
+
+	__host__ __device__ __forceinline__ mat3(
+		const float m11, const float m12, const float m13, 
+		const float m21, const float m22, const float m23, 
+		const float m31, const float m32, const float m33
+	) {
+		m[0][0] = m11; m[1][0] = m12; m[2][0] = m13; 
+		m[0][1] = m21; m[1][1] = m22; m[2][1] = m23; 
+		m[0][2] = m31; m[1][2] = m32; m[2][2] = m33; 
+	}
+
+	__host__ __device__ __forceinline__ float* operator[] (const size_t idx) {
+		return m[idx];
+	}
+
+	__host__ __device__ __forceinline__ float3 operator*(const float3 &v) const {
+
+		float3 ret;
+
+		ret.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z;
+		ret.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z;
+		ret.z = m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z;
+
+		return ret;
+	}
+
+	__host__ __device__ __forceinline__ mat3 operator*(const float f) const {
+		mat3 ret;
+		ret[0][0] = m[0][0] * f; ret[1][0] = m[1][0] * f; ret[2][0] = m[2][0] * f; 
+		ret[0][1] = m[0][1] * f; ret[1][1] = m[1][1] * f; ret[2][1] = m[2][1] * f; 
+		ret[0][2] = m[0][2] * f; ret[1][2] = m[1][2] * f; ret[2][2] = m[2][2] * f;
+		return ret;
+	}
+
+	__host__ __device__ __forceinline__ mat3 operator/(const float f) const {
+		mat3 ret;
+		ret[0][0] = m[0][0] / f; ret[1][0] = m[1][0] / f; ret[2][0] = m[2][0] / f; 
+		ret[0][1] = m[0][1] / f; ret[1][1] = m[1][1] / f; ret[2][1] = m[2][1] / f; 
+		ret[0][2] = m[0][2] / f; ret[1][2] = m[1][2] / f; ret[2][2] = m[2][2] / f; 
+		return ret;
+	}
+
+	__host__ __device__ __forceinline__ mat3 operator+(const mat3 &other) const {
+		mat3 ret;
+		ret[0][0] = m[0][0] + other.m[0][0]; ret[1][0] = m[1][0] + other.m[1][0]; ret[2][0] = m[2][0] + other.m[2][0]; 
+		ret[0][1] = m[0][1] + other.m[0][1]; ret[1][1] = m[1][1] + other.m[1][1]; ret[2][1] = m[2][1] + other.m[2][1]; 
+		ret[0][2] = m[0][2] + other.m[0][2]; ret[1][2] = m[1][2] + other.m[1][2]; ret[2][2] = m[2][2] + other.m[2][2]; 
+		return ret;
+	}
+
+	__host__ __device__ __forceinline__ mat3 operator-(const mat3 &other) const {
+		mat3 ret;
+		ret[0][0] = m[0][0] - other.m[0][0]; ret[1][0] = m[1][0] - other.m[1][0]; ret[2][0] = m[2][0] - other.m[2][0]; 
+		ret[0][1] = m[0][1] - other.m[0][1]; ret[1][1] = m[1][1] - other.m[1][1]; ret[2][1] = m[2][1] - other.m[2][1]; 
+		ret[0][2] = m[0][2] - other.m[0][2]; ret[1][2] = m[1][2] - other.m[1][2]; ret[2][2] = m[2][2] - other.m[2][2]; 
+		return ret;
+	}
+
+	__host__ __device__ __forceinline__ mat3 operator*(const mat3 &other) const {
+		auto a11 = m[0][0], a12 = m[1][0], a13 = m[2][0];
+		auto a21 = m[0][1], a22 = m[1][1], a23 = m[2][1];
+		auto a31 = m[0][2], a32 = m[1][2], a33 = m[2][2];
+
+		auto b11 = other.m[0][0], b12 = other.m[1][0], b13 = other.m[2][0];
+		auto b21 = other.m[0][1], b22 = other.m[1][1], b23 = other.m[2][1];
+		auto b31 = other.m[0][2], b32 = other.m[1][2], b33 = other.m[2][2];
+
+		mat3 ret;
+		ret[0][0] = a11 * b11 + a12 * b21 + a13 * b31;
+		ret[0][1] = a11 * b12 + a12 * b22 + a13 * b32;
+		ret[0][2] = a11 * b13 + a12 * b23 + a13 * b33;
+
+		ret[1][0] = a21 * b11 + a22 * b21 + a23 * b31;
+		ret[1][1] = a21 * b12 + a22 * b22 + a23 * b32;
+		ret[1][2] = a21 * b13 + a22 * b23 + a23 * b33;
+
+		ret[2][0] = a31 * b11 + a32 * b21 + a33 * b31;
+		ret[2][1] = a31 * b12 + a32 * b22 + a33 * b32;
+		ret[2][2] = a31 * b13 + a32 * b23 + a33 * b33;
+
+		return ret;
+	}
+
+	__host__ __device__ __forceinline__ mat3 transpose() const {
+		mat3 ret;
+		ret[0][0] = m[0][0]; ret[0][1] = m[1][0]; ret[0][2] = m[2][0]; 
+		ret[1][0] = m[0][1]; ret[1][1] = m[1][1]; ret[1][2] = m[2][1]; 
+		ret[2][0] = m[0][2]; ret[2][1] = m[1][2]; ret[2][2] = m[2][2]; 
+		return ret;
+	}
+
+	__host__ __device__ __forceinline__ float det() const {
+		auto n11 = m[0][0], n12 = m[1][0], n13 = m[2][0];
+		auto n21 = m[0][1], n22 = m[1][1], n23 = m[2][1];
+		auto n31 = m[0][2], n32 = m[1][2], n33 = m[2][2];
+
+		return (n11 * (n22*n33 - n23*n32) - n12 * (n21*n33 - n23*n31) + n13 * (n21*n32 - n22*n31) );
+	}
+
+	__host__ __device__ __forceinline__ mat3 inverse() const {
+		
+		float det = this->det();
+
+		if (det == 0) return *this;
+		
+		mat3 ret; 
+
+		ret = this->transpose();
+		
+		auto det1 = ret[2][2] * ret[1][1] - ret[2][1] * ret[1][2];
+		auto det2 = ret[0][1] * ret[2][2] - ret[2][1] * ret[0][2];
+		auto det3 = ret[0][1] * ret[1][1] - ret[1][1] * ret[0][2];
+
+		auto det4 = ret[1][0] * ret[2][2] - ret[2][0] * ret[1][2];
+		auto det5 = ret[0][0] * ret[2][2] - ret[2][0] * ret[0][2];
+		auto det6 = ret[0][0] * ret[1][2] - ret[0][1] * ret[0][2];
+		
+		auto det7 = ret[1][0] * ret[2][1] - ret[2][0] * ret[1][1];
+		auto det8 = ret[0][0] * ret[2][1] - ret[2][0] * ret[0][1];
+		auto det9 = ret[0][0] * ret[1][1] - ret[1][0] * ret[0][1];
+		
+		ret = mat3(det1, det2, det3, det4, det5, det6, det7, det8, det9);	
+		ret = ret * mat3(1, -1, 1, -1, 1, -1, 1, -1, 1); // Adjoint matrix 
+		ret = ret * (1 / det);
+
+		return ret;
+	}
+
+	__host__ __device__ __forceinline__ void zero() {
+		m[0][0] = 0.0; m[1][0] = 0.0; m[2][0] = 0.0; 
+		m[0][1] = 0.0; m[1][1] = 0.0; m[2][1] = 0.0;
+		m[0][2] = 0.0; m[1][2] = 0.0; m[2][2] = 0.0; 
+	}
+
+	__host__ __device__ __forceinline__ void identity() {
+		m[0][0] = 1.0; m[1][0] = 0.0; m[2][0] = 0.0; 
+		m[0][1] = 0.0; m[1][1] = 1.0; m[2][1] = 0.0; 
+		m[0][2] = 0.0; m[1][2] = 0.0; m[2][2] = 1.0; 
+	}
+
+
+	__host__ __device__ __forceinline__ void print() {
+
+		for (int j = 0; j < 3; j++) {
+			for (int i = 0; i < 3; i++) {
+				printf("%f ", m[i][j]);
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+
+	__host__ __device__ __forceinline__ float3 transform_point(const float3 &pt) const {
+		float3 temp = *this * pt;
+		return make_float3(temp.x, temp.y, temp.z);
+	}
+	__host__ __device__ __forceinline__ float3 transform_vector(const float3 &pt) const {
+		float3 temp = *this * pt;
+		return make_float3(temp.x, temp.y, temp.z);
+	}
+	__host__ __device__ __forceinline__ mat3 rotate_zyx(const float3 &angs) {
+
+		float cx, sx, cy, sy, cz, sz;
+		cx = (float)cos(angs.x);
+		sx = (float)sin(angs.x);
+		cy = (float)cos(angs.y);
+		sy = (float)sin(angs.y);
+		cz = (float)cos(angs.z);
+		sz = (float)sin(angs.z);
+
+		m[0][0] = cz * cy;
+		m[1][0] = sz * cy;
+		m[2][0] = -sy;
+
+		m[0][1] = -sz * cx + cz * sy*sx;
+		m[1][1] = cz * cx - sz * sy*sz;
+		m[2][1] = -cy * sx;
+
+		m[0][2] = -sz * sx + cz * sy*cx;
+		m[1][2] = cz * sx + sz * sy*cx;
+		m[2][2] = cy * cx;
+
+		return *this;
+
+	}
+
+	__host__ __device__ __forceinline__ mat3 translate(const float3 &val) {
+
+		m[0][2] += val.x;
+		m[1][2] += val.y;
+		m[2][2] += val.z;
+
+		return *this;
+	}
+
+	__host__ __device__ __forceinline__ mat3 scale(const float3 &val) {
+
+		m[0][0] *= val.x;
+		m[1][1] *= val.y;
+		m[2][2] *= val.z;
+
+		return *this;
+	}
+
+	__host__ __device__ __forceinline__ mat3 toMatrix(double *arr) {
+
+		m[0][0] = arr[0]; m[1][0] = arr[1]; m[2][0] = arr[2];
+		m[0][1] = arr[3]; m[1][1] = arr[4]; m[2][1] = arr[5];
+		m[0][2] = arr[6]; m[1][2] = arr[7]; m[2][2] = arr[8]; 
+
+		return *this;
+	}
+
+	__host__ __device__ __forceinline__ mat3 toMatrix(float *arr) {
+
+		m[0][0] = arr[0]; m[1][0] = arr[1]; m[2][0] = arr[2]; 
+		m[0][1] = arr[3]; m[1][1] = arr[4]; m[2][1] = arr[5];
+		m[0][2] = arr[6]; m[1][2] = arr[7]; m[2][2] = arr[8];
+
+		return *this;
+	}
+
+
+	__host__ __device__ __forceinline__ mat3 &operator*=(const float f) { return *this = *this * f; }
+	__host__ __device__ __forceinline__ mat3 &operator/=(const float f) { return *this = *this / f; }
+	__host__ __device__ __forceinline__ mat3 &operator+=(const mat3 &m) { return *this = *this + m; }
+	__host__ __device__ __forceinline__ mat3 &operator-=(const mat3 &m) { return *this = *this - m; }
+	__host__ __device__ __forceinline__ mat3 &operator*=(const mat3 &m) { return *this = *this * m; }
+
+};
 #endif

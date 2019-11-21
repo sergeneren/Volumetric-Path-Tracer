@@ -661,7 +661,7 @@ __device__  float3 GetCombinedScattering(const AtmosphereParameters atmosphere, 
 {
 	float4 uvwz = GetScatteringTextureUvwzFromRMuMuSNu(atmosphere, r, mu, mu_s, nu, ray_r_mu_intersects_ground);
 	float tex_coord_x = uvwz.x * float(SCATTERING_TEXTURE_NU_SIZE - 1);
-	float tex_x = floor(tex_coord_x);
+	float tex_x = floorf(tex_coord_x);
 	float lerp = tex_coord_x - tex_x;
 	float3 uvw0 = make_float3((tex_x + uvwz.y) / float(SCATTERING_TEXTURE_NU_SIZE), uvwz.z, uvwz.w);
 	float3 uvw1 = make_float3((tex_x + 1.0 + uvwz.y) / float(SCATTERING_TEXTURE_NU_SIZE), uvwz.z, uvwz.w);
@@ -675,6 +675,7 @@ __device__  float3 GetCombinedScattering(const AtmosphereParameters atmosphere, 
 	float3 scattering = make_float3(tex3D<float4>(atmosphere.scattering_texture, uvw0.x, uvw0.y, uvw0.z) * (1.0 - lerp) + tex3D<float4>(atmosphere.scattering_texture, uvw1.x, uvw1.y, uvw1.z) * lerp);
 	single_mie_scattering = make_float3(tex3D<float4>(atmosphere.single_mie_scattering_texture, uvw0.x, uvw0.y, uvw0.z) * (1.0 - lerp) + tex3D<float4>(atmosphere.single_mie_scattering_texture, uvw1.x, uvw1.y, uvw1.z) * lerp);
 #endif
+	
 	return scattering;
 }
 
@@ -874,7 +875,7 @@ __device__ inline float3 sample_atmosphere(
 
 	return ground_radiance;
 
-	/*
+	/* old sky
 	float azimuth = atan2f(-dir.z, -dir.x) * INV_2_PI + 0.5f;
 	float elevation = acosf(fmaxf(fminf(dir.y, 1.0f), -1.0f)) * INV_PI;
 	const float4 texval = tex2D<float4>( kernel_params.sky_tex, azimuth, elevation);
