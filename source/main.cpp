@@ -453,8 +453,7 @@ static GLFWwindow *init_opengl()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
 
-	GLFWwindow *window = glfwCreateWindow(
-		1200, 800, "volume path tracer", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(1280, 640, "volume path tracer", NULL, NULL);
 	if (!window) {
 		fprintf(stderr, "Error creating OpenGL window.\n");;
 		glfwTerminate();
@@ -1366,6 +1365,7 @@ int main(const int argc, const char* argv[])
 
 	bool use_constant_solar_spectrum = true;
 	bool use_ozone = true;
+	bool do_white_balance = true;
 
 	// End ImGui parameters
 
@@ -1433,7 +1433,7 @@ int main(const int argc, const char* argv[])
 		// Update atmosphere
 		earth_atmosphere.m_use_constant_solar_spectrum = use_constant_solar_spectrum;
 		earth_atmosphere.m_use_ozone = use_ozone;
-
+		earth_atmosphere.m_do_white_balance = do_white_balance;
 		// Draw imgui 
 		//-------------------------------------------------------------------
 
@@ -1468,8 +1468,9 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("Azimuth", &azimuth, 0, 360);
 		ImGui::SliderFloat("Elevation", &elevation, -90, 90);
 		ImGui::Combo("Env computation", &env_comp, items, IM_ARRAYSIZE(items));
-		ImGui::Checkbox("Const solar", &use_constant_solar_spectrum);
-		ImGui::Checkbox("Use ozone", &use_ozone);
+		ImGui::Checkbox("Const Solar Spectrum", &use_constant_solar_spectrum);
+		ImGui::Checkbox("Use Ozone Layer", &use_ozone);
+		ImGui::Checkbox("Do White Balance", &do_white_balance);
 		ImGui::End();
 		ImGui::Render();
 
@@ -1563,15 +1564,20 @@ int main(const int argc, const char* argv[])
 			case 2:
 				earth_atmosphere.m_use_luminance = PRECOMPUTED;
 				break;
-
 			default:
 				break;
 			}
 			earth_atmosphere.recompute();
 			temp_env_comp = env_comp;
+			kernel_params.iteration = 0;
+		}
+		if (earth_atmosphere.m_do_white_balance != do_white_balance) {
+		
+			earth_atmosphere.m_do_white_balance = do_white_balance;
+			earth_atmosphere.update_model();
+			kernel_params.iteration = 0;
 		}
 
-		
 
 		// Reallocate buffers if window size changed.
 		int nwidth, nheight;

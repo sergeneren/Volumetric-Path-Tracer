@@ -868,7 +868,7 @@ __device__ inline float3 sample_atmosphere(
 
 	float3 exposure = atmosphere.use_luminance==0? make_float3(kernel_params.exposure_scale): make_float3(kernel_params.exposure_scale) * 1e-5;
 
-	ground_radiance = powf(make_float3(1.0f) - expf(-ground_radiance / make_float3(1.0f) * exposure), make_float3(1.0 / 2.2));
+	ground_radiance = powf(make_float3(1.0f) - expf(-ground_radiance / atmosphere.white_point * exposure), make_float3(1.0 / 2.2));
 
 	return ground_radiance;
 

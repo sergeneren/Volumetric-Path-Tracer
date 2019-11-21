@@ -219,6 +219,26 @@ void atmosphere::compute_spectral_radiance_to_luminance_factors(const std::vecto
 
 }
 
+void atmosphere::convert_spectrum_to_linear_srgb(double &r, double &g, double &b) {
+
+	double x = 0.0;
+	double y = 0.0;
+	double z = 0.0;
+	const int dlambda = 1;
+	for (int lambda = kLambdaMin; lambda < kLambdaMax; lambda += dlambda)
+	{
+		double value = interpolate(m_wave_lengths, m_solar_irradiance, lambda);
+		x += cie_color_matching_function_table_value(lambda, 1) * value;
+		y += cie_color_matching_function_table_value(lambda, 2) * value;
+		z += cie_color_matching_function_table_value(lambda, 3) * value;
+	}
+	const double* xyz2srgb = &XYZ_TO_SRGB[0];
+	r = static_cast<double>(MAX_LUMINOUS_EFFICACY) * (xyz2srgb[0] * x + xyz2srgb[1] * y + xyz2srgb[2] * z) * dlambda;
+	g = static_cast<double>(MAX_LUMINOUS_EFFICACY) * (xyz2srgb[3] * x + xyz2srgb[4] * y + xyz2srgb[5] * z) * dlambda;
+	b = static_cast<double>(MAX_LUMINOUS_EFFICACY) * (xyz2srgb[6] * x + xyz2srgb[7] * y + xyz2srgb[8] * z) * dlambda;
+
+}
+
 DensityProfile atmosphere::adjust_units(DensityProfile density) {
 	density.layers[0].width /= m_length_unit_in_meters;
 	density.layers[0].exp_scale *= m_length_unit_in_meters;
@@ -490,6 +510,28 @@ void atmosphere::copy_single_scattering_texture() {
 	delete[] volume_data_host;
 }
 
+// Update atmosphere parameters that doesn't need a recomputation
+
+void atmosphere::update_model() {
+
+	double white_point_r = 1.0;
+	double white_point_g = 1.0;
+	double white_point_b = 1.0;
+
+	if (m_do_white_balance)
+	{
+		convert_spectrum_to_linear_srgb(white_point_r, white_point_g, white_point_b);
+
+		double white_point = (white_point_r + white_point_g + white_point_b) / 3.0;
+		white_point_r /= white_point;
+		white_point_g /= white_point;
+		white_point_b /= white_point;
+	}
+
+	atmosphere_parameters.white_point = make_float3(float(white_point_r), float(white_point_g), float(white_point_b));
+
+}
+
 // Updates atmosphere_parameters by internal parameters 
 void atmosphere::update_model(const float3 lambdas) {
 
@@ -559,6 +601,22 @@ void atmosphere::update_model(const float3 lambdas) {
 		break;
 	}
 
+	double white_point_r = 1.0;
+	double white_point_g = 1.0;
+	double white_point_b = 1.0;
+
+	if (m_do_white_balance)
+	{
+		convert_spectrum_to_linear_srgb(white_point_r, white_point_g, white_point_b);
+
+		double white_point = (white_point_r + white_point_g + white_point_b) / 3.0;
+		white_point_r /= white_point;
+		white_point_g /= white_point;
+		white_point_b /= white_point;
+	}
+
+	atmosphere_parameters.white_point = make_float3(float(white_point_r), float(white_point_g), float(white_point_b));
+	
 
 }
 
@@ -749,14 +807,18 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 	float4 blend_vec = make_float4(.0f, .0f, BLEND, BLEND);
 
-	void *single_scattering_params[] = { &atmosphere_parameters, &blend_vec, &lfrm };
+	for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
 
-	result = cuLaunchKernel(single_scattering_function, grid_scattering.x, grid_scattering.y, grid_scattering.z, block_sct.x, block_sct.y, block_sct.z, 0, NULL, single_scattering_params, NULL);
-	checkCudaErrors(cudaDeviceSynchronize());
-	if (result != CUDA_SUCCESS) {
-		printf("Unable to launch direct single scattering function! \n");
-		return ATMO_LAUNCH_ERR;
+		void *single_scattering_params[] = { &atmosphere_parameters, &blend_vec, &lfrm , &i };
+		result = cuLaunchKernel(single_scattering_function, grid_scattering.x, grid_scattering.y, 1, block_sct.x, block_sct.y, 1, 0, NULL, single_scattering_params, NULL);
+		checkCudaErrors(cudaDeviceSynchronize());
+		if (result != CUDA_SUCCESS) {
+			printf("Unable to launch direct single scattering function! \n");
+			return ATMO_LAUNCH_ERR;
+		}
+
 	}
+
 #ifdef DEBUG_TEXTURES // Print single scattering values
 
 	int scattering_size = SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH * sizeof(float4);
@@ -771,8 +833,6 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_mie_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
 	print_texture(host_scattering_buffer, "./atmosphere_textures/delta_mie_scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
-	
-
 #endif
 
 	//***************************************************************************************************************************
@@ -785,14 +845,19 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		//***************************************************************************************************************************
 
 		blend_vec = make_float4(.0f);
-
-		void *scattering_density_params[] = { &atmosphere_parameters, &blend_vec, &lfrm, &scattering_order };
-		result = cuLaunchKernel(scattering_density_function, grid_scattering.x, grid_scattering.y, grid_scattering.z, block_sct.x, block_sct.y, block_sct.z, 0, NULL, scattering_density_params, NULL);
-		checkCudaErrors(cudaDeviceSynchronize());
-		if (result != CUDA_SUCCESS) {
-			printf("Unable to launch direct scattering density function! \n");
-			return ATMO_LAUNCH_ERR;
+		for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
+		
+			void *scattering_density_params[] = { &atmosphere_parameters, &blend_vec, &lfrm, &scattering_order, &i };
+			result = cuLaunchKernel(scattering_density_function, grid_scattering.x, grid_scattering.y, 1, block_sct.x, block_sct.y, 1, 0, NULL, scattering_density_params, NULL);
+			checkCudaErrors(cudaDeviceSynchronize());
+			if (result != CUDA_SUCCESS) {
+				printf("Unable to launch direct scattering density function! \n");
+				return ATMO_LAUNCH_ERR;
+			}
+		
+		
 		}
+		
 
 #ifdef DEBUG_TEXTURES // Print single scattering values
 
@@ -831,15 +896,15 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		// Compute multiple scattering
 		//***************************************************************************************************************************
 
-		
-		void *multiple_scattering_params[] = { &atmosphere_parameters, &blend_vec, &lfrm, &scattering_order };
-		result = cuLaunchKernel(multiple_scattering_function, grid_scattering.x, grid_scattering.y, grid_scattering.z, block_sct.x, block_sct.y, block_sct.z, 0, NULL, multiple_scattering_params, NULL);
-		checkCudaErrors(cudaDeviceSynchronize());
-		if (result != CUDA_SUCCESS) {
-			printf("Unable to launch direct scattering density function! \n");
-			return ATMO_LAUNCH_ERR;
+		for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
+			void *multiple_scattering_params[] = { &atmosphere_parameters, &blend_vec, &lfrm, &scattering_order, &i };
+			result = cuLaunchKernel(multiple_scattering_function, grid_scattering.x, grid_scattering.y, 1, block_sct.x, block_sct.y, 1, 0, NULL, multiple_scattering_params, NULL);
+			checkCudaErrors(cudaDeviceSynchronize());
+			if (result != CUDA_SUCCESS) {
+				printf("Unable to launch direct scattering density function! \n");
+				return ATMO_LAUNCH_ERR;
+			}
 		}
-
 #ifdef DEBUG_TEXTURES // Print multiple scattering values
 
 		checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
@@ -1062,4 +1127,5 @@ atmosphere::atmosphere() {
 	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size));
 
 	m_use_luminance = NONE;
+	m_do_white_balance = true;
 }

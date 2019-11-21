@@ -118,6 +118,8 @@ public:
 	atmosphere_error_t init();
 	atmosphere_error_t precompute(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
 	atmosphere_error_t recompute();
+	void update_model();
+
 private:
 	atmosphere_error_t clear_buffers();
 	void update_model(const float3 lambdas);
@@ -126,6 +128,7 @@ private:
 	void copy_irradiance_texture();
 	void copy_single_scattering_texture();
 
+	void convert_spectrum_to_linear_srgb(double &r, double &g, double &b);
 	atmosphere_error_t init_functions(CUmodule &cuda_module);
 	atmosphere_error_t compute_transmittance(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
 	DensityProfile adjust_units(DensityProfile density);
@@ -170,6 +173,7 @@ private:
 	bool m_half_precision = false;
 	
 public:
+	bool m_do_white_balance;
 	bool m_use_constant_solar_spectrum = true;
 	bool m_use_ozone = true;
 	LUMINANCE m_use_luminance;

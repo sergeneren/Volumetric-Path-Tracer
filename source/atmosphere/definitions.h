@@ -75,6 +75,8 @@ struct ALIGN(16) AtmosphereParameters {
 	float sun_angular_radius;
 	float mu_s_min;
 
+	float3 white_point;
+
 	// Buffers
 	
 	float4 *delta_irradience_buffer;
