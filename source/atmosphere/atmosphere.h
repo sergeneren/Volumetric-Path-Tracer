@@ -61,9 +61,6 @@ enum atmosphere_error_t {
 
 };
 
-constexpr double kPi = 3.1415926;
-
-
 constexpr double kSolarIrradiance[48] = {
   1.11776, 1.14259, 1.01249, 1.14716, 1.72765, 1.73054, 1.6887, 1.61253,
   1.91198, 2.03474, 2.02042, 2.02212, 1.93377, 1.95809, 1.91686, 1.8298,
@@ -173,6 +170,8 @@ private:
 	bool m_half_precision = false;
 	
 public:
+
+	float m_exposure;
 	bool m_do_white_balance;
 	bool m_use_constant_solar_spectrum = true;
 	bool m_use_ozone = true;

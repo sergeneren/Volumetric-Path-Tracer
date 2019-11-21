@@ -529,7 +529,7 @@ void atmosphere::update_model() {
 	}
 
 	atmosphere_parameters.white_point = make_float3(float(white_point_r), float(white_point_g), float(white_point_b));
-
+	atmosphere_parameters.exposure = m_exposure;
 }
 
 // Updates atmosphere_parameters by internal parameters 
@@ -581,7 +581,7 @@ void atmosphere::update_model(const float3 lambdas) {
 	atmosphere_parameters.ground_albedo.y = interpolate(m_wave_lengths, m_ground_albedo, lambdas.y);
 	atmosphere_parameters.ground_albedo.z = interpolate(m_wave_lengths, m_ground_albedo, lambdas.z);
 
-	const double max_sun_zenith_angle = (m_half_precision ? 102.0 : 120.0) / 180.0 * kPi;
+	const double max_sun_zenith_angle = (m_half_precision ? 102.0 : 120.0) / 180.0 * M_PI;
 	atmosphere_parameters.mu_s_min = cos(max_sun_zenith_angle);
 
 
@@ -616,7 +616,7 @@ void atmosphere::update_model(const float3 lambdas) {
 	}
 
 	atmosphere_parameters.white_point = make_float3(float(white_point_r), float(white_point_g), float(white_point_b));
-	
+	atmosphere_parameters.exposure = m_exposure;
 
 }
 
@@ -1019,7 +1019,7 @@ atmosphere_error_t atmosphere::init()
 	m_rayleigh_density = new DensityProfileLayer(0.0f, 1.0f, -1.0f / float(kRayleighScaleHeight), 0.0f, 0.0f);
 	m_mie_density = new DensityProfileLayer(0.0f, 1.0f, -1.0f / float(kMieScaleHeight), 0.0f, 0.0f);
 	m_mie_phase_function_g = 0.8;
-	m_max_sun_zenith_angle = 102.0 / 180.0 * kPi;
+	m_max_sun_zenith_angle = 120.0 / 180.0 * M_PI;
 	m_length_unit_in_meters = 1.0f;
 
 	int num_scattering_orders = 4;
@@ -1125,6 +1125,7 @@ atmosphere::atmosphere() {
 	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_scattering_density_buffer, scattering_size));
 	checkCudaErrors(cudaMalloc(&atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size));
 
-	m_use_luminance = PRECOMPUTED;
+	m_use_luminance = NONE;
 	m_do_white_balance = true;
+	m_exposure = 1.0f;
 }

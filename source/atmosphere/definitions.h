@@ -74,7 +74,7 @@ struct ALIGN(16) AtmosphereParameters {
 	float3 ground_albedo;
 	float sun_angular_radius;
 	float mu_s_min;
-
+	float exposure;
 	float3 white_point;
 
 	// Buffers

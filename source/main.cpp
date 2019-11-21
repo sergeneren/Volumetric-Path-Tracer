@@ -1102,7 +1102,7 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 }
 
 // Process camera movement.
-static void update_camera(double dx, double dy, double mx, double my, int zoom_delta)
+static void update_camera(double dx, double dy, double mx, double my, int zoom_delta, const atmosphere &atm)
 {
 	float rot_speed = 1;
 	float zoom_speed = 500;
@@ -1120,6 +1120,11 @@ static void update_camera(double dx, double dy, double mx, double my, int zoom_d
 
 	// Zoom 
 	lookfrom -= cam.w * float(zoom_delta) * zoom_speed;
+
+	float3 earth_center = make_float3(.0f, -atm.atmosphere_parameters.bottom_radius, .0f);
+
+	if (length(lookfrom - earth_center) < atm.atmosphere_parameters.bottom_radius) lookfrom += normalize(lookfrom - earth_center) * (atm.atmosphere_parameters.bottom_radius - length(lookfrom - earth_center));
+
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
@@ -1366,6 +1371,7 @@ int main(const int argc, const char* argv[])
 	bool use_constant_solar_spectrum = true;
 	bool use_ozone = true;
 	bool do_white_balance = true;
+	float exposure = 1.0f;
 
 	// End ImGui parameters
 
@@ -1434,6 +1440,7 @@ int main(const int argc, const char* argv[])
 		earth_atmosphere.m_use_constant_solar_spectrum = use_constant_solar_spectrum;
 		earth_atmosphere.m_use_ozone = use_ozone;
 		earth_atmosphere.m_do_white_balance = do_white_balance;
+		earth_atmosphere.m_exposure = exposure;
 		// Draw imgui 
 		//-------------------------------------------------------------------
 
@@ -1461,6 +1468,7 @@ int main(const int argc, const char* argv[])
 
 
 		ImGui::Begin("Atmosphere Parameters");
+		ImGui::SliderFloat("Sky Exposure", &exposure, -10.0f, 10.0f);
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
 		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
@@ -1571,8 +1579,9 @@ int main(const int argc, const char* argv[])
 			temp_env_comp = env_comp;
 			kernel_params.iteration = 0;
 		}
-		if (earth_atmosphere.m_do_white_balance != do_white_balance) {
-		
+		if (earth_atmosphere.m_do_white_balance != do_white_balance || 
+			earth_atmosphere.m_exposure != exposure) {
+			earth_atmosphere.m_exposure = exposure;
 			earth_atmosphere.m_do_white_balance = do_white_balance;
 			earth_atmosphere.update_model();
 			kernel_params.iteration = 0;
@@ -1602,7 +1611,7 @@ int main(const int argc, const char* argv[])
 		// Restart render if camera moves 
 		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->move_mx != 0.0 || ctx->move_my != 0.0 || ctx->zoom_delta) {
 
-			update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta);
+			update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta, earth_atmosphere);
 			ctx->move_dx = ctx->move_dy = ctx->move_mx = ctx->move_my = 0.0;
 			ctx->zoom_delta = 0;
 			kernel_params.iteration = 0;
