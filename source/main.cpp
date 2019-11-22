@@ -1207,10 +1207,10 @@ int main(const int argc, const char* argv[])
 
 	// Setup modules and contexes 
 
-	const char * render_module_name = "render_kernel.ptx";
-	const char * texture_module_name = "texture_kernels.ptx";
-	const char * render_kernel_name = "volume_rt_kernel";
-	const char * texture_kernel_name = "calculate_textures";
+	const char *render_module_name = "render_kernel.ptx";
+	const char *texture_module_name = "texture_kernels.ptx";
+	const char *render_kernel_name = "volume_rt_kernel";
+	const char *texture_kernel_name = "calculate_textures";
 
 	int cuda_devices[1];
 	unsigned int num_cuda_devices;
@@ -1242,10 +1242,10 @@ int main(const int argc, const char* argv[])
 	vdbs[0] = gpu_vdb;
 	vdbs[1] = gpu_vdb;
 
-	mat4 xform = vdbs[1].get_xform();
-	xform.translate(make_float3(50, 0, 0));
-	xform = xform.rotate_zyx(make_float3(0, M_PI / 2.0f, 0));
-	vdbs[1].set_xform(xform);
+	mat4 xform = vdbs[0].get_xform();
+	xform.translate(make_float3(0, 100, 0));
+	//xform = xform.rotate_zyx(make_float3(0, M_PI / 2.0f, 0));
+	vdbs[0].set_xform(xform);
 
 
 	CUdeviceptr d_volume_ptr;
@@ -1264,7 +1264,7 @@ int main(const int argc, const char* argv[])
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
 
-	// Setup Lights
+	// Setup point Lights
 #if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
 #undef rand // undefine the rand coming from camera.h and light.h
 
