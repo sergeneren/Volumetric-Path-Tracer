@@ -1248,13 +1248,19 @@ int main(const int argc, const char* argv[])
 	
 
 	vdbs.push_back(&gpu_vdb);
+	vdbs.push_back(&gpu_vdb);
 
 	mat4 xform = vdbs.at(0)->get_xform();
 	xform.translate(make_float3(0, 1000, 0));
 	vdbs.at(0)->set_xform(xform);
 
+	xform.translate(make_float3(100, 0, 0));
+	vdbs.at(1)->set_xform(xform);
 
-	GPU_VDB *volume_pointers = vdbs[0];
+	GPU_VDB *volume_pointers = new GPU_VDB[2];
+
+	volume_pointers[0] = *vdbs.at(0);
+	volume_pointers[1] = *vdbs.at(1);
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * 2) == cudaSuccess);

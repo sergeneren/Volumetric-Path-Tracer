@@ -1231,17 +1231,21 @@ __device__ inline float3 direct_integrator(
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
-	float3 t = gpu_vdb[0].rayBoxIntersect(ray_pos, ray_dir);
+
+	float3 t1 = gpu_vdb[0].rayBoxIntersect(ray_pos, ray_dir);
+	float3 t2 = gpu_vdb[1].rayBoxIntersect(ray_pos, ray_dir);
+
+	float3 t = fminf(t1, t2);
 	bool mi = false;
 	float3 env_pos = ray_pos;
-	if (t.z != NOHIT) { // found an intersection
-		ray_pos += ray_dir * t.x;
+	if (t1.z != NOHIT) { // found an intersection
+		ray_pos += ray_dir * t1.x;
 
 #if 0
 		// Draw bbox
 		float width = 2.0f;
-		float3 min = gpu_vdb.vdb_info.bmin + make_float3(width);
-		float3 max = gpu_vdb.vdb_info.bmax - make_float3(width);
+		float3 min = gpu_vdb[0].vdb_info.bmin + make_float3(width);
+		float3 max = gpu_vdb[0].vdb_info.bmax - make_float3(width);
 		if (ray_pos<min || ray_pos>max ) return RED;
 #endif
 		
@@ -1258,6 +1262,7 @@ __device__ inline float3 direct_integrator(
 		}
 
 	}
+
 	ray_dir = normalize(ray_dir);
 	
 	if (kernel_params.environment_type == 0) {
