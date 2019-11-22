@@ -62,6 +62,7 @@
 #include <sys/stat.h>
 #include "helper_math.h"
 #include <assert.h>
+#include <vector>
 #include <random>
 #undef APIENTRY
 
@@ -108,6 +109,7 @@ CUfunction cuRaycastKernel;
 CUfunction cuTextureKernel;
 
 GPU_VDB	gpu_vdb;
+std::vector<GPU_VDB *> vdbs;
 
 // Cam parameters 
 camera	cam;
@@ -627,10 +629,18 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			break;
 		case GLFW_KEY_F: // Frame camera to include objects
 
-			float3 min = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
-			float3 max = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
-			float3 center = (max + min) / 2;
-			dist = length(max - min); // diagonal length of gpu_vdb object
+			float3 bbox_min = make_float3(.0f);
+			float3 bbox_max = make_float3(.0f);;
+
+			for(GPU_VDB *vdb: vdbs) { 
+			
+				bbox_min = fminf(bbox_min ,vdb->get_xform().transpose().transform_point(vdb->vdb_info.bmin));
+				bbox_max = fmaxf(bbox_max ,vdb->get_xform().transpose().transform_point(vdb->vdb_info.bmax));
+			
+			}
+
+			float3 center = (bbox_max + bbox_min) / 2;
+			dist = length(bbox_max - bbox_min); // diagonal length of gpu_vdb object
 
 			lookat = center;
 			lookfrom = make_float3(center.x + (dist), center.y + (dist), center.z + (dist));
@@ -1235,22 +1245,20 @@ int main(const int argc, const char* argv[])
 
 	// Set volume instances
 
-	GPU_VDB *vdbs;
+	
 
-	vdbs = new GPU_VDB[2];
+	vdbs.push_back(&gpu_vdb);
 
-	vdbs[0] = gpu_vdb;
-	vdbs[1] = gpu_vdb;
+	mat4 xform = vdbs.at(0)->get_xform();
+	xform.translate(make_float3(0, 1000, 0));
+	vdbs.at(0)->set_xform(xform);
 
-	mat4 xform = vdbs[0].get_xform();
-	xform.translate(make_float3(0, 100, 0));
-	//xform = xform.rotate_zyx(make_float3(0, M_PI / 2.0f, 0));
-	vdbs[0].set_xform(xform);
 
+	GPU_VDB *volume_pointers = vdbs[0];
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * 2) == cudaSuccess);
-	check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB) * 2) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_volume_ptr, volume_pointers, sizeof(GPU_VDB) * 2) == cudaSuccess);
 
 
 	// Setup initial camera 
