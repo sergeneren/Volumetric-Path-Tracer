@@ -1245,8 +1245,6 @@ int main(const int argc, const char* argv[])
 
 	// Set volume instances
 
-	
-
 	vdbs.push_back(new GPU_VDB(gpu_vdb));
 	vdbs.push_back(new GPU_VDB(gpu_vdb));
 
@@ -1255,6 +1253,8 @@ int main(const int argc, const char* argv[])
 	vdbs.at(0)->set_xform(xform);
 
 	xform.translate(make_float3(1000, 0, 0));
+	xform.scale(make_float3(1.5f, 1.5f, 1.5f));
+	xform.rotate_zyx(make_float3(M_PI / 2.0f, M_PI/2.0f , .0f));
 	vdbs.at(1)->set_xform(xform);
 
 	GPU_VDB *volume_pointers = new GPU_VDB[2];

@@ -1231,6 +1231,7 @@ __device__ inline float3 direct_integrator(
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
+	float3 beta2 = WHITE;
 
 	float3 t1 = gpu_vdb[0].rayBoxIntersect(ray_pos, ray_dir);
 	float3 t2 = gpu_vdb[1].rayBoxIntersect(ray_pos, ray_dir);
@@ -1262,6 +1263,7 @@ __device__ inline float3 direct_integrator(
 		}
 
 	}
+
 	if (t2.z != NOHIT) { // found an intersection
 		ray_pos += ray_dir * t2.x;
 
@@ -1276,7 +1278,7 @@ __device__ inline float3 direct_integrator(
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb[1]);
+			beta2 *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb[1]);
 			if (isBlack(beta)) break;
 
 			if (mi) { // medium interaction 
@@ -1291,8 +1293,8 @@ __device__ inline float3 direct_integrator(
 	
 	if (kernel_params.environment_type == 0) {
 
-		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, atmosphere) * beta * kernel_params.sun_color * kernel_params.sun_mult;
-		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta;
+		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, atmosphere) * beta * beta2 * kernel_params.sun_color * kernel_params.sun_mult;
+		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta* beta2;
 
 	}
 	else {
@@ -1301,7 +1303,7 @@ __device__ inline float3 direct_integrator(
 			kernel_params.env_tex,
 			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
 			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
+		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta* beta2 * isotropic();
 	}
 	
 
