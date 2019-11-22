@@ -1254,16 +1254,13 @@ int main(const int argc, const char* argv[])
 	xform.translate(make_float3(0, 1000, 0));
 	vdbs.at(0)->set_xform(xform);
 
-	xform.translate(make_float3(100, 0, 0));
+	xform.translate(make_float3(1000, 0, 0));
 	vdbs.at(1)->set_xform(xform);
 
 	GPU_VDB *volume_pointers = new GPU_VDB[2];
 
 	volume_pointers[0] = *vdbs.at(0);
 	volume_pointers[1] = *vdbs.at(1);
-
-	volume_pointers[0].vdb_info = *gpu_vdb.get_vdb_info();
-	volume_pointers[1].vdb_info = *gpu_vdb.get_vdb_info();
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * 2) == cudaSuccess);

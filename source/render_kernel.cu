@@ -1262,6 +1262,30 @@ __device__ inline float3 direct_integrator(
 		}
 
 	}
+	if (t2.z != NOHIT) { // found an intersection
+		ray_pos += ray_dir * t2.x;
+
+#if 0
+		// Draw bbox
+		float width = 2.0f;
+		float3 min = gpu_vdb[0].vdb_info.bmin + make_float3(width);
+		float3 max = gpu_vdb[0].vdb_info.bmax - make_float3(width);
+		if (ray_pos<min || ray_pos>max) return RED;
+#endif
+
+		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
+			mi = false;
+
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb[1]);
+			if (isBlack(beta)) break;
+
+			if (mi) { // medium interaction 
+				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
+			}
+
+		}
+
+	}
 
 	ray_dir = normalize(ray_dir);
 	
