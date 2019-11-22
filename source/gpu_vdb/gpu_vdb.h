@@ -74,8 +74,9 @@ struct ALIGN(16) VDB_INFO {
 class GPU_VDB {
 
 public:
-	__host__ __device__ ~GPU_VDB();
-	__host__ __device__ GPU_VDB();
+	__host__ ~GPU_VDB();
+	__host__ GPU_VDB();
+	__host__ GPU_VDB(const GPU_VDB& copy);
 
 	// Device functions
 	__device__ float3 rayBoxIntersect(float3 ray_pos, float3 ray_dir) const {

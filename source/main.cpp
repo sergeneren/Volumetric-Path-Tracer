@@ -1247,8 +1247,8 @@ int main(const int argc, const char* argv[])
 
 	
 
-	vdbs.push_back(&gpu_vdb);
-	vdbs.push_back(&gpu_vdb);
+	vdbs.push_back(new GPU_VDB(gpu_vdb));
+	vdbs.push_back(new GPU_VDB(gpu_vdb));
 
 	mat4 xform = vdbs.at(0)->get_xform();
 	xform.translate(make_float3(0, 1000, 0));
@@ -1261,6 +1261,9 @@ int main(const int argc, const char* argv[])
 
 	volume_pointers[0] = *vdbs.at(0);
 	volume_pointers[1] = *vdbs.at(1);
+
+	volume_pointers[0].vdb_info = *gpu_vdb.get_vdb_info();
+	volume_pointers[1].vdb_info = *gpu_vdb.get_vdb_info();
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * 2) == cudaSuccess);

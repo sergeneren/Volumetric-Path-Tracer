@@ -49,6 +49,10 @@
 
 GPU_VDB::GPU_VDB(){}
 
+GPU_VDB::GPU_VDB(const GPU_VDB & copy) : xform(copy.xform), vdb_info(copy.vdb_info)
+{
+}
+
 GPU_VDB::~GPU_VDB(){}
 
 
