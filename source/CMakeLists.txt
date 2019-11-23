@@ -5,33 +5,14 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
-include(${CMAKE_SOURCE_DIR}/Helpers.cmake)
-##################################################################
-
-## Set output directories
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/vpt/bin)
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/vpt/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/vpt/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/vpt/bin)
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/bin)
-
-##################################################################
-
-
+include(${CMAKE_CURRENT_SOURCE_DIR}/Helpers.cmake)
 
 ##################################################################
 
 # set external directories 
 
 set(_VCPKG_INCLUDE_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/")
-set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/../thirdparty/")
+set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/thirdparty/")
 
 
 #set OIDN libraries 
@@ -53,20 +34,20 @@ set( RENDER_ENV_TEXTURES OFF CACHE BOOL "Render env sampling textures after crea
   endif()
   
 ## Set ASSET_PATH variable to use with VolumeGVDB add path function
-get_filename_component(ASSET_DIR ${CMAKE_SOURCE_DIR}/../assets ABSOLUTE)
+get_filename_component(ASSET_DIR ${CMAKE_SOURCE_DIR}/assets ABSOLUTE)
 add_definitions(-DASSET_PATH="${ASSET_DIR}/")
 ###################################################################
 
 file( GLOB ATMOSPHERE
-		"${CMAKE_SOURCE_DIR}/atmosphere/*.h"
-		"${CMAKE_SOURCE_DIR}/atmosphere/*.cpp")
+		"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.h"
+		"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.cpp")
 
 
 file( GLOB	HEADERS 
 	"*.h"
-	"${CMAKE_SOURCE_DIR}/gpu_vdb/*.h")
+	"${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb/*.h")
 
-file ( GLOB COMMON "${CMAKE_SOURCE_DIR}/common/*.h"	)
+file ( GLOB COMMON "${CMAKE_CURRENT_SOURCE_DIR}/common/*.h"	)
 
 file( GLOB_RECURSE CUDA_SOURCES 
 	"*.cu"
@@ -74,11 +55,11 @@ file( GLOB_RECURSE CUDA_SOURCES
 	
 file( GLOB SOURCE_CPP
 	"*.cpp"
-	"${CMAKE_SOURCE_DIR}/gpu_vdb/*.cpp")
+	"${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb/*.cpp")
 	
 file( GLOB IMGUI_IMPL_SOURCES 
-	"${CMAKE_SOURCE_DIR}/imgui/*.h"
-	"${CMAKE_SOURCE_DIR}/imgui/*.cpp")
+	"${CMAKE_CURRENT_SOURCE_DIR}/imgui/*.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/imgui/*.cpp")
 	
 set(SOURCE_FILES
 	${HEADERS}
