@@ -1,0 +1,3 @@
+[submodule "thirdparty/gvdb-voxels"]
+	path = thirdparty/gvdb-voxels
+	url = https://github.com/sergeneren/gvdb-voxels
