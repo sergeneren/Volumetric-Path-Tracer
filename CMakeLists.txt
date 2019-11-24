@@ -22,5 +22,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/bin)
 
 ##################################################################
 
+get_filename_component(GVDB_DIR ${CMAKE_SOURCE_DIR}/thirdparty/gvdb-voxels/_output ABSOLUTE)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/source)

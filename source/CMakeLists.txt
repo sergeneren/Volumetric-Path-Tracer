@@ -38,6 +38,15 @@ get_filename_component(ASSET_DIR ${CMAKE_SOURCE_DIR}/assets ABSOLUTE)
 add_definitions(-DASSET_PATH="${ASSET_DIR}/")
 ###################################################################
 
+file( GLOB	DLLS 
+		"${GVDB_DIR}/lib/*.dll")
+file( GLOB	LIBS 
+		"${GVDB_DIR}/lib/*.lib")
+file( GLOB	PTX 
+		"${GVDB_DIR}/lib/*.ptx")
+find_file(LIB_GVDB NAME "libgvdb.lib" HINTS ${GVDB_DIR}/lib)
+message(STATUS "libgvdb path: " ${LIB_GVDB})
+
 file( GLOB ATMOSPHERE
 		"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.h"
 		"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.cpp")
@@ -88,7 +97,7 @@ _COMPILEPTX ( SOURCES ${CUDA_SOURCES}
 
 ###################################################################
 add_executable(vpt ${SOURCE_FILES})
-target_link_libraries(vpt PRIVATE glfw imgui::imgui nlohmann_json::nlohmann_json cudart cuda openvdb ${OIDN_LIBRARIES})
+target_link_libraries(vpt PRIVATE glfw imgui::imgui nlohmann_json::nlohmann_json cudart cuda openvdb ${OIDN_LIBRARIES} ${LIB_GVDB})
 
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
@@ -96,3 +105,15 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/atmosphere)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
 include_directories(${OID_DIR}/include)
+
+target_include_directories(vpt PRIVATE "${GVDB_DIR}/include")
+target_include_directories(vpt PRIVATE "${GVDB_DIR}/sample_utils")
+
+## Set dlls to be installed to executable directory after build 
+
+set(INSTALL_LIST
+	${PTX}
+	${DLLS}
+	${LIBS})
+
+add_custom_command(TARGET vpt POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy  ${INSTALL_LIST} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )

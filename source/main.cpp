@@ -70,6 +70,9 @@
 #include "kernel_params.h"
 #include "bitmap_image.h"
 
+//Nvidia gvdb 
+#include "gvdb.h"
+
 // new classes
 #include "gpu_vdb/gpu_vdb.h"
 #include "gpu_vdb/camera.h"
@@ -110,6 +113,8 @@ CUfunction cuTextureKernel;
 
 GPU_VDB	gpu_vdb;
 std::vector<GPU_VDB *> vdbs;
+
+VolumeGVDB		gvdb;
 
 // Cam parameters 
 camera	cam;
@@ -442,6 +447,24 @@ static bool save_tga(float4 *rgba, int width, int height, std::string filename) 
 	if (!success) return false;
 
 	return true;
+}
+
+// Initialize gvdb volume 
+static void init_gvdb()
+{
+
+	int cuda_devices[1];
+	unsigned int num_cuda_devices;
+	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
+	if (num_cuda_devices == 0) {
+		fprintf(stderr, "Could not determine CUDA device for GVDB context\n.");
+		exit(EXIT_FAILURE);
+	}
+	gvdb.SetCudaDevice(cuda_devices[0]);
+
+	gvdb.Initialize();
+	gvdb.SetChannelDefault(64, 64, 64);
+
 }
 
 // Initialize GLFW and GLEW.
