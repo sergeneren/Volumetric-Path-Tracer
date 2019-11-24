@@ -1195,6 +1195,7 @@ __device__ inline float3 vol_integrator(
 	
 	float3 L = BLACK;
 	float3 beta = WHITE;
+	float3 env_pos = ray_pos;
 	float3 t = gpu_vdb[0].rayBoxIntersect(ray_pos, ray_dir);
 	bool mi;
 	
@@ -1212,8 +1213,14 @@ __device__ inline float3 vol_integrator(
 			}
 			
 		}
+
+		ray_dir = normalize(ray_dir);
 	}
-	
+
+	if(length(beta) > 0.9999f ) ray_pos = env_pos; 
+
+	L += beta * sample_atmosphere(kernel_params, atmosphere, ray_pos, ray_dir);
+
 	tr = fminf(tr, 1.0f);
 	return L;
 }
