@@ -1282,8 +1282,8 @@ int main(const int argc, const char* argv[])
 #if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
 #undef rand // undefine the rand coming from camera.h and light.h
 
-	float3 min = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
-	float3 max = gpu_vdb.get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
+	float3 min = vdbs[0]->get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
+	float3 max = vdbs[0]->get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
 
 	std::mt19937 e2(std::random_device{}());
 	std::uniform_real_distribution<> dist(0, 1);
