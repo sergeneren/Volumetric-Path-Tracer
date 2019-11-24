@@ -1097,7 +1097,7 @@ __device__ inline float3 estimate_sun(
 	float3 sun_irradiance = GetSunAndSkyIrradiance(atmosphere, ray_pos, ray_dir, wi, sky_irradiance);
 
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
-	Ld = sun_irradiance * tr  * phase_pdf;
+	Ld = (length(sky_irradiance)*sun_irradiance) * tr  * phase_pdf;
 
 	// No need for sampling BSDF with importance sampling
 	// please see: http://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Direct_Lighting.html#fragment-SampleBSDFwithmultipleimportancesampling-0
@@ -1125,7 +1125,7 @@ __device__ inline float3 uniform_sample_one_light(
 	if (light_num < 1) {
 
 		if(kernel_params.sun_mult > .0f)
-			L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, atmosphere) * kernel_params.sun_mult;
+			L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, atmosphere) * kernel_params.sun_mult * kernel_params.sun_color;
 	}
 	else if (light_num >= 1 && light_num < 2) {
 		
