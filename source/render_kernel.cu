@@ -1366,6 +1366,13 @@ __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kern
 
 // Main kernel accessors
 
+__device__ inline float3 rtt_and_odt_fit(float3 v)
+{
+	float3 a = v * (v + 0.0245786f) - 0.000090537f;
+	float3 b = v * (0.983729f * v + 0.4329510f) + 0.238081f;
+	return a / b;
+}
+
 
 extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
@@ -1420,20 +1427,36 @@ extern "C" __global__ void volume_rt_kernel(
 			(value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
 	}
 	
-	// Update display buffer (simple Reinhard tonemapper + gamma).
+	// Update display buffer (ACES Tonemapping).
+	// https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl
 
-	float3 val = kernel_params.accum_buffer[idx] * kernel_params.exposure_scale;
+	mat3 aces_input_matrix(
+		0.59719f, 0.35458f, 0.04823f,
+		0.07600f, 0.90834f, 0.01566f,
+		0.02840f, 0.13383f, 0.83777f);
 
-	float4 raw = make_float4(val.x, val.y, val.z, tr) * kernel_params.exposure_scale;
-	kernel_params.raw_buffer[idx] = raw;
+	mat3 aces_output_matrix(
+		1.60475f, -0.53108f, -0.07367f,
+		-0.10208f,  1.10813f, -0.00605f,
+		-0.00327f, -0.07276f,  1.07602f);
 
-	val.x *= (1.0f + val.x * 0.1f) / (1.0f + val.x);
-	val.y *= (1.0f + val.y * 0.1f) / (1.0f + val.y);
-	val.z *= (1.0f + val.z * 0.1f) / (1.0f + val.z);
+
+	float3 val = aces_input_matrix * kernel_params.accum_buffer[idx];
+	val = rtt_and_odt_fit(val);
+	val = aces_output_matrix * val * kernel_params.exposure_scale;
+
+	// gamma correction
 	const unsigned int r = (unsigned int)(255.0f * fminf(powf(fmaxf(val.x, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 	const unsigned int g = (unsigned int)(255.0f * fminf(powf(fmaxf(val.y, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 	const unsigned int b = (unsigned int)(255.0f * fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
+	
 	kernel_params.display_buffer[idx] = 0xff000000 | (r << 16) | (g << 8) | b;
+
+
+	// fill in raw buffer
+	float4 raw = make_float4(val.x, val.y, val.z, tr);
+	kernel_params.raw_buffer[idx] = raw;
+
 
 	// Update blue_noise texture with golden ratio
 	if (idx < (256 * 256)) {
