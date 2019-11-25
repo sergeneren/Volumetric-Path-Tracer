@@ -1209,9 +1209,7 @@ int main(const int argc, const char* argv[])
 	program = create_shader_program();
 	quad_vao = create_quad(program, &quad_vertex_buffer);
 
-	init_cuda();
-
-
+	
 	// SETUP IMGUI PARAMETERS
 	const char* glsl_version = "#version 330";
 
@@ -1224,7 +1222,6 @@ int main(const int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-	// Setup gpu_vdb
 
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
@@ -1232,6 +1229,24 @@ int main(const int argc, const char* argv[])
 	std::string file_path = ASSET_PATH;
 	file_path.append(fname);
 
+
+	//setup gvdb
+	printf("Initializing GVDB volume object ");
+	init_gvdb();
+
+	printf("Loading VDB. %s\n", file_path.c_str());
+	gvdb.TimerStart();
+	gvdb.LoadVDB(file_path);
+	float load_time = gvdb.TimerStop();
+	printf("VDB loaded in %6.3f ms\n", load_time);
+	gvdb.SetTransform(Vector3DF(0, 0, 0), Vector3DF(1, 1, 1), Vector3DF(0, 0, 0), Vector3DF(0, 0, 0));
+
+	gvdb.Measure(true);
+	gvdb.mbProfile = true;
+	gvdb.PrepareVDB();
+	char *vdbinfo = gvdb.getVDBInfo();
+
+	// Setup gpu_vdb
 
 	if (!gpu_vdb.loadVDB(file_path, "density")) {
 		std::cout << "!Can't load VDB file: " << file_path << std::endl;
@@ -1702,7 +1717,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)atmos_params, &kernel_params };
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, vdbinfo, (void *)atmos_params, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 

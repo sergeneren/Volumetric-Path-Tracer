@@ -40,6 +40,7 @@
 #include <cmath>
 
 #include <stdio.h>
+//#include "cuda_math.cuh"
 #include <float.h>
 
 // Cuda includes
@@ -62,6 +63,12 @@ typedef unsigned long long	uint64;
 #include "camera.h"
 #include "light.h"
 
+//GVDB Includes
+#define CUDA_PATHWAY
+#include "cuda_gvdb_scene.cuh"		// GVDB Scene
+#include "cuda_gvdb_nodes.cuh"		// GVDB Node structure
+#include "cuda_gvdb_geom.cuh"		// GVDB Geom helpers
+#include "cuda_gvdb_dda.cuh"		// GVDB DDA 
 
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
@@ -1378,6 +1385,7 @@ extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
 	const light_list lights,
 	const GPU_VDB *gpu_vdb,
+	const VDBInfo vdb,
 	const AtmosphereParameters atmosphere,
 	const Kernel_params kernel_params) {
 	
