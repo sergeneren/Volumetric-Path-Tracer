@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.8.0 FATAL_ERROR)
-project(VPT LANGUAGES CXX CUDA)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 CONFIG REQUIRED)
@@ -49,6 +47,11 @@ file( GLOB	HEADERS
 
 file ( GLOB COMMON "${CMAKE_CURRENT_SOURCE_DIR}/common/*.h"	)
 
+file ( GLOB BVH 
+	"${CMAKE_CURRENT_SOURCE_DIR}/bvh/*.h"	
+	"${CMAKE_CURRENT_SOURCE_DIR}/bvh/*.cpp"	
+	)
+
 file( GLOB_RECURSE CUDA_SOURCES 
 	"*.cu"
 	"*.cuh")
@@ -65,11 +68,13 @@ set(SOURCE_FILES
 	${HEADERS}
 	${CUDA_SOURCES}
 	${SOURCE_CPP}
+	${BVH}
 	${IMGUI_IMPL_SOURCES}
 	${COMMON}
 	${ATMOSPHERE})
 
 source_group(Cuda FILES ${CUDA_SOURCES})
+source_group(bvh FILES ${BVH})
 source_group(Imgui FILES ${IMGUI_IMPL_SOURCES})
 source_group(Helpers FILES ${COMMON})
 source_group(Atmosphere FILES ${ATMOSPHERE})
@@ -95,4 +100,5 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/atmosphere)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/bvh)
 include_directories(${OID_DIR}/include)
