@@ -1257,14 +1257,13 @@ int main(const int argc, const char* argv[])
 	xform.rotate_zyx(make_float3(M_PI / 2.0f, M_PI/2.0f , .0f));
 	vdbs.at(1)->set_xform(xform);
 
-	GPU_VDB *volume_pointers = new GPU_VDB[2];
-
+	auto volume_pointers = std::make_unique<GPU_VDB[]>(2);
 	volume_pointers[0] = *vdbs.at(0);
 	volume_pointers[1] = *vdbs.at(1);
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * 2) == cudaSuccess);
-	check_success(cuMemcpyHtoD(d_volume_ptr, volume_pointers, sizeof(GPU_VDB) * 2) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_volume_ptr, volume_pointers.get(), sizeof(GPU_VDB) * 2) == cudaSuccess);
 
 
 	// Setup initial camera 
