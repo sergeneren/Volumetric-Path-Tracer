@@ -46,7 +46,7 @@
 #include <string>
 
 #include "helper_math.h"
-#include "AABB.h"
+#include "bvh/AABB.h"
 
 #define ALIGN(x)	__align__(x)
 

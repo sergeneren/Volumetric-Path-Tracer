@@ -32,14 +32,27 @@ typedef unsigned short ushort;
 #define EXIT_WAIVED 2
 #endif
 
+
+#define M_EPSILON  0.00001f
+#define M_INF	   3.402823466e+38F
+#define M_E        2.71828182845904523536f
+#define M_LOG2E    1.44269504088896340736f
+#define M_LOG10E   0.434294481903251827651f
+#define M_LN2      0.693147180559945309417f
+#define M_LN10     2.30258509299404568402f
+#define M_PI       3.14159265358979323846f
+#define M_2PI      6.28318530717958647692f
+#define M_PI_2     1.57079632679489661923f
+#define M_PI_4     0.785398163397448309616f
+#define M_1_PI     0.318309886183790671538f
+#define M_2_PI     0.636619772367581343076f
+#define M_SQRT1_3  0.577350269189625764509f
+#define M_1_180    0.005555555555555555556f
+
 #ifndef __CUDACC__
 #include <math.h>
 
 
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // host implementations of CUDA functions
@@ -1489,14 +1502,14 @@ inline __device__ __host__ float4 smoothstep(float4 a, float4 b, float4 x)
 inline __host__ __device__ bool operator<(float3 &u, float3 v)
 
 {
-	return abs(u.x)<abs(v.x) && abs(u.y)<abs(v.y) && abs(u.z)<abs(v.z);
+	return fabsf(u.x)<fabsf(v.x) && fabsf(u.y)<fabsf(v.y) && fabsf(u.z)<fabsf(v.z);
 }
 
 inline __host__ __device__ bool operator>(float3 &u, float3 v)
 
 {
 	
-	return abs(u.x)>abs(v.x) && abs(u.y)>abs(v.y) && abs(u.z)>abs(v.z);
+	return fabsf(u.x)>fabsf(v.x) && fabsf(u.y)>fabsf(v.y) && fabsf(u.z)>fabsf(v.z);
 }
 
 
@@ -1518,6 +1531,17 @@ inline __host__ __device__ bool isInf(float3 v)
 	return isinf(v.x) || isinf(v.y) || isinf(v.z);
 }
 
+inline __host__ __device__ unsigned int TWHash(unsigned int s) {
+	s = (s ^ 61) ^ (s >> 16);
+	s = s + (s << 3);
+	s = s ^ (s >> 4);
+	s = s * 0x27d4eb2d;
+	s = s ^ (s >> 15);
+	return s;
+}
+
+inline __host__ __device__ float RadToDeg(float radians) { return radians * 180.0f * M_1_PI; }
+inline __host__ __device__ float DegToRad(float degrees) { return degrees * M_PI * M_1_180; }
 
 
 #endif
