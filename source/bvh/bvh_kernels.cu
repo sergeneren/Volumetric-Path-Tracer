@@ -182,7 +182,7 @@ __global__ void DebugBVH(BVHNode* BVHLeaves, BVHNode* BVHNodes, int numVolumes) 
 		//parents:
 		for (int j = 0; j < numVolumes; j++) {
 			BVHNode* currentNode = (BVHLeaves + j)->parent;
-			printf("BBox for parent node of triangleIdx %d: pmin: (%f,%f,%f), pmax: (%f,%f,%f)\n",
+			printf("BBox for parent node of volumeIdx %d: pmin: (%f,%f,%f), pmax: (%f,%f,%f)\n",
 				(BVHLeaves + j)->volIndex,
 				currentNode->boundingBox.pmin.x,
 				currentNode->boundingBox.pmin.y,
@@ -194,7 +194,7 @@ __global__ void DebugBVH(BVHNode* BVHLeaves, BVHNode* BVHNodes, int numVolumes) 
 		
 		for (int j = 0; j < numVolumes; j++) {
 			BVHNode* currentNode = (BVHLeaves + j)->parent->parent;
-			printf("BBox for parents parent node of triangleIdx %d: pmin: (%f,%f,%f), pmax: (%f,%f,%f)\n",
+			printf("BBox for parents parent node of volumeIdx %d: pmin: (%f,%f,%f), pmax: (%f,%f,%f)\n",
 				(BVHLeaves + j)->volIndex,
 				currentNode->boundingBox.pmin.x,
 				currentNode->boundingBox.pmin.y,
@@ -206,7 +206,7 @@ __global__ void DebugBVH(BVHNode* BVHLeaves, BVHNode* BVHNodes, int numVolumes) 
 
 		for (int j = 0; j < numVolumes; j++) {
 			BVHNode* currentNode = (BVHLeaves + j)->parent->parent->parent;
-			printf("BBox for parents parents parent node of triangleIdx %d: pmin: (%f,%f,%f), pmax: (%f,%f,%f)\n",
+			printf("BBox for parents parents parent node of volumeIdx %d: pmin: (%f,%f,%f), pmax: (%f,%f,%f)\n",
 				(BVHLeaves + j)->volIndex,
 				currentNode->boundingBox.pmin.x,
 				currentNode->boundingBox.pmin.y,
@@ -365,7 +365,7 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 	float elapsed;
 	cudaEvent_t start, stop;
 
-	std::cout << "Number of triangles: " << numVolumes << std::endl;
+	std::cout << "Number of volumes: " << numVolumes << std::endl;
 
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
@@ -377,7 +377,7 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 
 	// Compute bounding boxes
 	
-	std::cout << "Computing triangle bounding boxes...";
+	std::cout << "Computing volume bounding boxes...";
 	cudaEventRecord(start, 0);
 	thrust::device_vector<AABB> boundingBoxes(numVolumes);
 	ComputeBoundingBoxes <<<gridSize, blockSize>>> (volumes, numVolumes, boundingBoxes.data().get());
@@ -425,7 +425,7 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 	// Sort triangle indices with Morton code as key
 	thrust::device_vector<int> triangleIDs(numVolumes);
 	thrust::sequence(triangleIDs.begin(), triangleIDs.end());
-	std::cout << "Sort triangles...";
+	std::cout << "Sort volumes...";
 	cudaEventRecord(start, 0);
 	try {
 		thrust::sort_by_key(mortonCodes.begin(), mortonCodes.end(), triangleIDs.begin());

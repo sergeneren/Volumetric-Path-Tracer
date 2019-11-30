@@ -75,6 +75,7 @@
 #include "gpu_vdb/camera.h"
 #include "light.h"
 #include "atmosphere.h"
+#include "bvh/bvh_builder.h"
 
 // Image Writers 
 
@@ -109,7 +110,11 @@ CUfunction cuRaycastKernel;
 CUfunction cuTextureKernel;
 
 GPU_VDB	gpu_vdb;
-std::vector<GPU_VDB *> vdbs;
+std::vector<GPU_VDB> vdbs;
+
+
+static int num_volumes = 10; // TODO: read number of instances from json file 
+BVH_Builder bvh_builder;
 
 // Cam parameters 
 camera	cam;
@@ -632,10 +637,10 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			float3 bbox_min = make_float3(.0f);
 			float3 bbox_max = make_float3(.0f);;
 
-			for(GPU_VDB *vdb: vdbs) { 
+			for(GPU_VDB vdb: vdbs) { 
 			
-				bbox_min = fminf(bbox_min ,vdb->get_xform().transpose().transform_point(vdb->vdb_info.bmin));
-				bbox_max = fmaxf(bbox_max ,vdb->get_xform().transpose().transform_point(vdb->vdb_info.bmax));
+				bbox_min = fminf(bbox_min ,vdb.get_xform().transpose().transform_point(vdb.vdb_info.bmin));
+				bbox_max = fmaxf(bbox_max ,vdb.get_xform().transpose().transform_point(vdb.vdb_info.bmax));
 			
 			}
 
@@ -1245,27 +1250,25 @@ int main(const int argc, const char* argv[])
 
 	// Set volume instances
 
-	vdbs.push_back(new GPU_VDB(gpu_vdb));
-	vdbs.push_back(new GPU_VDB(gpu_vdb));
+	for (int i = 0; i < num_volumes; ++i) {
 
-	mat4 xform = vdbs.at(0)->get_xform();
-	xform.translate(make_float3(0, 1000, 0));
-	vdbs.at(0)->set_xform(xform);
+		mat4 xform = gpu_vdb.get_xform();
+		xform.translate(make_float3(1000*i, 0, 0));
 
-	xform.translate(make_float3(1000, 0, 0));
-	xform.scale(make_float3(1.5f, 1.5f, 1.5f));
-	xform.rotate_zyx(make_float3(M_PI / 2.0f, M_PI/2.0f , .0f));
-	vdbs.at(1)->set_xform(xform);
-
-	auto volume_pointers = std::make_unique<GPU_VDB[]>(2);
-	volume_pointers[0] = *vdbs.at(0);
-	volume_pointers[1] = *vdbs.at(1);
+		vdbs.push_back(GPU_VDB(gpu_vdb));
+		vdbs.at(i).set_xform(xform);
+	}
 
 	CUdeviceptr d_volume_ptr;
-	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * 2) == cudaSuccess);
-	check_success(cuMemcpyHtoD(d_volume_ptr, volume_pointers.get(), sizeof(GPU_VDB) * 2) == cudaSuccess);
+	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * num_volumes) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_volume_ptr, vdbs.data(), sizeof(GPU_VDB) * num_volumes) == cudaSuccess);
 
 
+	// Create BVH from vdb vector 
+	AABB scene_bounds(make_float3(.0f), make_float3(.0f));
+	bvh_builder.m_debug_bvh = false;
+	bvh_builder.build_bvh(vdbs, vdbs.size(), scene_bounds);
+	   
 	// Setup initial camera 
 	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
 	lookat = make_float3(-10.0f, 72.0f, -43.0f);
@@ -1281,8 +1284,8 @@ int main(const int argc, const char* argv[])
 #if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
 #undef rand // undefine the rand coming from camera.h and light.h
 
-	float3 min = vdbs[0]->get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
-	float3 max = vdbs[0]->get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
+	float3 min = vdbs[0].get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
+	float3 max = vdbs[0].get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
 
 	std::mt19937 e2(std::random_device{}());
 	std::uniform_real_distribution<> dist(0, 1);
