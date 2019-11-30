@@ -1253,7 +1253,7 @@ int main(const int argc, const char* argv[])
 	for (int i = 0; i < num_volumes; ++i) {
 
 		mat4 xform = gpu_vdb.get_xform();
-		xform.translate(make_float3(1000*i, 1000.0f, 0));
+		xform.translate(make_float3(100*i, 1000.0f, 0));
 
 		vdbs.push_back(GPU_VDB(gpu_vdb));
 		vdbs.at(i).set_xform(xform);

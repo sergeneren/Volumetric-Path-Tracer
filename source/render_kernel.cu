@@ -1353,6 +1353,66 @@ __device__ inline float3 direct_integrator(
 // Test Kernels 
 //////////////////////////////////////////////////////////////////////////
 
+__device__ inline float3 bvh_integrator(
+	Rand_state rand_state,
+	float3 ray_pos,
+	float3 ray_dir,
+	float &tr,
+	const Kernel_params kernel_params,
+	const GPU_VDB *gpu_vdb,
+	BVHNode *root_node,
+	const AtmosphereParameters atmosphere)
+{
+	float3 L = BLACK;
+	float3 beta = WHITE;
+
+	float3 t = make_float3(NOHIT);
+	bool mi = false;
+	float3 env_pos = ray_pos;
+	int vol_idx = -1;
+
+	traverse_bvh(ray_pos, ray_dir, gpu_vdb, root_node, t, vol_idx);
+
+	if (t.z != NOHIT) { // found an intersection
+		ray_pos += ray_dir * t.x;
+
+		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
+			mi = false;
+
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb[vol_idx]);
+			if (isBlack(beta)) break;
+
+			if (mi) { // medium interaction 
+				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
+			}
+
+		}
+
+	}
+
+
+	ray_dir = normalize(ray_dir);
+
+	if (kernel_params.environment_type == 0) {
+
+		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, atmosphere) * beta * kernel_params.sun_color * kernel_params.sun_mult;
+		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta;
+
+	}
+	else {
+
+		const float4 texval = tex2D<float4>(
+			kernel_params.env_tex,
+			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
+			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
+		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
+	}
+
+
+	tr = fminf(tr, 1.0f);
+	return L;
+
+}
 
 __device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, BVHNode *root_node)
 {
@@ -1372,8 +1432,6 @@ __device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU
 
 	return L;
 }
-
-
 
 __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kernel_params kernel_params, const AtmosphereParameters atmosphere) {
 
@@ -1471,7 +1529,8 @@ extern "C" __global__ void volume_rt_kernel(
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		
-		value = visualize_BVH(ray_pos, ray_dir, gpu_vdb, root_node);
+		value = bvh_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, root_node ,atmosphere);
+		//value = visualize_BVH(ray_pos, ray_dir, gpu_vdb, root_node);
 		//if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
 		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
 		
