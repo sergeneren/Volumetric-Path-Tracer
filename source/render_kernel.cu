@@ -61,7 +61,7 @@ typedef unsigned long long	uint64;
 #include "gpu_vdb.h"
 #include "camera.h"
 #include "light.h"
-
+#include "bvh/bvh.h"
 
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
@@ -1181,6 +1181,35 @@ __device__ inline float3 sample(
 }
 
 
+
+__device__ void traverse_bvh(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, BVHNode *node, float3 &t , int &volume_idx) {
+
+
+	if (node->boundingBox.Intersect(ray_pos, ray_dir)) {
+	
+	
+		if (node->IsLeaf()) {
+
+			t = volumes[node->volIndex].rayBoxIntersect(ray_pos, ray_dir);
+			if (t.z != NOHIT) volume_idx = node->volIndex;
+		}
+		else {
+
+			BVHNode *leftChild = node->leftChild;
+			BVHNode *rightChild = node->rightChild;
+
+			traverse_bvh(ray_pos, ray_dir, volumes, leftChild, t, volume_idx);
+			traverse_bvh(ray_pos, ray_dir, volumes, rightChild, t, volume_idx);
+			
+		}	
+	} 
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// Rendering Integrators 
+//////////////////////////////////////////////////////////////////////////
+
 // PBRT Volume Integrator
 __device__ inline float3 vol_integrator(
 	Rand_state rand_state,
@@ -1320,6 +1349,32 @@ __device__ inline float3 direct_integrator(
 }
 
 
+//////////////////////////////////////////////////////////////////////////
+// Test Kernels 
+//////////////////////////////////////////////////////////////////////////
+
+
+__device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, BVHNode *root_node)
+{
+	float3 L = BLACK;
+	float3 t = make_float3(NOHIT);
+	int vol_index;
+
+	traverse_bvh(ray_pos, ray_dir, volumes, root_node, t, vol_index);
+
+	if (t.z != NOHIT) {
+		ray_pos += ray_dir * t.x;
+		
+		L = make_float3(float(vol_index) / 10.0f);
+	
+	
+	}
+
+	return L;
+}
+
+
+
 __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kernel_params kernel_params, const AtmosphereParameters atmosphere) {
 
 	float3 earth_center = make_float3(.0f, -atmosphere.bottom_radius, .0f);
@@ -1364,8 +1419,14 @@ __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kern
 
 }
 
-// Main kernel accessors
 
+
+//////////////////////////////////////////////////////////////////////////
+// Main kernel accessors
+//////////////////////////////////////////////////////////////////////////
+
+
+// Tone mapping functions 
 __device__ inline float3 rtt_and_odt_fit(float3 v)
 {
 	float3 a = v * (v + 0.0245786f) - 0.000090537f;
@@ -1378,6 +1439,7 @@ extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
 	const light_list lights,
 	const GPU_VDB *gpu_vdb,
+	BVHNode *root_node,
 	const AtmosphereParameters atmosphere,
 	const Kernel_params kernel_params) {
 	
@@ -1409,9 +1471,9 @@ extern "C" __global__ void volume_rt_kernel(
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		
-		//value = render_earth(ray_pos, ray_dir, kernel_params, atmosphere);
-		if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
+		value = visualize_BVH(ray_pos, ray_dir, gpu_vdb, root_node);
+		//if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
+		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
 		
 	}
 	

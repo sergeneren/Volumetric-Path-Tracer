@@ -1253,7 +1253,7 @@ int main(const int argc, const char* argv[])
 	for (int i = 0; i < num_volumes; ++i) {
 
 		mat4 xform = gpu_vdb.get_xform();
-		xform.translate(make_float3(1000*i, 0, 0));
+		xform.translate(make_float3(1000*i, 1000.0f, 0));
 
 		vdbs.push_back(GPU_VDB(gpu_vdb));
 		vdbs.at(i).set_xform(xform);
@@ -1268,7 +1268,7 @@ int main(const int argc, const char* argv[])
 	AABB scene_bounds(make_float3(.0f), make_float3(.0f));
 	bvh_builder.m_debug_bvh = false;
 	bvh_builder.build_bvh(vdbs, vdbs.size(), scene_bounds);
-	   
+
 	// Setup initial camera 
 	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
 	lookat = make_float3(-10.0f, 72.0f, -43.0f);
@@ -1681,7 +1681,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)atmos_params, &kernel_params };
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, &bvh_builder.bvh.BVHNodes ,(void *)atmos_params, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
