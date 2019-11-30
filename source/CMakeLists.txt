@@ -50,11 +50,12 @@ file ( GLOB COMMON "${CMAKE_CURRENT_SOURCE_DIR}/common/*.h"	)
 file ( GLOB BVH 
 	"${CMAKE_CURRENT_SOURCE_DIR}/bvh/*.h"	
 	"${CMAKE_CURRENT_SOURCE_DIR}/bvh/*.cpp"	
+	"${CMAKE_CURRENT_SOURCE_DIR}/bvh/*.cu"	
 	)
 
-file( GLOB_RECURSE CUDA_SOURCES 
+file( GLOB CUDA_SOURCES 
 	"*.cu"
-	"*.cuh")
+	"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.cu")
 	
 file( GLOB SOURCE_CPP
 	"*.cpp"
@@ -68,7 +69,7 @@ set(SOURCE_FILES
 	${HEADERS}
 	${CUDA_SOURCES}
 	${SOURCE_CPP}
-	#${BVH}
+	${BVH}
 	${IMGUI_IMPL_SOURCES}
 	${COMMON}
 	${ATMOSPHERE})
@@ -94,6 +95,7 @@ _COMPILEPTX ( SOURCES ${CUDA_SOURCES}
 ###################################################################
 add_executable(vpt ${SOURCE_FILES})
 target_link_libraries(vpt PRIVATE glfw imgui::imgui nlohmann_json::nlohmann_json cudart cuda openvdb ${OIDN_LIBRARIES})
+target_compile_options(vpt PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_30,code=sm_30>)
 
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
