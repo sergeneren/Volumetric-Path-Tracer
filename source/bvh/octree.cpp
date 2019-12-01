@@ -31,44 +31,79 @@
 // 
 //	Version 1.0: Sergen Eren, 01/12/2019
 //
-// File: Header file for OCTree node and class that partitions a space by major axes 
-//		 and creates an octree that holds volumetric meta attributes
+// File: Implementation file for OCTree class functions  
 //
 //-----------------------------------------------
 
+#include "bvh/octree.h"
 
-#ifndef _OCTREE_H_
-#define _OCTREE_H_
+// Returns root node 
+OCTNode* OCTree::getRoot() {
 
-#include <cuda_runtime.h>
-#include "AABB.h"
+	return root_node;
+}
+
+// Calculates children bounding boxes based on an index
+//						    +------------+ pmax
+//						   /  4   /  5  /|
+//						  /______/_____/ |
+//	      y				 /      /     /| |
+//		|	z			+------------+ |/|
+//		|  /			|   0  |  1  | / |
+//		| /				|______|_____|/| /
+//		|/				|      |     | |/
+//		------ > x		|   2  |  3  | /
+//				   pmin +------------+
+
+AABB OCTree::divide_bbox(int idx, float3 pmin, float3 pmax) {
+
+	float3 min = make_float3(.0f);
+	float3 max = make_float3(.0f);
+	float half_x = (pmin.x + pmax.x)*0.5;
+	float half_y = (pmin.y + pmax.y)*0.5;
+	float half_z = (pmin.z + pmax.z)*0.5;
+
+	if (idx == 0) {
+		min = make_float3(pmin.x, half_y, pmin.z);
+		max = make_float3(half_x, pmax.y, half_z);
+	}
+
+	if (idx == 1) {
+		min = make_float3(half_x, half_y, pmin.z);
+		max = make_float3(pmax.x, pmax.y, half_z);
+	}
+
+	if (idx == 2) {
+		min = pmin;
+		max = make_float3(half_x, half_y, half_z);
+	}
+
+	if (idx == 3) {
+		min = make_float3(half_x, pmin.y, pmin.z);
+		max = make_float3(pmax.x, half_y, half_z);
+	}
 
 
-struct OCTNode {
+	if (idx == 4) {
+		min = make_float3(pmin.x, half_y, half_z);
+		max = make_float3(half_x, pmax.y, pmax.z);
+	}
 
-	__host__ __device__ bool isLeaf() {return !children;}
-	
-	int num_volumes = 0;
-	int *vol_indices;
-	float max_extinction = .0f;
-	float min_extinction = .0f;
+	if (idx == 5) {
+		min = make_float3(half_x, half_y, half_z);
+		max = pmax;
+	}
 
-	OCTNode *children[8];
-	OCTNode *parent;
-	AABB bbox = AABB();
-};
+	if (idx == 6) {
+		min = make_float3(pmin.x, pmin.y, half_z);
+		max = make_float3(half_x, half_y, pmax.z);
+	}
 
+	if (idx == 7) {
+		min = make_float3(half_x, pmin.y, half_z);
+		max = make_float3(pmax.x, half_y, pmax.z);
+		
+	}
 
-class OCTree {
-
-public:
-	OCTree() {};
-	virtual ~OCTree() {};
-
-	OCTNode* getRoot();
-	AABB divide_bbox(int idx, float3 pmin, float3 pmax);
-	OCTNode *root_node;
-	
-};
-
-#endif // !_OCTREE_H_
+	return AABB(min, max);
+}

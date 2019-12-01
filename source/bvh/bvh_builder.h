@@ -47,7 +47,7 @@
 
 #include "bvh.h"
 #include "gpu_vdb.h"
-
+#include "bvh/octree.h"
 
 enum bvh_error_t {
 
@@ -65,6 +65,7 @@ public:
 	bvh_error_t build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, AABB &sceneBounds);
 
 	BVH bvh;
+	OCTree octree;
 
 	bool m_debug_bvh = false;
 

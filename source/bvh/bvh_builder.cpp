@@ -52,6 +52,31 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 	cudaFree(volumes);
 	volumes = nullptr;
 
+
+
+	// Build octree 
+
+	octree.root_node = new OCTNode;
+
+	for (int i = 0; i < num_volumes; ++i) {
+
+		octree.root_node->bbox.pmax = fmaxf(octree.root_node->bbox.pmax, vdbs.at(i).Bounds().pmax);
+		octree.root_node->bbox.pmin = fminf(octree.root_node->bbox.pmin, vdbs.at(i).Bounds().pmin);
+	}
+
+	printf("Root node bounds \npmin.x: %f, pmin.y: %f, pmin.z: %f \npmax.x: %f, pmax.y: %f, pmax.z: %f\n",
+		octree.root_node->bbox.pmin.x, octree.root_node->bbox.pmin.y, octree.root_node->bbox.pmin.z,
+		octree.root_node->bbox.pmax.x, octree.root_node->bbox.pmax.y, octree.root_node->bbox.pmax.z);
+
+	// Create the first level of children
+	for (int i = 0; i < 8; ++i) {
+		octree.root_node->children[i] = new OCTNode;
+		float3 pmin = octree.root_node->bbox.pmin;
+		float3 pmax = octree.root_node->bbox.pmax;
+		octree.root_node->children[i]->bbox = octree.divide_bbox(i, pmin, pmax);
+	}
+
+
 	return BVH_NO_ERR;
 	
 }
