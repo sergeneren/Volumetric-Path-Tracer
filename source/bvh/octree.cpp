@@ -115,6 +115,7 @@ void OCTree::create_tree(std::vector<GPU_VDB> vdbs, OCTNode *root, int depth)
 	if (depth > 0) {
 		if (root->num_volumes > 0) {
 			for (int i = 0; i < 8; ++i) {
+
 				root->children[i] = new OCTNode;
 				root->children[i]->parent = root;
 				float3 pmin = root->bbox.pmin;
@@ -131,10 +132,22 @@ void OCTree::create_tree(std::vector<GPU_VDB> vdbs, OCTNode *root, int depth)
 					}
 				}
 
-				if(m_debug) std::cout << "num volumes for child " << i << " at depth "<< depth << " is " << root->children[i]->num_volumes << "\n";
+				if (m_debug) {
+					std::cout << "num volumes for child " << depth << "-" << i << " is " << root->children[i]->num_volumes << " ";
+					if (root->children[i]->num_volumes > 0) {
+						std::cout << "volume indices: ";
+						for (int x = 0; x < root->children[i]->num_volumes; ++x) {
+							std::cout << root->children[i]->vol_indices[x] << " ";
+
+						}
+					}
+					std::cout << " max extinction: " << root->children[i]->max_extinction << "\n";
+				}
 
 				create_tree(vdbs, root->children[i], depth - 1);
+
 			}
+
 		}
 	}
 }

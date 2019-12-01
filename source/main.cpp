@@ -1249,7 +1249,7 @@ int main(const int argc, const char* argv[])
 
 
 	// Set volume instances
-
+	
 	for (int i = 0; i < num_volumes; ++i) {
 
 		mat4 xform = gpu_vdb.get_xform();
@@ -1258,7 +1258,7 @@ int main(const int argc, const char* argv[])
 		vdbs.push_back(GPU_VDB(gpu_vdb));
 		vdbs.at(i).set_xform(xform);
 	}
-
+	   	 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * num_volumes) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_volume_ptr, vdbs.data(), sizeof(GPU_VDB) * num_volumes) == cudaSuccess);

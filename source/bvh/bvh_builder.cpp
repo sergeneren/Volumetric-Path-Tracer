@@ -53,10 +53,8 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 	cudaFree(volumes);
 	volumes = nullptr;
 
-
-
 	// Build octree 
-
+	
 	octree.root_node = new OCTNode;
 
 	for (int i = 0; i < num_volumes; ++i) {
@@ -75,29 +73,8 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 		octree.root_node->bbox.pmin.x, octree.root_node->bbox.pmin.y, octree.root_node->bbox.pmin.z,
 		octree.root_node->bbox.pmax.x, octree.root_node->bbox.pmax.y, octree.root_node->bbox.pmax.z);
 
-	// Create the first level of children
-	for (int i = 0; i < 8; ++i) {
-		OCTNode *node = new OCTNode;
-		float3 pmin = octree.root_node->bbox.pmin;
-		float3 pmax = octree.root_node->bbox.pmax;
-		node->bbox = octree.divide_bbox(i, pmin, pmax);
-		
-		int idx = 0;
-		for (int y = 0; y < num_volumes; ++y) {
-			if (Overlaps(node->bbox, vdbs.at(y).Bounds())) {
-				node->num_volumes++;
-				node->vol_indices[idx] = y;
-				idx++;
-			}
-		}
-
-		octree.root_node->children[i] = node;
-	}
-
-	// Debug
-	for (int i = 0; i < 8; ++i) {
-		std::cout << "num volumes for child "<< i << " is "<< octree.root_node->children[i]->num_volumes << "\n";
-	}
+	octree.m_debug = true;
+	octree.create_tree(vdbs, octree.root_node, 3);
 
 
 
