@@ -42,6 +42,8 @@
 
 #include <cuda_runtime.h>
 #include "AABB.h"
+#include "gpu_vdb/gpu_vdb.h"
+#include <vector>
 
 class OCTree {
 
@@ -51,6 +53,9 @@ public:
 
 	OCTNode* getRoot();
 	AABB divide_bbox(int idx, float3 pmin, float3 pmax);
+	void create_tree(std::vector<GPU_VDB> vdbs, OCTNode *root, int depth);
+	
+	bool m_debug = false;
 	OCTNode *root_node;
 	
 };

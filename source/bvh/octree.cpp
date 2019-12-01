@@ -36,6 +36,8 @@
 //-----------------------------------------------
 
 #include "bvh/octree.h"
+#include <iostream>
+
 
 // Returns root node 
 OCTNode* OCTree::getRoot() {
@@ -102,8 +104,37 @@ AABB OCTree::divide_bbox(int idx, float3 pmin, float3 pmax) {
 	if (idx == 7) {
 		min = make_float3(half_x, pmin.y, half_z);
 		max = make_float3(pmax.x, half_y, pmax.z);
-		
+
 	}
 
 	return AABB(min, max);
+}
+
+void OCTree::create_tree(std::vector<GPU_VDB> vdbs, OCTNode *root, int depth)
+{
+	if (depth > 0) {
+		if (root->num_volumes > 0) {
+			for (int i = 0; i < 8; ++i) {
+				root->children[i] = new OCTNode;
+				root->children[i]->parent = root;
+				float3 pmin = root->bbox.pmin;
+				float3 pmax = root->bbox.pmax;
+				root->children[i]->bbox = divide_bbox(i, pmin, pmax);
+
+				int idx = 0;
+				for (int y = 0; y < vdbs.size(); ++y) {
+					if (Overlaps(root->children[i]->bbox, vdbs.at(y).Bounds())) {
+						root->children[i]->num_volumes++;
+						root->children[i]->vol_indices[idx] = y;
+						root->children[i]->max_extinction = fmaxf(root->children[i]->max_extinction, vdbs.at(y).vdb_info.max_density);
+						idx++;
+					}
+				}
+
+				if(m_debug) std::cout << "num volumes for child " << i << " at depth "<< depth << " is " << root->children[i]->num_volumes << "\n";
+
+				create_tree(vdbs, root->children[i], depth - 1);
+			}
+		}
+	}
 }

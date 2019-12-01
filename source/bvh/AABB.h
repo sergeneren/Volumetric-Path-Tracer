@@ -43,21 +43,6 @@
 #include "cuda_runtime_api.h"
 #include "helper_math.h"
 
-struct OCTNode {
-
-	__host__ __device__ bool isLeaf() { return !children; }
-
-	int num_volumes = 0;
-	int *vol_indices;
-	float max_extinction = .0f;
-	float min_extinction = .0f;
-
-	OCTNode *children[8];
-	OCTNode *parent;
-	AABB bbox = AABB();
-};
-
-
 struct AABB {
 
 	__host__ __device__ AABB() {
@@ -203,7 +188,19 @@ struct AABBUnion {
 };
 
 
+struct OCTNode {
 
+	__host__ __device__ bool isLeaf() { return !children; }
+
+	int num_volumes = 0;
+	int *vol_indices;
+	float max_extinction = .0f;
+	float min_extinction = .0f;
+
+	OCTNode *children[8];
+	OCTNode *parent;
+	AABB bbox = AABB();
+};
 
 
 #endif // !_AABB_H_
