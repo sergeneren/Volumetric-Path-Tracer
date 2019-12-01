@@ -43,22 +43,6 @@
 #include <cuda_runtime.h>
 #include "AABB.h"
 
-
-struct OCTNode {
-
-	__host__ __device__ bool isLeaf() {return !children;}
-	
-	int num_volumes = 0;
-	int *vol_indices;
-	float max_extinction = .0f;
-	float min_extinction = .0f;
-
-	OCTNode *children[8];
-	OCTNode *parent;
-	AABB bbox = AABB();
-};
-
-
 class OCTree {
 
 public:
