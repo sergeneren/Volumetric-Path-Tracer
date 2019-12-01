@@ -36,6 +36,7 @@
 //-----------------------------------------------
 
 #include "bvh_builder.h"
+#include <iostream>
 
 extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &sceneBounds, bool debug_bvh);
 
@@ -63,6 +64,12 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 		octree.root_node->bbox.pmax = fmaxf(octree.root_node->bbox.pmax, vdbs.at(i).Bounds().pmax);
 		octree.root_node->bbox.pmin = fminf(octree.root_node->bbox.pmin, vdbs.at(i).Bounds().pmin);
 	}
+	for (int y = 0; y < num_volumes; ++y) {
+		if (Overlaps(octree.root_node->bbox, vdbs.at(y).Bounds())) {
+			octree.root_node->num_volumes++;
+		}
+	}
+	std::cout << "num volumes for root is " << octree.root_node->num_volumes << "\n";
 
 	printf("Root node bounds \npmin.x: %f, pmin.y: %f, pmin.z: %f \npmax.x: %f, pmax.y: %f, pmax.z: %f\n",
 		octree.root_node->bbox.pmin.x, octree.root_node->bbox.pmin.y, octree.root_node->bbox.pmin.z,
@@ -70,11 +77,28 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 
 	// Create the first level of children
 	for (int i = 0; i < 8; ++i) {
-		octree.root_node->children[i] = new OCTNode;
+		OCTNode *node = new OCTNode;
 		float3 pmin = octree.root_node->bbox.pmin;
 		float3 pmax = octree.root_node->bbox.pmax;
-		octree.root_node->children[i]->bbox = octree.divide_bbox(i, pmin, pmax);
+		node->bbox = octree.divide_bbox(i, pmin, pmax);
+		
+		int idx = 0;
+		for (int y = 0; y < num_volumes; ++y) {
+			if (Overlaps(node->bbox, vdbs.at(y).Bounds())) {
+				node->num_volumes++;
+				node->vol_indices[idx] = y;
+				idx++;
+			}
+		}
+
+		octree.root_node->children[i] = node;
 	}
+
+	// Debug
+	for (int i = 0; i < 8; ++i) {
+		std::cout << "num volumes for child "<< i << " is "<< octree.root_node->children[i]->num_volumes << "\n";
+	}
+
 
 
 	return BVH_NO_ERR;

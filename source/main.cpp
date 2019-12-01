@@ -1269,6 +1269,8 @@ int main(const int argc, const char* argv[])
 	bvh_builder.m_debug_bvh = false;
 	bvh_builder.build_bvh(vdbs, vdbs.size(), scene_bounds);
 
+	return 0;
+
 	// Setup initial camera 
 	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
 	lookat = make_float3(-10.0f, 72.0f, -43.0f);
