@@ -1373,11 +1373,11 @@ __device__ inline float3 bvh_integrator(
 
 	traverse_bvh(ray_pos, ray_dir, gpu_vdb, root_node, t, vol_idx);
 
-	if (t.z != NOHIT) { // found an intersection
-		ray_pos += ray_dir * t.x;
+	for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
+		mi = false;
 
-		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
-			mi = false;
+		if(t.z != NOHIT) { // found an intersection
+		ray_pos += ray_dir * t.x;
 
 			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb[vol_idx]);
 			if (isBlack(beta)) break;
@@ -1386,6 +1386,8 @@ __device__ inline float3 bvh_integrator(
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
 
+			traverse_bvh(ray_pos, ray_dir, gpu_vdb, root_node, t, vol_idx);
+			ray_pos += ray_dir * t.x;
 		}
 
 	}
