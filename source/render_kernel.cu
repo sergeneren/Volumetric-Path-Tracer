@@ -1435,6 +1435,21 @@ __device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU
 	return L;
 }
 
+__device__ inline float3 visualize_OCTree(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, OCTNode *root)
+{
+	float3 L = BLACK;
+	float3 t = make_float3(NOHIT);
+
+	if (root->bbox.Intersect(ray_pos, ray_dir)) {
+
+		L = RED;
+
+	}
+	
+
+	return L;
+}
+
 __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kernel_params kernel_params, const AtmosphereParameters atmosphere) {
 
 	float3 earth_center = make_float3(.0f, -atmosphere.bottom_radius, .0f);
@@ -1532,7 +1547,8 @@ extern "C" __global__ void volume_rt_kernel(
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		
-		value = bvh_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, root_node ,atmosphere);
+		value = visualize_OCTree(ray_pos, ray_dir, gpu_vdb, oct_root);
+		//value = bvh_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, root_node ,atmosphere);
 		//value = visualize_BVH(ray_pos, ray_dir, gpu_vdb, root_node);
 		//if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);
 		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, atmosphere);

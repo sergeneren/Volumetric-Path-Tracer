@@ -103,7 +103,7 @@ struct AABB {
 		return o;
 	}
 
-	__host__ __device__ bool Intersect(const float3 &origin, const float3 &direction) const;
+	__host__ __device__ bool Intersect(const float3 origin, const float3 direction, float &tmin, float tmax) const;
 
 	float3 pmin;
 	float3 pmax;
@@ -160,7 +160,7 @@ __host__ __device__ inline AABB Expand(const AABB &b, const float delta) {
 		b.pmax + make_float3(delta));
 }
 
-__host__ __device__ inline bool AABB::Intersect(const float3 &origin, const float3 &direction) const {
+__host__ __device__ inline bool AABB::Intersect(const float3 origin, const float3 direction, float &tmin, float tmax) const {
 
 	float3 directionInv = make_float3(1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z);
 
@@ -170,8 +170,8 @@ __host__ __device__ inline bool AABB::Intersect(const float3 &origin, const floa
 	float t4 = (pmax.y - origin.y) * directionInv.y;
 	float t5 = (pmin.z - origin.z) * directionInv.z;
 	float t6 = (pmax.z - origin.z) * directionInv.z;
-	float tmin = fmaxf(fmaxf(fminf(t1, t2), fminf(t3, t4)), fminf(t5, t6));
-	float tmax = fminf(fminf(fmaxf(t1, t2), fmaxf(t3, t4)), fmaxf(t5, t6));
+	tmin = fmaxf(fmaxf(fminf(t1, t2), fminf(t3, t4)), fminf(t5, t6));
+	tmax = fminf(fminf(fmaxf(t1, t2), fmaxf(t3, t4)), fmaxf(t5, t6));
 	if (tmax <= 0.0f) return false; // box is behind
 	if (tmin > tmax) return false; // ray missed
 
