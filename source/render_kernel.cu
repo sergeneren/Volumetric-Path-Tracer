@@ -912,6 +912,55 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	return density;
 }
 
+__device__ inline float sum_density(float3 ray_pos, OCTNode *leaf_node, GPU_VDB *volumes) {
+
+	float density = .0f;
+
+	for (int i = 0; i < leaf_node->num_volumes; ++i) {
+
+		density += get_density(ray_pos, volumes[leaf_node->vol_indices[i]]);
+
+	}
+
+	return density;
+}
+
+__device__ inline OCTNode* get_closest_leaf_node(float3 ray_pos, float3 ray_dir, OCTNode *root, float &t_min, float &t_max) {
+
+	OCTNode *node = NULL;
+
+	// Lets first check if we intersect root
+	if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) {
+		
+		// intersected root. now check if we intersect depth 3 nodes 
+		for (int i = 0; i < 8; ++i) {
+			float temp_min;
+			if (root->children[i]->bbox.Intersect(ray_pos, ray_dir, temp_min, t_max)) {
+				if (root->children[i]->num_volumes > 0) {
+					for (int x = 0; x < 8; ++x) {
+						if (root->children[i]->children[x]->bbox.Intersect(ray_pos, ray_dir, temp_min, t_max)) {
+							if (root->children[i]->children[x]->num_volumes > 0) {
+								for (int y = 0; y < 8; ++y) {
+									if (root->children[i]->children[x]->children[y]->bbox.Intersect(ray_pos, ray_dir, temp_min, t_max)) {
+										if (root->children[i]->children[x]->children[y]->num_volumes > 0) {
+											if (temp_min < t_min) {
+												t_min = fminf(t_min, temp_min);
+												node = root->children[i]->children[x]->children[y];
+											}											
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return node;
+}
+
 __device__ inline float3 Tr(
 	Rand_state &rand_state,
 	float3 pos,
@@ -1436,27 +1485,53 @@ __device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU
 }
 
 
-__device__ inline bool traverse_octree(float3 ray_pos, float3 ray_dir, OCTNode *root) {
+__device__ inline bool traverse_octree(float3 ray_pos, float3 ray_dir, OCTNode *root, float &t_min, float&t_max) {
 
-	float tmin, tmax;
-
-	if (root->bbox.Intersect(ray_pos, ray_dir, tmin, tmax)) {
-		if (root->depth == 1) {
+	/*
+	// Recursive traversal (This doesn't work)
+	if (root->depth == 1) {
+		if (root->bbox.Intersect_no_t(ray_pos, ray_dir)) {
 			if (root->num_volumes > 0) {
 				return true;
 			}
 		}
-		else {
-			for (int i = 0; i < 8; ++i) {
-				traverse_octree(ray_pos, ray_dir, root->children[i]);
+	}
+	else {
+		for (int i = 0; i < 8; ++i) {
+			traverse_octree(ray_pos, ray_dir, root->children[i]);
+		}
+	}
+
+	return false;*/
+
+	// Serial traversal
+	if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) {
+		for (int i = 0; i < 8; ++i) {
+			float temp_min;
+			if (root->children[i]->bbox.Intersect(ray_pos, ray_dir, temp_min, t_max)) {
+				if (root->children[i]->num_volumes > 0) {
+					for (int x = 0; x < 8; ++x) {
+						if (root->children[i]->children[x]->bbox.Intersect(ray_pos, ray_dir, temp_min, t_max)) {
+							if (root->children[i]->children[x]->num_volumes > 0) {
+								for (int y = 0; y < 8; ++y) {
+									if (root->children[i]->children[x]->children[y]->bbox.Intersect(ray_pos, ray_dir, temp_min, t_max)) {
+										if (root->children[i]->children[x]->children[y]->num_volumes > 0) {
+											t_min = fminf(t_min, temp_min);
+											return true;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}
-	
+
 	return false;
+
 }
-
-
 
 __device__ inline float3 visualize_OCTree(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, OCTNode *root)
 {
@@ -1464,7 +1539,7 @@ __device__ inline float3 visualize_OCTree(float3 ray_pos, float3 ray_dir, const 
 	float3 t = make_float3(NOHIT);
 	float t_min, t_max;
 
-	if (traverse_octree(ray_pos, ray_dir, root)) return RED;
+	if (traverse_octree(ray_pos, ray_dir, root, t_min, t_max)) return RED;
 
 	return L;
 }
