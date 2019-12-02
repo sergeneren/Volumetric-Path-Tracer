@@ -58,7 +58,7 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 	// Build octree 
 	octree.root_node = new OCTNode;
 	// <3, 3, 3, 3,> Octree
-	octree.root_node->depth = 5;
+	octree.root_node->depth = 4;
 
 	for (int i = 0; i < num_volumes; ++i) {
 
