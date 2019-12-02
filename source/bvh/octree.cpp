@@ -45,17 +45,20 @@ OCTNode* OCTree::getRoot() {
 	return root_node;
 }
 
-// Calculates children bounding boxes based on an index
-//						    +------------+ pmax
-//						   /  4   /  5  /|
-//						  /______/_____/ |
-//	      y				 /      /     /| |
-//		|	z			+------------+ |/|
-//		|  /			|   0  |  1  | / |
-//		| /				|______|_____|/| /
-//		|/				|      |     | |/
-//		------ > x		|   2  |  3  | /
-//				   pmin +------------+
+// Divides a bounding box to 8 and calculates children bounding boxes based on an index
+//
+//								     +------------+ pmax
+//								    /  4   /  5  /|
+//								   /______/_____/ |
+//	      y						  /      /     /| |
+//		|	z					 +------------+ |/|
+//		|  /					 |   0  |  1  | / |
+//		| /						 |______|_____|/| /
+//		|/						 |      |     | |/
+//		+------ > x				 |   2  |  3  | /
+//							pmin +------------+
+//
+//
 
 AABB OCTree::divide_bbox(int idx, float3 pmin, float3 pmax) {
 

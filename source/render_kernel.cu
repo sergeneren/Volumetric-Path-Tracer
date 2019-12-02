@@ -1500,6 +1500,7 @@ extern "C" __global__ void volume_rt_kernel(
 	const light_list lights,
 	const GPU_VDB *gpu_vdb,
 	BVHNode *root_node,
+	OCTNode *oct_root,
 	const AtmosphereParameters atmosphere,
 	const Kernel_params kernel_params) {
 	
