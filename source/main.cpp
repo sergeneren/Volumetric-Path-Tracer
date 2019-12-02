@@ -110,6 +110,7 @@ CUfunction cuRaycastKernel;
 CUfunction cuTextureKernel;
 
 GPU_VDB	gpu_vdb;
+GPU_VDB box_vdb;
 std::vector<GPU_VDB> vdbs;
 
 
@@ -1209,13 +1210,21 @@ int main(const int argc, const char* argv[])
 	// Setup gpu_vdb
 
 	std::string fname;
+
 	if (argc >= 2) fname = argv[1];
 
 	std::string file_path = ASSET_PATH;
+	std::string box_path = ASSET_PATH;
+	
 	file_path.append(fname);
-
+	box_path.append("Temp/box.vdb");
 
 	if (!gpu_vdb.loadVDB(file_path, "density")) {
+		std::cout << "!Can't load VDB file: " << file_path << std::endl;
+		exit(0);
+	}
+
+	if (!box_vdb.loadVDB(box_path, "density")) {
 		std::cout << "!Can't load VDB file: " << file_path << std::endl;
 		exit(0);
 	}
@@ -1262,12 +1271,13 @@ int main(const int argc, const char* argv[])
 
 	mat4 xform = gpu_vdb.get_xform();
 
-	xform.translate(make_float3(0, 1000.0f, 0));
+	xform.translate(make_float3(0, 4000.0f, 0));
 	vdbs.push_back(GPU_VDB(gpu_vdb));
 	vdbs.at(0).set_xform(xform);
 
-	xform.translate(make_float3(300.0f, 300.0f, 0));
-	vdbs.push_back(GPU_VDB(gpu_vdb));
+	xform = box_vdb.get_xform();
+	xform.translate(make_float3(0, 4000.0f, 0));
+	vdbs.push_back(GPU_VDB(box_vdb));
 	vdbs.at(1).set_xform(xform);
 
 	CUdeviceptr d_volume_ptr;

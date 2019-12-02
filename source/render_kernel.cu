@@ -1028,7 +1028,6 @@ __device__ inline float3 Tr(
 	float inv_max_density = 1 / volumes[0].vdb_info.max_density;
 
 	while (true) {
-		if (tr.x < 0.0000001) break;
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		p += dir * t;
 		if (!ContainsExclusive(root->bbox, p))	break;
