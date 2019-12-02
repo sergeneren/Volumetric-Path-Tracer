@@ -44,6 +44,8 @@ extern "C" void build_octree(OCTNode *root, GPU_VDB *volumes, int num_volumes, i
 // Build the BVH that will be sent to the render kernel
 bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, AABB &sceneBounds) {
 	
+
+	// Build BVH
 	volumes = new GPU_VDB[num_volumes];
 	
 	checkCudaErrors(cudaMalloc(&volumes, num_volumes * sizeof(GPU_VDB)));
@@ -54,8 +56,9 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 	
 
 	// Build octree 
-	
 	octree.root_node = new OCTNode;
+	// <3, 3, 3, 3,> Octree
+	octree.root_node->depth = 5;
 
 	for (int i = 0; i < num_volumes; ++i) {
 
@@ -78,7 +81,7 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 	checkCudaErrors(cudaMalloc(&root, sizeof(OCTNode)));
 	checkCudaErrors(cudaMemcpy(root, octree.root_node, sizeof(OCTNode), cudaMemcpyHostToDevice));
 	
-	build_octree(root, volumes, vdbs.size() , 3 , octree.m_debug);
+	build_octree(root, volumes, vdbs.size() , /*octree depth*/ octree.root_node->depth-1 , octree.m_debug);
 	
 	//octree.create_tree(vdbs, octree.root_node, 3);
 

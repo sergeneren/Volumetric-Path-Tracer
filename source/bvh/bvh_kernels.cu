@@ -200,8 +200,6 @@ __device__ AABB divide_bbox(int idx, float3 pmin, float3 pmax) {
 
 }
 
-
-
 __device__ void build_octree_recursive(GPU_VDB *vdbs, int num_volumes, OCTNode *root, int depth, bool m_debug) {
 
 	if (depth > 0) {
@@ -210,6 +208,7 @@ __device__ void build_octree_recursive(GPU_VDB *vdbs, int num_volumes, OCTNode *
 
 				root->children[i] = new OCTNode;
 				root->children[i]->parent = root;
+				root->children[i]->depth = depth;
 				float3 pmin = root->bbox.pmin;
 				float3 pmax = root->bbox.pmax;
 				root->children[i]->bbox = divide_bbox(i, pmin, pmax);
@@ -572,7 +571,6 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 }
-
 
 extern "C" void build_octree(OCTNode *root, GPU_VDB *volumes, int num_volumes, int depth, bool m_debug) {
 

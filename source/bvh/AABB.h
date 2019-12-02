@@ -196,6 +196,7 @@ struct OCTNode {
 	int *vol_indices = new int[128];
 	float max_extinction = .0f;
 	float min_extinction = .0f;
+	int depth = -1;
 
 	OCTNode *children[8];
 	OCTNode *parent;
