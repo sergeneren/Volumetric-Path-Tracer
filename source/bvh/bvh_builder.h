@@ -66,7 +66,7 @@ public:
 
 	BVH bvh;
 	OCTree octree;
-
+	OCTNode *root;
 	bool m_debug_bvh = false;
 
 private:

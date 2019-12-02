@@ -146,7 +146,100 @@ __device__ MortonCode ComputeMortonCode(float x, float y, float z) {
 
 }
 
+__device__ AABB divide_bbox(int idx, float3 pmin, float3 pmax) {
 
+	float3 min = make_float3(.0f);
+	float3 max = make_float3(.0f);
+	float half_x = (pmin.x + pmax.x)*0.5;
+	float half_y = (pmin.y + pmax.y)*0.5;
+	float half_z = (pmin.z + pmax.z)*0.5;
+
+	if (idx == 0) {
+		min = make_float3(pmin.x, half_y, pmin.z);
+		max = make_float3(half_x, pmax.y, half_z);
+	}
+
+	if (idx == 1) {
+		min = make_float3(half_x, half_y, pmin.z);
+		max = make_float3(pmax.x, pmax.y, half_z);
+	}
+
+	if (idx == 2) {
+		min = pmin;
+		max = make_float3(half_x, half_y, half_z);
+	}
+
+	if (idx == 3) {
+		min = make_float3(half_x, pmin.y, pmin.z);
+		max = make_float3(pmax.x, half_y, half_z);
+	}
+
+
+	if (idx == 4) {
+		min = make_float3(pmin.x, half_y, half_z);
+		max = make_float3(half_x, pmax.y, pmax.z);
+	}
+
+	if (idx == 5) {
+		min = make_float3(half_x, half_y, half_z);
+		max = pmax;
+	}
+
+	if (idx == 6) {
+		min = make_float3(pmin.x, pmin.y, half_z);
+		max = make_float3(half_x, half_y, pmax.z);
+	}
+
+	if (idx == 7) {
+		min = make_float3(half_x, pmin.y, half_z);
+		max = make_float3(pmax.x, half_y, pmax.z);
+
+	}
+
+	return AABB(min, max);
+
+}
+
+
+
+__device__ void build_octree_recursive(GPU_VDB *vdbs, int num_volumes, OCTNode *root, int depth, bool m_debug) {
+
+	if (depth > 0) {
+		if (root->num_volumes > 0) {
+			for (int i = 0; i < 8; ++i) {
+
+				root->children[i] = new OCTNode;
+				root->children[i]->parent = root;
+				float3 pmin = root->bbox.pmin;
+				float3 pmax = root->bbox.pmax;
+				root->children[i]->bbox = divide_bbox(i, pmin, pmax);
+
+				int idx = 0;
+				for (int y = 0; y < num_volumes; ++y) {
+					if (Overlaps(root->children[i]->bbox, vdbs[y].Bounds())) {
+						root->children[i]->num_volumes++;
+						root->children[i]->vol_indices[idx] = y;
+						root->children[i]->max_extinction = fmaxf(root->children[i]->max_extinction, vdbs[y].vdb_info.max_density);
+						idx++;
+					}
+				}
+				if (m_debug) {
+					printf("num volumes for child %d-%d is %d ", depth, i, root->children[i]->num_volumes);
+					if (root->children[i]->num_volumes > 0) {
+						printf("volume indices: ");
+						for (int x = 0; x < root->children[i]->num_volumes; ++x) {
+							printf("%d ", root->children[i]->vol_indices[x]);
+						}
+					}
+					printf(" max extinction: %f\n", root->children[i]->max_extinction);
+				}
+				build_octree_recursive(vdbs, num_volumes, root->children[i], depth - 1, m_debug);
+
+			}
+
+		}
+	}
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Kernels
@@ -355,6 +448,11 @@ __global__ void BuildRadixTree(BVHNode* radixTreeNodes, BVHNode* radixTreeLeaves
 	}
 }
 
+__global__ void pass_octree(GPU_VDB *volumes, int num_volumes, OCTNode *root, int depth, bool m_debug) {
+
+	build_octree_recursive(volumes, num_volumes, root, depth, m_debug);
+}
+
 extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &sceneBounds, bool debug_bvh) {
 
 	int blockSize = BLOCK_SIZE;
@@ -473,4 +571,11 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
+}
+
+
+extern "C" void build_octree(OCTNode *root, GPU_VDB *volumes, int num_volumes, int depth, bool m_debug) {
+
+	pass_octree << <1, 1 >> > (volumes, num_volumes, root, depth, m_debug);
+
 }
