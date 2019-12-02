@@ -113,7 +113,7 @@ GPU_VDB	gpu_vdb;
 std::vector<GPU_VDB> vdbs;
 
 
-static int num_volumes = 3; // TODO: read number of instances from json file 
+static int num_volumes = 2; // TODO: read number of instances from json file 
 BVH_Builder bvh_builder;
 
 // Cam parameters 
@@ -1260,22 +1260,15 @@ int main(const int argc, const char* argv[])
 	}
 	*/
 
-
 	mat4 xform = gpu_vdb.get_xform();
-	xform.scale(make_float3(.02));
+
 	xform.translate(make_float3(0, 1000.0f, 0));
 	vdbs.push_back(GPU_VDB(gpu_vdb));
 	vdbs.at(0).set_xform(xform);
 
-	xform.translate(make_float3(2000, 0.0f, 0));
+	xform.translate(make_float3(300.0f, 300.0f, 0));
 	vdbs.push_back(GPU_VDB(gpu_vdb));
 	vdbs.at(1).set_xform(xform);
-
-	xform.translate(make_float3(0, 1000.0f, 2000));
-	vdbs.push_back(GPU_VDB(gpu_vdb));
-	vdbs.at(2).set_xform(xform);
-
-
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * num_volumes) == cudaSuccess);

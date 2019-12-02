@@ -64,6 +64,7 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 
 		octree.root_node->bbox.pmax = fmaxf(octree.root_node->bbox.pmax, vdbs.at(i).Bounds().pmax);
 		octree.root_node->bbox.pmin = fminf(octree.root_node->bbox.pmin, vdbs.at(i).Bounds().pmin);
+		octree.root_node->vol_indices[i] = i;
 	}
 	for (int y = 0; y < num_volumes; ++y) {
 		if (Overlaps(octree.root_node->bbox, vdbs.at(y).Bounds())) {
