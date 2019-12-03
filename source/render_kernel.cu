@@ -1268,7 +1268,7 @@ __device__ inline float3 sample(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
 
-		if (!ContainsExclusive(root->bbox, ray_pos))	break;
+		if (!ContainsExclusive(root->bbox, ray_pos)) break;
 
 		float density = sum_density(ray_pos, root, volumes);
 

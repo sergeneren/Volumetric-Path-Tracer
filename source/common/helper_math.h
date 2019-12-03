@@ -1544,4 +1544,29 @@ inline __host__ __device__ float RadToDeg(float radians) { return radians * 180.
 inline __host__ __device__ float DegToRad(float degrees) { return degrees * M_PI * M_1_180; }
 
 
+////////////////////////////////////////////////////////////////////////////////
+// signs
+////////////////////////////////////////////////////////////////////////////////
+
+
+inline __host__ __device__ float signf(float a) {
+
+	return a < 0 ? -1 : 1;
+
+}
+
+inline __host__ __device__ float2 signf(float2 a) {
+
+	return make_float2(a.x < 0 ? -1 : 1, a.y < 0 ? -1 : 1);
+
+}
+
+inline __host__ __device__ float3 signf(float3 a) {
+
+	return make_float3(a.x < 0 ? -1 : 1, a.y < 0 ? -1 : 1, a.z < 0 ? -1 : 1) ;
+
+}
+
+
+
 #endif
