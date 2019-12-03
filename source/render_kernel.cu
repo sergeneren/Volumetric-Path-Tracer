@@ -1011,6 +1011,18 @@ __device__ inline OCTNode* get_closest_leaf_node(float3 ray_pos, float3 ray_dir,
 	return node;
 }
 
+__device__ inline int get_quadrant(OCTNode *root, float3 pos) {
+
+	int child_idx = -1;
+
+	for (int i = 0; i < 8; ++i) {
+
+		if (Contains(root->children[i]->bbox, pos)) child_idx = i;
+
+	}
+	return child_idx;
+}
+
 __device__ inline float3 Tr(
 	Rand_state &rand_state,
 	float3 pos,
@@ -1284,18 +1296,6 @@ __device__ inline float3 sample(
 
 	return WHITE;
 
-}
-
-__device__ inline int get_quadrant(OCTNode *root, float3 pos) {
-
-	int child_idx = -1;
-
-	for (int i = 0; i < 8; ++i) {
-
-		if (Contains(root->children[i]->bbox, pos)) child_idx = i;
-
-	}
-	return child_idx;
 }
 
 
