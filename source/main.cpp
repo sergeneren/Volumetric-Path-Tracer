@@ -114,7 +114,7 @@ GPU_VDB box_vdb;
 std::vector<GPU_VDB> vdbs;
 
 
-static int num_volumes = 4; // TODO: read number of instances from json file 
+static int num_volumes = 3; // TODO: read number of instances from json file 
 BVH_Builder bvh_builder;
 
 // Cam parameters 

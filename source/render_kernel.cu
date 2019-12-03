@@ -915,13 +915,13 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 __device__ inline float sum_density(float3 ray_pos, OCTNode *leaf_node, const GPU_VDB *volumes) {
 
 	float density = 0.0f;
-	
+
 	for (int i = 0; i < leaf_node->num_volumes; ++i) {
 
-		density += get_density(ray_pos, volumes[i]);
+		density += get_density(ray_pos, volumes[leaf_node->vol_indices[i]]);
 
 	}
-	
+
 	return density;
 }
 
@@ -996,7 +996,7 @@ __device__ inline OCTNode* get_closest_leaf_node(float3 ray_pos, float3 ray_dir,
 												node = root->children[i]->children[x]->children[y];
 
 											}
-											
+
 										}
 									}
 								}
@@ -1201,7 +1201,7 @@ __device__ inline float3 estimate_sun(
 
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
 	Ld = (length(sky_irradiance)*sun_irradiance) * tr  * phase_pdf;
-	
+
 	// No need for sampling BSDF with importance sampling
 	// please see: http://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Direct_Lighting.html#fragment-SampleBSDFwithmultipleimportancesampling-0
 
@@ -1239,7 +1239,7 @@ __device__ inline float3 uniform_sample_one_light(
 	}
 	else {
 		if (kernel_params.sky_mult > .0f)
-			L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb,root, atmosphere) * kernel_params.sky_mult;
+			L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * kernel_params.sky_mult;
 	}
 
 	return L * (float)nLights;
@@ -1285,6 +1285,152 @@ __device__ inline float3 sample(
 	return WHITE;
 
 }
+
+__device__ inline int get_quadrant(OCTNode *root, float3 pos) {
+
+	int child_idx = -1;
+
+	for (int i = 0; i < 8; ++i) {
+
+		if (Contains(root->children[i]->bbox, pos)) child_idx = i;
+
+	}
+	return child_idx;
+}
+
+
+__device__ inline float3 sample_test(
+	Rand_state &rand_state,
+	float3 &ray_pos,
+	const float3 &ray_dir,
+	bool &interaction,
+	float &tr,
+	const Kernel_params &kernel_params,
+	const GPU_VDB *volumes,
+	OCTNode *root)
+{
+	// Run delta tracking with octree traversal
+	// We assume that the ray_pos is inside the root bbox at the beginning 
+
+	float t_min, t_max, t = 0.0f;
+	/*
+	while (Contains(root->bbox, ray_pos)) {
+
+		// First we figure out which quadrant on depth 3 our point sits in
+
+		int depth3_node = get_quadrant(root, ray_pos);
+		int depth2_node, leaf_node;
+		if (depth3_node > -1 ) {
+			if (!root->children[depth3_node]->num_volumes > 0) { //We are in the depth3 node but it is empty
+				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				ray_pos += ray_dir * (t_max + EPS);
+				return RED;
+			}
+			else { // We are in depth3 node and it's not empty
+
+				while (Contains(root->children[depth3_node]->bbox, ray_pos)) {
+
+					depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
+					if (depth2_node > -1) {
+						if (!root->children[depth3_node]->children[depth2_node]->num_volumes > 0) { //We are in the depth2 node but it is empty
+							root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+							ray_pos += ray_dir * (t_max + EPS);
+						}
+						else {// We are in depth2 node and it's not empty
+
+							while (Contains(root->children[depth3_node]->children[depth2_node]->bbox, ray_pos)) {
+
+								leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
+								if (leaf_node > -1) {
+									if (!root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes > 0) { //We are in the leaf node but it is empty
+										root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+										ray_pos += ray_dir * (t_max + EPS);
+									}
+									else {//We are in the leaf node and it is not empty. We can finally do the sampling
+
+										float inv_max_density = 1.0f / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
+										float inv_density_mult = 1.0f / kernel_params.density_mult;
+
+										while (Contains(root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox, ray_pos)) {
+
+											t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
+											ray_pos += ray_dir * t;
+											float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+											// Accumulate opacity
+											if (tr < 1.0f) tr += density;
+
+											if (density * inv_max_density > rand(&rand_state)) {
+												interaction = true;
+												return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	*/
+	while (Contains(root->bbox, ray_pos)) {
+
+		// First we figure out which quadrant on various depths our point sits in
+
+		int depth3_node = get_quadrant(root, ray_pos);
+		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
+		int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
+
+		if (depth3_node < 0) break;
+		if (!root->children[depth3_node]->num_volumes > 0) { //We are in the depth3 node but it is empty
+			root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+			ray_pos += ray_dir * (t_max + EPS);
+			return RED;
+		}
+		else {
+			if (depth2_node < 0) break;
+			if (!root->children[depth3_node]->children[depth2_node]->num_volumes > 0) { //We are in the depth2 node but it is empty
+				root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				ray_pos += ray_dir * (t_max + EPS);
+			}
+			else {
+				if (leaf_node < 0) break;
+				if (!root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes > 0) { //We are in the leaf node but it is empty
+					root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+					ray_pos += ray_dir * (t_max + EPS);
+				}
+				else {//We are in the leaf node and it is not empty. We can finally do the sampling 
+
+					float inv_max_density = 1.0f / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
+					float inv_density_mult = 1.0f / kernel_params.density_mult;
+
+					while (Contains(root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox, ray_pos)) {
+
+						t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
+						ray_pos += ray_dir * t;
+						float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes) + 0.01;
+						// Accumulate opacity
+						if (tr < 1.0f) tr += density;
+
+						if (density * inv_max_density > rand(&rand_state)) {
+							interaction = true;
+							return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
+						}
+					}
+				}
+
+			}
+		}
+
+	}
+
+
+	return WHITE;
+
+}
+
+
 
 __device__ void traverse_bvh(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, BVHNode *node, float3 &t, int &volume_idx) {
 
@@ -1379,12 +1525,12 @@ __device__ inline float3 direct_integrator(
 	float t, tmax;
 
 	if (root->bbox.Intersect(ray_pos, ray_dir, t, tmax)) {
-		ray_pos += ray_dir * (t+EPS);
+		ray_pos += ray_dir * (t + EPS);
 
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root);
+			beta *= sample_test(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root);
 			if (isBlack(beta)) break;
 
 			if (mi) { // medium interaction 
@@ -1441,7 +1587,7 @@ __device__ inline float3 octree_integrator(
 
 	if (root_node->bbox.Intersect(ray_pos, ray_dir, t, tmax)) {
 		ray_pos += ray_dir * t;
-		
+
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
@@ -1508,7 +1654,7 @@ __device__ inline float3 bvh_integrator(
 			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb[vol_idx]);
 			if (isBlack(beta)) break;
 
-			if (mi) { // medium interaction 
+			if (mi) { // medium interaction
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
 
@@ -1669,7 +1815,7 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		if(kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
+		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
 
 	}
