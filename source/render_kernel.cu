@@ -1042,8 +1042,6 @@ __device__ inline float3 Tr(
 	// Code path 1:
 	// This is the old transmittance estimate algorithm that is agnostic of octree structure 
 
-
-
 #if 0
 
 	
@@ -1072,7 +1070,6 @@ __device__ inline float3 Tr(
 			if (!root->children[depth3_node]->num_volumes > 0) { //We are in the depth3 node but it is empty
 				root->children[depth3_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
 				p += ray_dir * (t_max + EPS);
-				return RED;
 			}
 			else { // We are in depth3 node and it's not empty
 
@@ -1400,7 +1397,6 @@ __device__ inline float3 sample_test(
 			if (!root->children[depth3_node]->num_volumes > 0) { //We are in the depth3 node but it is empty
 				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
 				ray_pos += ray_dir * (t_max + EPS);
-				return RED;
 			}
 			else { // We are in depth3 node and it's not empty
 
@@ -1469,7 +1465,6 @@ __device__ inline float3 sample_test(
 		if (!root->children[depth3_node]->num_volumes > 0) { //We are in the depth3 node but it is empty
 			root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
 			ray_pos += ray_dir * (t_max + EPS);
-			return RED;
 		}
 		else {
 			if (depth2_node < 0) break;
