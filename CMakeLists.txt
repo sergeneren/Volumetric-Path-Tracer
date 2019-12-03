@@ -24,3 +24,4 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/bin)
 
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/source)
+add_subdirectory(${CMAKE_SOURCE_DIR}/instancer_hda)
