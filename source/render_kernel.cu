@@ -1313,7 +1313,11 @@ __device__ inline float3 sample_test(
 	// We assume that the ray_pos is inside the root bbox at the beginning 
 
 	float t_min, t_max, t = 0.0f;
-	/*
+	
+	// Code path 1:
+	// This is a DDA stepping algorithm that checks the quadrant in Octree nodes and skips them if they contain no volumes 
+	// this is faster but requires more code and a little bit more complex
+#if 1   
 	while (Contains(root->bbox, ray_pos)) {
 
 		// First we figure out which quadrant on depth 3 our point sits in
@@ -1373,7 +1377,14 @@ __device__ inline float3 sample_test(
 			}
 		}
 	}
-	*/
+#endif
+
+
+	// Code path 2:
+	// This is a DDA stepping algorithm that checks the quadrant in Octree nodes and skips them if they contain no volumes 
+	// this path is slower but easier to implement 
+
+#if 0
 	while (Contains(root->bbox, ray_pos)) {
 
 		// First we figure out which quadrant on various depths our point sits in
@@ -1409,7 +1420,7 @@ __device__ inline float3 sample_test(
 
 						t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 						ray_pos += ray_dir * t;
-						float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes) + 0.01;
+						float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 						// Accumulate opacity
 						if (tr < 1.0f) tr += density;
 
@@ -1424,6 +1435,8 @@ __device__ inline float3 sample_test(
 		}
 
 	}
+
+#endif
 
 
 	return WHITE;
