@@ -1053,6 +1053,7 @@ __device__ inline float3 Tr(
 		if (!ContainsExclusive(root->bbox, p))	break;
 		float density = sum_density(p, root, volumes);
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		tr = fmaxf(tr, make_float3(.0f));
 	}
 #endif
 
@@ -1061,9 +1062,9 @@ __device__ inline float3 Tr(
 
 #if 1   
 	while (Contains(root->bbox, p)) {
-
+		if (length(tr) < EPS) break;
 		// First we figure out which quadrant on depth 3 our point sits in
-
+		
 		int depth3_node = get_quadrant(root, p);
 		int depth2_node, leaf_node;
 		if (depth3_node > -1) {
@@ -1094,7 +1095,6 @@ __device__ inline float3 Tr(
 									else {//We are in the leaf node and it is not empty. We can finally do the sampling
 
 										float inv_max_density = 1.0f / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
-										float inv_density_mult = 1.0f / kernel_params.density_mult;
 
 										while (Contains(root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox, p)) {
 
@@ -1102,6 +1102,7 @@ __device__ inline float3 Tr(
 											p += ray_dir * t;
 											float density = sum_density(p, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 											tr *= 1 - fmaxf(.0f, density*inv_max_density);
+											tr = fmaxf(tr, make_float3(.0f));
 										}
 									}
 								}
@@ -1327,48 +1328,7 @@ __device__ inline float3 uniform_sample_one_light(
 
 }
 
-
 __device__ inline float3 sample(
-	Rand_state &rand_state,
-	float3 &ray_pos,
-	const float3 &ray_dir,
-	bool &interaction,
-	float &tr,
-	const Kernel_params &kernel_params,
-	const GPU_VDB *volumes,
-	OCTNode *root)
-{
-	// Run delta tracking 
-
-	float t = 0.0f;
-	float inv_max_density = 1.0f / 1.0f;
-	float inv_density_mult = 1.0f / kernel_params.density_mult;
-
-	while (true) {
-
-		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
-		ray_pos += ray_dir * t;
-
-		if (!ContainsExclusive(root->bbox, ray_pos)) break;
-
-		float density = sum_density(ray_pos, root, volumes);
-
-		// Accumulate opacity
-		if (tr < 1.0f) tr += density;
-
-		if (density * inv_max_density > rand(&rand_state)) {
-			interaction = true;
-			return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
-		}
-
-	}
-
-	return WHITE;
-
-}
-
-
-__device__ inline float3 sample_test(
 	Rand_state &rand_state,
 	float3 &ray_pos,
 	const float3 &ray_dir,
@@ -1610,7 +1570,7 @@ __device__ inline float3 direct_integrator(
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
-			beta *= sample_test(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root);
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root);
 			if (isBlack(beta)) break;
 
 			if (mi) { // medium interaction 
