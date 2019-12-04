@@ -37,7 +37,7 @@
 
 
 #include "ROP_VPT_Instance.h"
-
+#include "file_IO.h"
 
 using namespace vpt_instance;
 
@@ -50,9 +50,6 @@ static PRM_Name names[] = {
 };
 
 static PRM_Default	 theFileDefault(0, "$HIP/Outputs/VPT/defgeo.json");
-const char *nameName = "`$OS`";
-static PRM_Default	 theNameDefault(0, nameName);
-
 
 PRM_Template VPT_INS_ROP::myTemplateList[] = {
 	PRM_Template(PRM_FILE_E,	1, &names[0], &theFileDefault , 0, 0 , 0 ,  &PRM_SpareData::fileChooserModeWrite),	// file Output
@@ -167,7 +164,6 @@ ROP_RENDER_CODE VPT_INS_ROP::renderFrame(fpreal time, UT_Interrupt *)
 	UT_String		 soppath, savepath, name;
 
 	OUTPUT(savepath, time);
-	//NAME(name, time);
 
 	if (!executePreFrameScript(time))
 		return ROP_ABORT_RENDER;
@@ -219,7 +215,7 @@ ROP_RENDER_CODE VPT_INS_ROP::renderFrame(fpreal time, UT_Interrupt *)
 		ROP_Node::makeFilePathDirs(savepath);
 	}
 
-	//h2a_fileSave(gdp, (const char *)savepath, (const char *)name, PWIDTH(time), SHUTTER(time), MODE(), MOTIONB(), COLOR(), TYPE(), P_RENDER_TYPE(), RADIUS(time), SUBDIV_TYPE(), SUBDIV_ITE(time));
+	file_save(gdp, (const char *)savepath);
 
 	if (ALFPROGRESS() && (endTime != startTime))
 	{
