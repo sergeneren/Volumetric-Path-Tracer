@@ -118,21 +118,16 @@ namespace vpt_instance {
 		static PRM_Template			myTemplateList[];
 		static OP_Node              *nodeConstructor(OP_Network *net, const char *name, OP_Operator *op);
 
-
 	protected:
 
 		VPT_INS_ROP(OP_Network *net, const char *name, OP_Operator *op);
-
 		virtual ~VPT_INS_ROP();
-
-
 
 	protected:
 
 		virtual int startRender(int nframes, fpreal s, fpreal e);
 		virtual ROP_RENDER_CODE renderFrame(fpreal time, UT_Interrupt *boss);
 		virtual ROP_RENDER_CODE endRender();
-
 
 	private:
 		void	OUTPUT(UT_String &str, fpreal t) { return evalString(str, "outputFile", 0, t); }
@@ -147,15 +142,5 @@ namespace vpt_instance {
 	};
 
 }
-
-
-
-
-
-
-
-
-
-
 
 #endif // !_ROP_VPT_INSTANCE_H_
