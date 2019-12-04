@@ -7,16 +7,11 @@ list(APPEND CMAKE_PREFIX_PATH ${HOUDINI_CMAKE_DIR})
 # Registers an imported library target named 'Houdini'.
 find_package( Houdini)
 
-
-
-find_package(nlohmann_json CONFIG REQUIRED)
-
-
 file (GLOB Headers "${CMAKE_CURRENT_SOURCE_DIR}/*.h" )
 file (GLOB Sources "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" )
 
 add_library(instancer_hda SHARED ${Headers} ${Sources})
-target_link_libraries(instancer_hda Houdini nlohmann_json::nlohmann_json)
+target_link_libraries(instancer_hda Houdini)
 
 include_directories(${_VCPKG_INCLUDE_DIR})
 

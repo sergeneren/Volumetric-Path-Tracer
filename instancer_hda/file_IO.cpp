@@ -37,10 +37,12 @@
 //-----------------------------------------------
 
 
-#include "nlohmann/json.hpp"
-using json = nlohmann::json;
+//#include "nlohmann/json.hpp"
+//using json = nlohmann::json;
+
 
 #include "file_IO.h"
+#include "volume_instance.h"
 
 #include <ROP/ROP_API.h>
 #include <ROP/ROP_Error.h>
@@ -83,15 +85,15 @@ namespace vpt_instance {
 		std::vector<std::string>::iterator it = std::unique(unique_vdb_files.begin(), unique_vdb_files.end());
 		unique_vdb_files.resize(std::distance(unique_vdb_files.begin(), it));
 
-		json j;
-		j["object"] = { "num_vdb_files" , unique_vdb_files.size() };
+		file << unique_vdb_files.size() << "\n";
+		for (auto vdb : unique_vdb_files) {
+			file << vdb << "\n";
+		}
 
 		for (auto vdb : unique_vdb_files) {
 
-			json vdb_json = json::object();
-			vdb_json.push_back({"filename", vdb });
-			file << vdb_json.dump(4);
-			vdb_json.clear();
+			vdb_instance new_instance;
+			new_instance.vdb_file = vdb.c_str();
 
 			int idx = 0;
 			for (GA_Iterator lcl_it(gdp->getPointRange()); lcl_it.blockAdvance(lcl_start, lcl_end); ) {
@@ -100,28 +102,32 @@ namespace vpt_instance {
 					vdb_val = vdb_h.get(ptoff);
 					
 					if (vdb_val.compare(vdb.c_str())) {
+						instance ins;
 						if (rad_h.isValid()) {
 							rad_val = rad_h.get(ptoff);
 						}
 						else rad_val = 1.0f;
-						pos_val = pos_h.get(ptoff);
+						
+						ins.scale = rad_val;
 
-						vdb_json.push_back({ "index", idx });
-						vdb_json.push_back({ "pos_x", pos_val.x()});
-						vdb_json.push_back({ "pos_y", pos_val.y()});
-						vdb_json.push_back({ "pos_z", pos_val.z()});
-						vdb_json.push_back({ "scale", rad_val});
-						file << vdb_json.dump(4);
-						vdb_json.clear();
-						idx++;
+						pos_val = pos_h.get(ptoff);					
+						ins.position[0] = pos_val.x();
+						ins.position[1] = pos_val.x();
+						ins.position[2] = pos_val.x();
+						
+						new_instance.instances.push_back(ins);
+
 					}
 
 				}
 			}
-			j.push_back(vdb_json.dump());
+
+
+			new_instance.num_instances = new_instance.instances.size(),
+			file << new_instance;
+
 		}
 
-		file << j.dump(4);
 
 		file.close();
 		return true;

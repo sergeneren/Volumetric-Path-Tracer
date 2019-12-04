@@ -2,7 +2,6 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
 include(${CMAKE_CURRENT_SOURCE_DIR}/Helpers.cmake)
 
 ##################################################################
@@ -93,7 +92,7 @@ _COMPILEPTX ( SOURCES ${CUDA_SOURCES}
 
 ###################################################################
 add_executable(vpt ${SOURCE_FILES})
-target_link_libraries(vpt PRIVATE glfw imgui::imgui nlohmann_json::nlohmann_json cudart cuda openvdb ${OIDN_LIBRARIES})
+target_link_libraries(vpt PRIVATE glfw imgui::imgui cudart cuda openvdb ${OIDN_LIBRARIES})
 target_compile_options(vpt PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_30,code=sm_30>)
 
 include_directories(${_VCPKG_INCLUDE_DIR})

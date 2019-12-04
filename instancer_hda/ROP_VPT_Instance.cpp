@@ -46,7 +46,7 @@ static PRM_Name names[] = {
 	PRM_Name("soppath", "SOP Path")
 };
 
-static PRM_Default	 theFileDefault(0, "$HIP/Outputs/VPT/defgeo.json");
+static PRM_Default	 theFileDefault(0, "$HIP/Outputs/VPT/defgeo.ins");
 
 PRM_Template VPT_INS_ROP::myTemplateList[] = {
 	PRM_Template(PRM_FILE_E,	1, &names[0], &theFileDefault , 0, 0 , 0 ,  &PRM_SpareData::fileChooserModeWrite),	// file Output
