@@ -113,10 +113,10 @@ namespace vpt_instance {
 						ins.position[1] = pos_val.y();
 						ins.position[2] = pos_val.z();
 						
-						ins.rotation[0] = pos_val.x();
-						ins.rotation[1] = pos_val.y();
-						ins.rotation[2] = pos_val.z();
-						ins.rotation[3] = pos_val.x();
+						ins.rotation[0] = 0;
+						ins.rotation[1] = 0;
+						ins.rotation[2] = 0;
+						ins.rotation[3] = 0;
 
 
 						new_instance.instances.push_back(ins);

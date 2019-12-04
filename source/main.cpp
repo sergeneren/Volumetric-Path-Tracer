@@ -107,11 +107,7 @@ CUmodule cuTextureModule;
 CUfunction cuRaycastKernel;
 CUfunction cuTextureKernel;
 
-GPU_VDB	gpu_vdb;
-GPU_VDB box_vdb;
-std::vector<GPU_VDB> vdbs;
-
-std::vector<GPU_VDB> vdb_files;
+std::vector<GPU_VDB> unique_vdb_files;
 std::vector<GPU_VDB> instances;
 std::vector<vdb_instance> volume_files;
 
@@ -639,7 +635,7 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			float3 bbox_min = make_float3(.0f);
 			float3 bbox_max = make_float3(.0f);;
 
-			for(GPU_VDB vdb: vdbs) { 
+			for(GPU_VDB vdb: instances) { 
 			
 				bbox_min = fminf(bbox_min ,vdb.get_xform().transpose().transform_point(vdb.vdb_info.bmin));
 				bbox_max = fmaxf(bbox_max ,vdb.get_xform().transpose().transform_point(vdb.vdb_info.bmax));
@@ -1172,7 +1168,40 @@ static void read_instance_file(std::string file_name) {
 		}
 	}
 
-	
+	for (int i = 0; i < volume_files.size(); ++i) {
+
+		unique_vdb_files.push_back(GPU_VDB());
+		unique_vdb_files.at(i).loadVDB(volume_files.at(i).vdb_file, "density");
+
+		for (int x = 0; x < volume_files.at(i).num_instances; ++x) {
+			
+			GPU_VDB new_instance(GPU_VDB(unique_vdb_files.at(i)));
+			
+			mat4 xform = unique_vdb_files.at(i).get_xform();
+			
+			// Translate with instance position
+			xform.translate(make_float3(
+				volume_files.at(i).instances.at(x).position[0],
+				volume_files.at(i).instances.at(x).position[1],
+				volume_files.at(i).instances.at(x).position[2]	));
+			
+			// Apply instance rotation
+			mat4 rotation_matrix;
+			rotation_matrix = rotation_matrix.quaternion_to_mat4(
+				volume_files.at(i).instances.at(x).rotation[0],
+				volume_files.at(i).instances.at(x).rotation[1],
+				volume_files.at(i).instances.at(x).rotation[2],
+				volume_files.at(i).instances.at(x).rotation[3]);
+
+			//xform = xform * rotation_matrix;
+
+			// Set scale
+			xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
+
+			new_instance.set_xform(xform);
+			instances.push_back(new_instance);
+		}
+	}
 
 }
 
@@ -1270,29 +1299,9 @@ int main(const int argc, const char* argv[])
 	// Setup gpu_vdb
 
 	std::string fname;
-
 	if (argc >= 2) fname = argv[1];
 
 	read_instance_file(fname);
-
-	return 0;
-
-
-	std::string file_path = ASSET_PATH;
-	std::string box_path = ASSET_PATH;
-	
-	file_path.append(fname);
-	box_path.append("Temp/box.vdb");
-
-	if (!gpu_vdb.loadVDB(file_path, "density")) {
-		std::cout << "!Can't load VDB file: " << file_path << std::endl;
-		exit(0);
-	}
-
-	if (!box_vdb.loadVDB(box_path, "density")) {
-		std::cout << "!Can't load VDB file: " << file_path << std::endl;
-		exit(0);
-	}
 
 	// Setup modules and contexes 
 
@@ -1322,39 +1331,17 @@ int main(const int argc, const char* argv[])
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
 
 
-	// Set volume instances
-	
-	for (int i = 0; i < num_volumes; ++i) {
-
-		mat4 xform = gpu_vdb.get_xform();
-		xform.translate(make_float3(100*i, 1000.0f, 0));
-
-		vdbs.push_back(GPU_VDB(gpu_vdb));
-		vdbs.at(i).set_xform(xform);
-	}
-	
-	/*
-	mat4 xform = gpu_vdb.get_xform();
-
-	xform.translate(make_float3(0, 4000.0f, 0));
-	vdbs.push_back(GPU_VDB(gpu_vdb));
-	vdbs.at(0).set_xform(xform);
-
-	xform = box_vdb.get_xform();
-	xform.translate(make_float3(0, 4000.0f, 0));
-	vdbs.push_back(GPU_VDB(box_vdb));
-	vdbs.at(1).set_xform(xform);
-	*/
+	// Send volume instances to gpu
 
 	CUdeviceptr d_volume_ptr;
-	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * num_volumes) == cudaSuccess);
-	check_success(cuMemcpyHtoD(d_volume_ptr, vdbs.data(), sizeof(GPU_VDB) * num_volumes) == cudaSuccess);
+	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * instances.size()) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_volume_ptr, instances.data(), sizeof(GPU_VDB) * instances.size()) == cudaSuccess);
 
 
 	// Create BVH from vdb vector 
 	AABB scene_bounds(make_float3(.0f), make_float3(.0f));
 	bvh_builder.m_debug_bvh = false;
-	bvh_builder.build_bvh(vdbs, vdbs.size(), scene_bounds);
+	bvh_builder.build_bvh(instances, instances.size(), scene_bounds);
 
 	// Setup initial camera 
 	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
@@ -1371,8 +1358,8 @@ int main(const int argc, const char* argv[])
 #if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
 #undef rand // undefine the rand coming from camera.h and light.h
 
-	float3 min = vdbs[0].get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmin);
-	float3 max = vdbs[0].get_xform().transpose().transform_point(gpu_vdb.vdb_info.bmax);
+	float3 min = instances[0].get_xform().transpose().transform_point(instances[0].vdb_info.bmin);
+	float3 max = instances[0].get_xform().transpose().transform_point(instances[0].vdb_info.bmax);
 
 	std::mt19937 e2(std::random_device{}());
 	std::uniform_real_distribution<> dist(0, 1);
