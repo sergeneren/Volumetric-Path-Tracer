@@ -41,9 +41,6 @@
 
 using namespace vpt_instance;
 
-
-
-
 static PRM_Name names[] = {
 	PRM_Name("outputFile",     "Output File"),
 	PRM_Name("soppath", "SOP Path")

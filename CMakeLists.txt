@@ -23,6 +23,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/bin)
 
 ##################################################################
 
+option (BUILD_VPT "Builds Volumetric Path Tracer" ON)
+option (BUILD_INSTANCER "Builds Houdini plugin to save instance files" OFF)
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/source)
-add_subdirectory(${CMAKE_SOURCE_DIR}/instancer_hda)
+
+if(BUILD_VPT)
+	add_subdirectory(${CMAKE_SOURCE_DIR}/source)
+endif(BUILD_VPT)
+
+if(BUILD_INSTANCER)
+	add_subdirectory(${CMAKE_SOURCE_DIR}/instancer_hda)
+endif(BUILD_INSTANCER)

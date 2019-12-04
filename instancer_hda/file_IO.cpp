@@ -36,20 +36,57 @@
 //
 //-----------------------------------------------
 
-
 #include "file_IO.h"
 
-#include "nlohmann/json.hpp"
-using json = nlohmann::json;
+#include <ROP/ROP_API.h>
+#include <ROP/ROP_Error.h>
 
-using namespace vpt_instance;
+#include <vector>
+
+//#include "nlohmann/json.hpp"
+//using json = nlohmann::json;
+
+namespace vpt_instance {
 
 
-GA_Detail::IOStatus file_save(const GU_Detail *gdp, const char *file_name) {
+	GA_Detail::IOStatus file_save(const GU_Detail *gdp, const char *file_name) {
 
 
+		GA_ROHandleV3 pos_h(gdp, GA_ATTRIB_POINT, "P");
+		UT_Vector3F pos_val(0, 0, 0);
 
+		GA_ROHandleF rad_h(gdp, GA_ATTRIB_POINT, "pscale");
+		fpreal32 rad_val(1);
 
+		GA_ROHandleS vdb_h(gdp, GA_ATTRIB_POINT, "instancefile");
+		UT_String vdb_val("");
+
+		// First find out how many unique vdb files we need 
+		std::vector<std::string> unique_vdb_files;
+		GA_Offset lcl_start, lcl_end, ptoff;
+		for (GA_Iterator lcl_it(gdp->getPointRange()); lcl_it.blockAdvance(lcl_start, lcl_end); ) {
+			for (ptoff = lcl_start; ptoff < lcl_end; ++ptoff) {
+				if (vdb_h.isValid()) {
+					vdb_val = vdb_h.get(ptoff);
+					unique_vdb_files.push_back(vdb_val.c_str());
+				}
+				else {
+					return false;
+				}
+			}
+		}
+
+		std::sort(unique_vdb_files.begin(), unique_vdb_files.end());
+		std::vector<std::string>::iterator it = std::unique(unique_vdb_files.begin(), unique_vdb_files.end());
+		unique_vdb_files.resize(std::distance(unique_vdb_files.begin(), it));
+
+		for (std::vector<std::string>::const_iterator i = unique_vdb_files.begin(); i != unique_vdb_files.end(); ++i) {
+			std::cout << *i << "\n";
+		}
+
+		return true;
+
+	}
 
 
 }
