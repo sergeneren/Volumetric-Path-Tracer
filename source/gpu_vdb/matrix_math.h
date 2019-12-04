@@ -349,6 +349,89 @@ struct mat4 {
 		return *this;
 	}
 
+	__host__ __device__ __forceinline__ mat4 quaternion_to_mat4(double x, double y, double z, double w) {
+
+		const double n = 1.0 / sqrtf(x*x + y*y + z*z + w*w);
+
+		x *= n;
+		y *= n;
+		z *= n;
+		w *= n;
+
+		float m11 = 1.0f - 2.0f*y*y - 2.0f*z*z;
+		float m12 = 2.0f*x*y + 2.0f*z*w;
+		float m13 = 2.0f*x*z - 2.0f*y*w;
+		float m14 = .0f;
+
+		float m21 = 2.0f*x*y - 2.0f*z*w;
+		float m22 = 1.0f - 2.0f*x*x - 2.0f*z*z;
+		float m23 = 2.0f*y*z + 2.0f*x*w;
+		float m24 = 0.0f;
+
+		float m31 = 2.0f*x*z + 2.0f*y*w;
+		float m32 = 2.0f*y*z - 2.0f*x*w;
+		float m33 = 1.0f - 2.0f*x*x - 2.0f*y*y;
+		float m34 = 0.0f;
+
+		float m41 = 0.0f;
+		float m42 = 0.0f;
+		float m43 = 0.0f;
+		float m44 = 1.0f;
+
+
+		mat4 ret(m11, m12, m13, m14,
+			m21, m22, m23, m24,
+			m31, m32, m33, m34,
+			m41, m42, m43, m44);
+
+		return ret;
+
+	}
+
+	__host__ __device__ __forceinline__ mat4 quaternion_to_mat4(float4 quaternion) {
+
+		float x = quaternion.x;
+		float y = quaternion.y;
+		float z = quaternion.z;
+		float w = quaternion.w;
+			   
+		const float n = 1.0f / sqrtf(x*x + y * y + z * z + w * w);
+
+		x *= n;
+		y *= n;
+		z *= n;
+		w *= n;
+
+		float m11 = 1.0f - 2.0f*y*y - 2.0f*z*z;
+		float m12 = 2.0f*x*y + 2.0f*z*w;
+		float m13 = 2.0f*x*z - 2.0f*y*w;
+		float m14 = .0f;
+
+		float m21 = 2.0f*x*y - 2.0f*z*w;
+		float m22 = 1.0f - 2.0f*x*x - 2.0f*z*z;
+		float m23 = 2.0f*y*z + 2.0f*x*w;
+		float m24 = 0.0f;
+
+		float m31 = 2.0f*x*z + 2.0f*y*w;
+		float m32 = 2.0f*y*z - 2.0f*x*w;
+		float m33 = 1.0f - 2.0f*x*x - 2.0f*y*y;
+		float m34 = 0.0f;
+
+		float m41 = 0.0f;
+		float m42 = 0.0f;
+		float m43 = 0.0f;
+		float m44 = 1.0f;
+
+
+		mat4 ret(m11, m12, m13, m14,
+			m21, m22, m23, m24,
+			m31, m32, m33, m34,
+			m41, m42, m43, m44);
+
+		return ret;
+
+	}
+
 
 	__host__ __device__ __forceinline__ mat4 &operator*=(const float f) { return *this = *this * f; }
 	__host__ __device__ __forceinline__ mat4 &operator/=(const float f) { return *this = *this / f; }
