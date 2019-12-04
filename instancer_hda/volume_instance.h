@@ -44,64 +44,50 @@
 #include <fstream>
 
 
-constexpr auto MAX_FILE_PATH_LENGTH = 128;
-
 struct instance {
-	double position[3] = {0,0,0}; // x,y,z
-	double rotation[4] = { 0,0,0,0}; // x,y,z,w
+	double position[3] = { 0,0,0 }; // x,y,z
+	double rotation[4] = { 0,0,0,0 }; // x,y,z,w
 	double scale = 0;
 };
 
 struct vdb_instance {
 	unsigned int num_instances = 0;
-	const char *vdb_file = new char[MAX_FILE_PATH_LENGTH];
+	const char *vdb_file;
 	std::vector<instance> instances;
 };
 
-std::ostream& operator<<(std::ostream& stream, vdb_instance & vdb);
-std::ifstream& operator>>(std::ifstream& stream, vdb_instance &vdb);
+std::ostream& operator<<(std::ostream& stream, instance &inst);
+std::ifstream& operator>>(std::ifstream& stream, instance &inst);
 
-std::ostream& operator<<(std::ostream& stream, vdb_instance & vdb) {
+std::ostream& operator<<(std::ostream& stream, instance &inst) {
 
 
-	stream.write(reinterpret_cast<char*>(&vdb.num_instances), sizeof(int));
-	stream.write(reinterpret_cast<char*>(&vdb.vdb_file), sizeof(char)*MAX_FILE_PATH_LENGTH);
-	
-	for (int i = 0; i < vdb.num_instances; ++i) {
-		stream.write(reinterpret_cast<char*>(&vdb.instances.at(i).position[0]), sizeof(double));
-		stream.write(reinterpret_cast<char*>(&vdb.instances.at(i).position[1]), sizeof(double));
-		stream.write(reinterpret_cast<char*>(&vdb.instances.at(i).position[2]), sizeof(double));
-		
-		stream.write(reinterpret_cast<char*>(&vdb.instances.at(i).rotation[0]), sizeof(double));
-		stream.write(reinterpret_cast<char*>(&vdb.instances.at(i).rotation[1]), sizeof(double));
-		stream.write(reinterpret_cast<char*>(&vdb.instances.at(i).rotation[2]), sizeof(double));
-		stream.write(reinterpret_cast<char*>(&vdb.instances.at(i).rotation[3]), sizeof(double));
-		
-		stream.write(reinterpret_cast<char*>(&vdb.instances.at(i).scale), sizeof(double));
-	}
+	stream.write(reinterpret_cast<char*>(&inst.position[0]), sizeof(double));
+	stream.write(reinterpret_cast<char*>(&inst.position[1]), sizeof(double));
+	stream.write(reinterpret_cast<char*>(&inst.position[2]), sizeof(double));
+
+	stream.write(reinterpret_cast<char*>(&inst.rotation[0]), sizeof(double));
+	stream.write(reinterpret_cast<char*>(&inst.rotation[1]), sizeof(double));
+	stream.write(reinterpret_cast<char*>(&inst.rotation[2]), sizeof(double));
+	stream.write(reinterpret_cast<char*>(&inst.rotation[3]), sizeof(double));
+
+	stream.write(reinterpret_cast<char*>(&inst.scale), sizeof(double));
 
 	return stream;
 }
 
-std::ifstream& operator>>(std::ifstream& stream, vdb_instance &vdb) {
-	
-	stream.read(reinterpret_cast<char*>(&vdb.num_instances), sizeof(int));
-	vdb.instances.resize(vdb.num_instances);
+std::ifstream& operator>>(std::ifstream& stream, instance &inst) {
 
-	stream.read(reinterpret_cast<char*>(&vdb.vdb_file), sizeof(char)*MAX_FILE_PATH_LENGTH);
+	stream.read(reinterpret_cast<char*>(&inst.position[0]), sizeof(double));
+	stream.read(reinterpret_cast<char*>(&inst.position[1]), sizeof(double));
+	stream.read(reinterpret_cast<char*>(&inst.position[2]), sizeof(double));
 
-	for (int i = 0; i < vdb.num_instances; ++i) {
-		stream.read(reinterpret_cast<char*>(&vdb.instances.at(i).position[0]), sizeof(double));
-		stream.read(reinterpret_cast<char*>(&vdb.instances.at(i).position[1]), sizeof(double));
-		stream.read(reinterpret_cast<char*>(&vdb.instances.at(i).position[2]), sizeof(double));
+	stream.read(reinterpret_cast<char*>(&inst.rotation[0]), sizeof(double));
+	stream.read(reinterpret_cast<char*>(&inst.rotation[1]), sizeof(double));
+	stream.read(reinterpret_cast<char*>(&inst.rotation[2]), sizeof(double));
+	stream.read(reinterpret_cast<char*>(&inst.rotation[3]), sizeof(double));
 
-		stream.read(reinterpret_cast<char*>(&vdb.instances.at(i).rotation[0]), sizeof(double));
-		stream.read(reinterpret_cast<char*>(&vdb.instances.at(i).rotation[1]), sizeof(double));
-		stream.read(reinterpret_cast<char*>(&vdb.instances.at(i).rotation[2]), sizeof(double));
-		stream.read(reinterpret_cast<char*>(&vdb.instances.at(i).rotation[3]), sizeof(double));
-
-		stream.read(reinterpret_cast<char*>(&vdb.instances.at(i).scale), sizeof(double));
-	}
+	stream.read(reinterpret_cast<char*>(&inst.scale), sizeof(double));
 
 	return stream;
 }

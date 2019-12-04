@@ -86,14 +86,12 @@ namespace vpt_instance {
 		unique_vdb_files.resize(std::distance(unique_vdb_files.begin(), it));
 
 		file << unique_vdb_files.size() << "\n";
-		for (auto vdb : unique_vdb_files) {
-			file << vdb << "\n";
-		}
 
 		for (auto vdb : unique_vdb_files) {
 
 			vdb_instance new_instance;
 			new_instance.vdb_file = vdb.c_str();
+			file << vdb << "\n";
 
 			int idx = 0;
 			for (GA_Iterator lcl_it(gdp->getPointRange()); lcl_it.blockAdvance(lcl_start, lcl_end); ) {
@@ -112,9 +110,15 @@ namespace vpt_instance {
 
 						pos_val = pos_h.get(ptoff);					
 						ins.position[0] = pos_val.x();
-						ins.position[1] = pos_val.x();
-						ins.position[2] = pos_val.x();
+						ins.position[1] = pos_val.y();
+						ins.position[2] = pos_val.z();
 						
+						ins.rotation[0] = pos_val.x();
+						ins.rotation[1] = pos_val.y();
+						ins.rotation[2] = pos_val.z();
+						ins.rotation[3] = pos_val.x();
+
+
 						new_instance.instances.push_back(ins);
 
 					}
@@ -123,8 +127,11 @@ namespace vpt_instance {
 			}
 
 
-			new_instance.num_instances = new_instance.instances.size(),
-			file << new_instance;
+			new_instance.num_instances = new_instance.instances.size();
+			file << new_instance.num_instances << "\n";
+			for (int i = 0; i < new_instance.num_instances; ++i) {
+				file << new_instance.instances.at(i) << "\n";
+			}
 
 		}
 

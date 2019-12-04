@@ -87,9 +87,7 @@
 #include "tinyexr.h"
 
 // File parsers
-
-#include "nlohmann/json.hpp"
-using json = nlohmann::json;
+#include "instancer_hda/volume_instance.h"
 
 //#define SAVE_TGA
 #define SAVE_OPENEXR
@@ -113,6 +111,9 @@ GPU_VDB	gpu_vdb;
 GPU_VDB box_vdb;
 std::vector<GPU_VDB> vdbs;
 
+std::vector<GPU_VDB> vdb_files;
+std::vector<GPU_VDB> instances;
+std::vector<vdb_instance> volume_files;
 
 static int num_volumes = 3; // TODO: read number of instances from json file 
 BVH_Builder bvh_builder;
@@ -1116,6 +1117,35 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 	return true;
 }
 
+static void read_instance_file(std::string file_name) {
+
+	assert(!file_name.empty());
+
+	std::ifstream stream;
+	stream.open(file_name.c_str());
+
+	std::string num_vdbs;
+	std::getline(stream, num_vdbs);
+	std::istringstream iss(num_vdbs);
+
+	int num_volumes;
+	iss >> num_volumes;
+	std::cout << "number of vdbs: " << num_volumes << "\n";
+	volume_files.resize(num_volumes);
+
+	for (int i = 0; i < num_volumes; ++i) {
+
+		std::string vdb_file_name;
+		std::getline(stream, vdb_file_name);
+		volume_files.at(i).vdb_file = vdb_file_name.c_str();
+		std::cout << "filenames: " << volume_files.at(i).vdb_file << "\n";
+		stream >> volume_files.at(i);
+	}
+
+
+
+}
+
 // Process camera movement.
 static void update_camera(double dx, double dy, double mx, double my, int zoom_delta, const atmosphere &atm)
 {
@@ -1212,6 +1242,11 @@ int main(const int argc, const char* argv[])
 	std::string fname;
 
 	if (argc >= 2) fname = argv[1];
+
+	read_instance_file(fname);
+
+
+
 
 	std::string file_path = ASSET_PATH;
 	std::string box_path = ASSET_PATH;

@@ -96,6 +96,7 @@ target_link_libraries(vpt PRIVATE glfw imgui::imgui cudart cuda openvdb ${OIDN_L
 target_compile_options(vpt PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_30,code=sm_30>)
 
 include_directories(${_VCPKG_INCLUDE_DIR})
+include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/atmosphere)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
