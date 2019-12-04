@@ -9,7 +9,6 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/Helpers.cmake)
 
 # set external directories 
 
-set(_VCPKG_INCLUDE_DIR "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/")
 set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/thirdparty/")
 
 

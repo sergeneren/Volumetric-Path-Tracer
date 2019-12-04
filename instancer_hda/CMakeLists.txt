@@ -1,6 +1,6 @@
 #add houdini cmake lists
 
-set(HOUDINI_CMAKE_DIR "C:/Program Files/Side Effects Software/Houdini 17.5.327/toolkit/cmake")
+set(HOUDINI_CMAKE_DIR "C:/Program Files/Side Effects Software/Houdini 18.0.287/toolkit/cmake")
 
 list(APPEND CMAKE_PREFIX_PATH ${HOUDINI_CMAKE_DIR})
 
@@ -14,6 +14,8 @@ file (GLOB Sources "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" )
 add_library(instancer_hda SHARED ${Headers} ${Sources})
 target_link_libraries(instancer_hda Houdini)
 
+include_directories(${_VCPKG_INCLUDE_DIR})
+
 message(STATUS "Houdini directory: ${Houdini_DIR}")
 
 houdini_configure_target( instancer_hda )
@@ -21,7 +23,7 @@ houdini_configure_target( instancer_hda )
 
 #copy icon to %HOME%/%HOUDINI_VERSION%/config/icons folder
 
-set(TARGET_FILE "${${CMAKE_CURRENT_SOURCE_DIR}}/icon/SOP_VPT_instance.svg")
+set(TARGET_FILE "${CMAKE_CURRENT_SOURCE_DIR}/icon/ROP_VPT_Instance.svg")
 set(TARGET_DIR "")
 
 houdini_get_default_install_dir(TARGET_DIR)
