@@ -56,43 +56,6 @@ struct vdb_instance {
 	std::vector<instance> instances;
 };
 
-std::ostream& operator<<(std::ostream& stream, instance &inst);
-std::ifstream& operator>>(std::ifstream& stream, instance &inst);
-
-std::ostream& operator<<(std::ostream& stream, instance &inst) {
-
-
-	stream.write(reinterpret_cast<char*>(&inst.position[0]), sizeof(double));
-	stream.write(reinterpret_cast<char*>(&inst.position[1]), sizeof(double));
-	stream.write(reinterpret_cast<char*>(&inst.position[2]), sizeof(double));
-
-	stream.write(reinterpret_cast<char*>(&inst.rotation[0]), sizeof(double));
-	stream.write(reinterpret_cast<char*>(&inst.rotation[1]), sizeof(double));
-	stream.write(reinterpret_cast<char*>(&inst.rotation[2]), sizeof(double));
-	stream.write(reinterpret_cast<char*>(&inst.rotation[3]), sizeof(double));
-
-	stream.write(reinterpret_cast<char*>(&inst.scale), sizeof(double));
-
-	return stream;
-}
-
-std::ifstream& operator>>(std::ifstream& stream, instance &inst) {
-
-	stream.read(reinterpret_cast<char*>(&inst.position[0]), sizeof(double));
-	stream.read(reinterpret_cast<char*>(&inst.position[1]), sizeof(double));
-	stream.read(reinterpret_cast<char*>(&inst.position[2]), sizeof(double));
-
-	stream.read(reinterpret_cast<char*>(&inst.rotation[0]), sizeof(double));
-	stream.read(reinterpret_cast<char*>(&inst.rotation[1]), sizeof(double));
-	stream.read(reinterpret_cast<char*>(&inst.rotation[2]), sizeof(double));
-	stream.read(reinterpret_cast<char*>(&inst.rotation[3]), sizeof(double));
-
-	stream.read(reinterpret_cast<char*>(&inst.scale), sizeof(double));
-
-	return stream;
-}
-
-
 #endif // !_VOLUME_INSTANCE_H_
 
 
