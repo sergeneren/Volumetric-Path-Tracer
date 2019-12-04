@@ -45,8 +45,8 @@
 
 
 struct instance {
-	double position[3] = { 0,0,0 }; // x,y,z
-	double rotation[4] = { 0,0,0,0 }; // x,y,z,w
+	double position[3]; // x,y,z
+	double rotation[4]; // x,y,z,w
 	double scale = 0;
 };
 

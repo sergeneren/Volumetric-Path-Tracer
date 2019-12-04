@@ -1118,7 +1118,7 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 }
 
 static void read_instance_file(std::string file_name) {
-
+	
 	assert(!file_name.empty());
 
 	std::ifstream stream;
@@ -1134,15 +1134,45 @@ static void read_instance_file(std::string file_name) {
 	volume_files.resize(num_volumes);
 
 	for (int i = 0; i < num_volumes; ++i) {
-
 		std::string vdb_file_name;
 		std::getline(stream, vdb_file_name);
 		volume_files.at(i).vdb_file = vdb_file_name.c_str();
-		std::cout << "filenames: " << volume_files.at(i).vdb_file << "\n";
-		stream >> volume_files.at(i);
+
+		std::string num_instances;
+		std::getline(stream, num_instances);
+		std::istringstream nis(num_instances);
+		nis >> volume_files.at(i).num_instances;
+
+		volume_files.at(i).instances.resize(volume_files.at(i).num_instances);
+
+		for (int x = 0; x < volume_files.at(i).num_instances; ++x) {
+			
+			std::string instance_parameters;
+			std::getline(stream, instance_parameters);
+			std::istringstream params(instance_parameters);
+			params >> volume_files.at(i).instances.at(x).position[0]
+				>> volume_files.at(i).instances.at(x).position[1]
+				>> volume_files.at(i).instances.at(x).position[2]
+				>> volume_files.at(i).instances.at(x).rotation[0]
+				>> volume_files.at(i).instances.at(x).rotation[1]
+				>> volume_files.at(i).instances.at(x).rotation[2]
+				>> volume_files.at(i).instances.at(x).rotation[3]
+				>> volume_files.at(i).instances.at(x).scale;
+			
+			std::cout << " position x: " << volume_files.at(i).instances.at(x).position[0];
+			std::cout << " position y: " << volume_files.at(i).instances.at(x).position[1];
+			std::cout << " position z: " << volume_files.at(i).instances.at(x).position[2];
+
+			std::cout << " rotation x: " << volume_files.at(i).instances.at(x).rotation[0];
+			std::cout << " rotation y: " << volume_files.at(i).instances.at(x).rotation[1];
+			std::cout << " rotation z: " << volume_files.at(i).instances.at(x).rotation[2];
+			std::cout << " rotation w: " << volume_files.at(i).instances.at(x).rotation[3];
+
+			std::cout << " scale: " << volume_files.at(i).instances.at(x).scale << "\n";
+		}
 	}
 
-
+	
 
 }
 
@@ -1245,7 +1275,7 @@ int main(const int argc, const char* argv[])
 
 	read_instance_file(fname);
 
-
+	return 0;
 
 
 	std::string file_path = ASSET_PATH;
