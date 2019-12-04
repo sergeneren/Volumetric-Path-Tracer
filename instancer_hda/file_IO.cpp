@@ -36,21 +36,24 @@
 //
 //-----------------------------------------------
 
+
+#include "nlohmann/json.hpp"
+using json = nlohmann::json;
+
 #include "file_IO.h"
 
 #include <ROP/ROP_API.h>
 #include <ROP/ROP_Error.h>
-
+#include <UT/UT_OFStream.h>
 #include <vector>
 
-//#include "nlohmann/json.hpp"
-//using json = nlohmann::json;
 
 namespace vpt_instance {
 
 
 	GA_Detail::IOStatus file_save(const GU_Detail *gdp, const char *file_name) {
 
+		UT_OFStream file(file_name);
 
 		GA_ROHandleV3 pos_h(gdp, GA_ATTRIB_POINT, "P");
 		UT_Vector3F pos_val(0, 0, 0);
@@ -80,10 +83,47 @@ namespace vpt_instance {
 		std::vector<std::string>::iterator it = std::unique(unique_vdb_files.begin(), unique_vdb_files.end());
 		unique_vdb_files.resize(std::distance(unique_vdb_files.begin(), it));
 
-		for (std::vector<std::string>::const_iterator i = unique_vdb_files.begin(); i != unique_vdb_files.end(); ++i) {
-			std::cout << *i << "\n";
+		json j;
+		j["object"] = { "num_vdb_files" , unique_vdb_files.size() };
+
+		for (auto vdb : unique_vdb_files) {
+
+			json vdb_json = json::object();
+			vdb_json.push_back({"filename", vdb });
+			file << vdb_json.dump(4);
+			vdb_json.clear();
+
+			int idx = 0;
+			for (GA_Iterator lcl_it(gdp->getPointRange()); lcl_it.blockAdvance(lcl_start, lcl_end); ) {
+				for (ptoff = lcl_start; ptoff < lcl_end; ++ptoff) {
+
+					vdb_val = vdb_h.get(ptoff);
+					
+					if (vdb_val.compare(vdb.c_str())) {
+						if (rad_h.isValid()) {
+							rad_val = rad_h.get(ptoff);
+						}
+						else rad_val = 1.0f;
+						pos_val = pos_h.get(ptoff);
+
+						vdb_json.push_back({ "index", idx });
+						vdb_json.push_back({ "pos_x", pos_val.x()});
+						vdb_json.push_back({ "pos_y", pos_val.y()});
+						vdb_json.push_back({ "pos_z", pos_val.z()});
+						vdb_json.push_back({ "scale", rad_val});
+						file << vdb_json.dump(4);
+						vdb_json.clear();
+						idx++;
+					}
+
+				}
+			}
+			j.push_back(vdb_json.dump());
 		}
 
+		file << j.dump(4);
+
+		file.close();
 		return true;
 
 	}

@@ -48,7 +48,6 @@
 #include <GU/GU_Detail.h>
 
 
-
 namespace vpt_instance {
 
 
