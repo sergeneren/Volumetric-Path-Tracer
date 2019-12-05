@@ -285,6 +285,7 @@ struct mat4 {
 		temp = *this * temp;
 		return make_float3(temp.x, temp.y, temp.z);
 	}
+
 	__host__ __device__ __forceinline__ mat4 rotate_zyx(const float3 &angs) {
 
 		float cx, sx, cy, sy, cz, sz;
@@ -445,6 +446,47 @@ __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(float4 quaternion) {
 		m21, m22, m23, m24,
 		m31, m32, m33, m34,
 		m41, m42, m43, m44);
+
+	return ret;
+
+}
+
+// Rotation by quaternion about point
+__host__ __device__ __forceinline__ mat4 setRotate(float4 q, float3 center) {
+
+	mat4 ret;
+
+	float sqw = q.w*q.w;
+	float sqx = q.x*q.x;
+	float sqy = q.y*q.y;
+	float sqz = q.z*q.z;
+
+	ret[0][0] = sqx - sqy - sqz + sqw; // since sqw + sqx + sqy + sqz =1
+	ret[1][1] = -sqx + sqy - sqz + sqw;
+	ret[2][2] = -sqx - sqy + sqz + sqw;
+
+	float tmp1 = q.x*q.y;
+	float tmp2 = q.z*q.w;
+	ret[1][0] = 2.0 * (tmp1 + tmp2);
+	ret[0][1] = 2.0 * (tmp1 - tmp2);
+
+	tmp1 = q.x*q.z;
+	tmp2 = q.y*q.w;
+	ret[2][0] = 2.0 * (tmp1 - tmp2);
+	ret[0][2] = 2.0 * (tmp1 + tmp2);
+
+	tmp1 = q.y*q.z;
+	tmp2 = q.x*q.w;
+	ret[2][1] = 2.0 * (tmp1 + tmp2);
+	ret[1][2] = 2.0 * (tmp1 - tmp2);
+
+	float a1 = center.x, a2 = center.y, a3 = center.z;
+
+	ret[3][0] = a1 - a1 * ret[0][0] - a2 * ret[1][0] - a3 * ret[2][0];
+	ret[3][1] = a2 - a1 * ret[0][1] - a2 * ret[1][1] - a3 * ret[2][1];
+	ret[3][2] = a3 - a1 * ret[0][2] - a2 * ret[1][2] - a3 * ret[2][2];
+	ret[0][3] = ret[1][3] = ret[2][3] = 0.0;
+	ret[3][3] = 1.0;
 
 	return ret;
 

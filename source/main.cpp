@@ -1179,23 +1179,31 @@ static void read_instance_file(std::string file_name) {
 			
 			mat4 xform = unique_vdb_files.at(i).get_xform();
 			
-			// Translate with instance position
-			xform.translate(make_float3(
-				volume_files.at(i).instances.at(x).position[0],
-				volume_files.at(i).instances.at(x).position[1],
-				volume_files.at(i).instances.at(x).position[2]	));
-			
 			// Apply instance rotation
+
+			float3 euler = quaternion_to_euler(
+				volume_files.at(i).instances.at(x).rotation[0],
+				volume_files.at(i).instances.at(x).rotation[1],
+				volume_files.at(i).instances.at(x).rotation[2],
+				volume_files.at(i).instances.at(x).rotation[3]);
+
 			mat4 rotation_matrix = quaternion_to_mat4(
 				volume_files.at(i).instances.at(x).rotation[0],
 				volume_files.at(i).instances.at(x).rotation[1],
 				volume_files.at(i).instances.at(x).rotation[2],
 				volume_files.at(i).instances.at(x).rotation[3]);
 
-			//xform = xform * rotation_matrix;
+			//xform.rotate_zyx(euler); //this is bugged 
+			//xform *= rotation_matrix.transpose(); // this is bugged too 
 
 			// Set scale
 			xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
+
+			// Translate with instance position
+			xform.translate(make_float3(
+				volume_files.at(i).instances.at(x).position[0],
+				volume_files.at(i).instances.at(x).position[1],
+				volume_files.at(i).instances.at(x).position[2]));
 
 			new_instance.set_xform(xform);
 			instances.push_back(new_instance);
