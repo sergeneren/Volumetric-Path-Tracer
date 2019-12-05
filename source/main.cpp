@@ -1233,7 +1233,7 @@ static void read_instance_file(std::string file_name) {
 static void update_camera(double dx, double dy, double mx, double my, int zoom_delta, const atmosphere &atm)
 {
 	float rot_speed = 1;
-	float zoom_speed = 500;
+	float zoom_speed = 5;
 	float dist = length(lookfrom - lookat);
 	// Rotation
 

@@ -1345,7 +1345,7 @@ __device__ inline float3 sample(
 	float t_min, t_max, t = 0.0f;
 
 
-#if 1
+#if 0
 
 	float inv_max_density = 1 / volumes[0].vdb_info.max_density;
 	float inv_density_mult = 1.0f / kernel_params.density_mult;
@@ -1432,7 +1432,13 @@ __device__ inline float3 sample(
 			}
 		}
 	}
+
+stop:
 #endif
+
+
+
+
 
 	// Code path 2:
 	// This is a DDA stepping algorithm that checks the quadrant in Octree nodes and skips them if they contain no volumes 
@@ -1488,10 +1494,69 @@ __device__ inline float3 sample(
 		}
 
 	}
+#endif
+
+
+
+
+
+
+
+#if 1
+	// Code path 3:
+	// This is the old algorithm with extra position awareness
+
+	while (true) {
+
+		int depth3_node = get_quadrant(root, ray_pos);
+		if (depth3_node > -1) {
+			if (root->children[depth3_node]->num_volumes < 1) { //We are in the depth3 node but it is empty
+				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				ray_pos += ray_dir * (t_max + EPS);
+				continue;
+			}
+		}
+		else break;
+
+		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
+		if (depth2_node > -1) {
+			if (root->children[depth3_node]->children[depth2_node]->num_volumes < 1) { //We are in the depth2 node but it is empty
+				root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				ray_pos += ray_dir * (t_max + EPS);
+				continue;
+			}
+		}
+		else break;
+
+
+		int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
+		if (leaf_node > -1) {
+			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes < 1) { //We are in the leaf node but it is empty
+				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				ray_pos += ray_dir * (t_max + EPS);
+				continue;
+			}
+		}
+		else break;
+
+		float inv_max_density = 1 / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
+		float inv_density_mult = 1.0f / kernel_params.density_mult;
+
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult * root->children[depth3_node]->children[depth2_node]->children[leaf_node]->voxel_size;
+		ray_pos += ray_dir * t;
+		if (!Contains(root->bbox, ray_pos))	break;
+		float density = sum_density(ray_pos, root, volumes);
+		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		if (tr < 1.0f) tr += density;
+
+		if (density * inv_max_density > rand(&rand_state)) {
+			interaction = true;
+			return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
+		}
+	}
 
 #endif
 
-stop:
 	return WHITE;
 
 }
