@@ -1567,6 +1567,78 @@ inline __host__ __device__ float3 signf(float3 a) {
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Conversion
+////////////////////////////////////////////////////////////////////////////////
+
+inline __host__ __device__ float3 quaternion_to_euler(double x, double y, double z, double w) {
+
+	float heading, attitude, bank; // x, y, z rotations
+
+	double sw = w*w;
+	double sx = x*x;
+	double sy = y*y;
+	double sz = z*z;
+
+	double unit = sx + sy + sz + sw;
+	double test = x*y + z*w;
+
+	if (test > 0.4999 * unit) { // singularity at north pole
+		heading = 2.0f * atan2f(x, w);
+		attitude = M_PI / 2.0f;
+		bank = 0;
+		return make_float3(attitude, heading, bank);
+	}
+	if (test < -0.4999*unit) { // singularity at south pole
+		heading = -2 * atan2f(x, w);
+		attitude = M_PI / 2.0f;
+		bank = 0;
+		return make_float3(attitude, heading, bank);
+	}
+
+	heading = atan2(2 * y*w - 2 * x*z, sx - sy - sz + sw);
+	attitude = asin(2 * test / unit);
+	bank = atan2(2 * x*w - 2 * y*z, -sx + sy - sz + sw);
+
+	return make_float3(attitude, heading, bank);
+}
+
+inline __host__ __device__ float3 quaternion_to_euler(float4 quaternion) {
+
+	float x = quaternion.x;
+	float y = quaternion.y;
+	float z = quaternion.z;
+	float w = quaternion.w;
+
+	float heading, attitude, bank; // x, y, z rotations
+
+	float sw = w*w;
+	float sx = x*x;
+	float sy = y*y;
+	float sz = z*z;
+
+	float unit = sx + sy + sz + sw;
+	float test = x*y + z*w;
+
+	if (test > 0.4999f * unit) { // singularity at north pole
+		heading = 2.0f * atan2f(x, w);
+		attitude = M_PI / 2.0f;
+		bank = 0;
+		return make_float3(attitude, heading, bank);
+	}
+	if (test < -0.4999f * unit) { // singularity at south pole
+		heading = -2.0f * atan2f(x, w);
+		attitude = M_PI / 2.0f;
+		bank = .0f;
+		return make_float3(attitude, heading, bank);
+	}
+
+	heading = atan2(2.0f * y*w - 2.0f * x*z, sx - sy - sz + sw);
+	attitude = asin(2.0f * test / unit);
+	bank = atan2(2.0f * x*w - 2.0f * y*z, -sx + sy - sz + sw);
+
+	return make_float3(attitude, heading, bank);
+}
 
 
 #endif

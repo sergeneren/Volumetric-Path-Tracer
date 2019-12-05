@@ -936,7 +936,7 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 	else lambdas = make_float3(lambda_ptr[0], lambda_ptr[1], lambda_ptr[2]);
 	if (luminance_from_radiance == nullptr) luminance_from_radiance = kDefaultLuminanceFromRadiance;
 
-	lfrm = lfrm.toMatrix(luminance_from_radiance);
+	lfrm = toMatrix(luminance_from_radiance);
 
 	if (m_use_luminance == PRECOMPUTED) {
 		sky_k_r = sky_k_g = sky_k_b = MAX_LUMINOUS_EFFICACY;

@@ -1186,8 +1186,7 @@ static void read_instance_file(std::string file_name) {
 				volume_files.at(i).instances.at(x).position[2]	));
 			
 			// Apply instance rotation
-			mat4 rotation_matrix;
-			rotation_matrix = rotation_matrix.quaternion_to_mat4(
+			mat4 rotation_matrix = quaternion_to_mat4(
 				volume_files.at(i).instances.at(x).rotation[0],
 				volume_files.at(i).instances.at(x).rotation[1],
 				volume_files.at(i).instances.at(x).rotation[2],
