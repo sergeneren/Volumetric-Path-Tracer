@@ -215,6 +215,7 @@ struct OCTNode {
 	int vol_indices[128];
 	float max_extinction = .0f;
 	float min_extinction = .0f;
+	float voxel_size = M_INF;
 	int depth = -1;
 
 	OCTNode *children[8];
