@@ -60,6 +60,9 @@ namespace vpt_instance {
 		GA_ROHandleV3 pos_h(gdp, GA_ATTRIB_POINT, "P");
 		UT_Vector3F pos_val(0, 0, 0);
 
+		GA_ROHandleV4 rot_h(gdp, GA_ATTRIB_POINT, "rot");
+		UT_Vector4F rot_val(0, 0, 0, 1);
+
 		GA_ROHandleF rad_h(gdp, GA_ATTRIB_POINT, "pscale");
 		fpreal32 rad_val(1);
 
@@ -106,6 +109,11 @@ namespace vpt_instance {
 						}
 						else rad_val = 1.0f;
 						
+						if (rot_h.isValid()) {
+							rot_val = rot_h.get(ptoff);
+						}
+						else rot_val = UT_Vector4F(0, 0, 0, 1);
+
 						ins.scale = rad_val;
 
 						pos_val = pos_h.get(ptoff);					
@@ -113,11 +121,10 @@ namespace vpt_instance {
 						ins.position[1] = pos_val.y();
 						ins.position[2] = pos_val.z();
 						
-						ins.rotation[0] = 0;
-						ins.rotation[1] = 0;
-						ins.rotation[2] = 0;
-						ins.rotation[3] = 0;
-
+						ins.rotation[0] = rot_val.x();
+						ins.rotation[1] = rot_val.y();
+						ins.rotation[2] = rot_val.z();
+						ins.rotation[3] = rot_val.w();
 
 						new_instance.instances.push_back(ins);
 
