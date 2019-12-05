@@ -103,7 +103,7 @@ struct AABB {
 		return o;
 	}
 
-	__host__ __device__ bool Intersect(const float3 origin, const float3 direction, float &tmin, float tmax) const;
+	__host__ __device__ bool Intersect(const float3 origin, const float3 direction, float &tmin, float &tmax) const;
 	__host__ __device__ bool Intersect_no_t(const float3 origin, const float3 direction) const;
 
 	float3 pmin;
@@ -179,7 +179,7 @@ __host__ __device__ inline bool AABB::Intersect_no_t(const float3 origin, const 
 	return true;
 }
 
-__host__ __device__ inline bool AABB::Intersect(const float3 origin, const float3 direction, float &tmin, float tmax) const {
+__host__ __device__ inline bool AABB::Intersect(const float3 origin, const float3 direction, float &tmin, float &tmax) const {
 
 	float3 directionInv = make_float3(1.0f / direction.x, 1.0f / direction.y, 1.0f / direction.z);
 

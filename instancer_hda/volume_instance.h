@@ -40,6 +40,7 @@
 #define _VOLUME_INSTANCE_H_
 
 #include <vector>
+#include <string>
 #include <iostream>
 #include <fstream>
 
@@ -52,7 +53,7 @@ struct instance {
 
 struct vdb_instance {
 	unsigned int num_instances = 0;
-	const char *vdb_file;
+	std::string vdb_file;
 	std::vector<instance> instances;
 };
 

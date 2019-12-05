@@ -1130,15 +1130,14 @@ static void read_instance_file(std::string file_name) {
 	volume_files.resize(num_volumes);
 
 	for (int i = 0; i < num_volumes; ++i) {
+
 		std::string vdb_file_name;
 		std::getline(stream, vdb_file_name);
-		volume_files.at(i).vdb_file = vdb_file_name.c_str();
-
+		volume_files.at(i).vdb_file = vdb_file_name;
 		std::string num_instances;
 		std::getline(stream, num_instances);
 		std::istringstream nis(num_instances);
 		nis >> volume_files.at(i).num_instances;
-
 		volume_files.at(i).instances.resize(volume_files.at(i).num_instances);
 
 		for (int x = 0; x < volume_files.at(i).num_instances; ++x) {
@@ -1146,15 +1145,20 @@ static void read_instance_file(std::string file_name) {
 			std::string instance_parameters;
 			std::getline(stream, instance_parameters);
 			std::istringstream params(instance_parameters);
-			params >> volume_files.at(i).instances.at(x).position[0]
-				>> volume_files.at(i).instances.at(x).position[1]
-				>> volume_files.at(i).instances.at(x).position[2]
-				>> volume_files.at(i).instances.at(x).rotation[0]
-				>> volume_files.at(i).instances.at(x).rotation[1]
-				>> volume_files.at(i).instances.at(x).rotation[2]
-				>> volume_files.at(i).instances.at(x).rotation[3]
-				>> volume_files.at(i).instances.at(x).scale;
-			
+			double p1, p2, p3, r1, r2, r3, r4, s;
+			params >> p1 >> p2 >> p3 >> r1 >> r2 >> r3 >> r4 >> s;
+			volume_files.at(i).instances.at(x).position[0] = p1;
+			volume_files.at(i).instances.at(x).position[1] = p2;
+			volume_files.at(i).instances.at(x).position[2] = p3;
+
+			volume_files.at(i).instances.at(x).rotation[0] = r1;
+			volume_files.at(i).instances.at(x).rotation[1] = r2;
+			volume_files.at(i).instances.at(x).rotation[2] = r3;
+			volume_files.at(i).instances.at(x).rotation[3] = r4;
+
+			volume_files.at(i).instances.at(x).scale = s;
+
+#if 0 // debug instances 
 			std::cout << " position x: " << volume_files.at(i).instances.at(x).position[0];
 			std::cout << " position y: " << volume_files.at(i).instances.at(x).position[1];
 			std::cout << " position z: " << volume_files.at(i).instances.at(x).position[2];
@@ -1165,8 +1169,12 @@ static void read_instance_file(std::string file_name) {
 			std::cout << " rotation w: " << volume_files.at(i).instances.at(x).rotation[3];
 
 			std::cout << " scale: " << volume_files.at(i).instances.at(x).scale << "\n";
+#endif
+
 		}
 	}
+
+	stream.close();
 
 	for (int i = 0; i < volume_files.size(); ++i) {
 
@@ -1187,26 +1195,35 @@ static void read_instance_file(std::string file_name) {
 				volume_files.at(i).instances.at(x).rotation[2],
 				volume_files.at(i).instances.at(x).rotation[3]);
 
-			mat4 rotation_matrix = quaternion_to_mat4(
+			mat4 rotation_matrix = rotate_by_point(
+				make_float4(
+				volume_files.at(i).instances.at(x).rotation[0],
+				volume_files.at(i).instances.at(x).rotation[1],
+				volume_files.at(i).instances.at(x).rotation[2],
+				volume_files.at(i).instances.at(x).rotation[3]), new_instance.Bounds().Centroid());
+
+			mat4 rotation_matrix_by_q = quaternion_to_mat4(
 				volume_files.at(i).instances.at(x).rotation[0],
 				volume_files.at(i).instances.at(x).rotation[1],
 				volume_files.at(i).instances.at(x).rotation[2],
 				volume_files.at(i).instances.at(x).rotation[3]);
 
 			//xform.rotate_zyx(euler); //this is bugged 
-			//xform *= rotation_matrix.transpose(); // this is bugged too 
+			//xform = rotation_matrix_by_q * xform; // this is bugged too 
 
 			// Set scale
 			xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
 
+			
 			// Translate with instance position
 			xform.translate(make_float3(
 				volume_files.at(i).instances.at(x).position[0],
 				volume_files.at(i).instances.at(x).position[1],
 				volume_files.at(i).instances.at(x).position[2]));
-
+			
 			new_instance.set_xform(xform);
 			instances.push_back(new_instance);
+
 		}
 	}
 
@@ -1339,6 +1356,7 @@ int main(const int argc, const char* argv[])
 
 
 	// Send volume instances to gpu
+
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * instances.size()) == cudaSuccess);

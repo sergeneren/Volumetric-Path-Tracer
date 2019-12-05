@@ -1041,16 +1041,14 @@ __device__ inline float3 Tr(
 
 	// Code path 1:
 	// This is the old transmittance estimate algorithm that is agnostic of octree structure 
-
 #if 0
-
 	
 	float inv_max_density = 1 / volumes[0].vdb_info.max_density;
 
 	while (true) {
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		p += ray_dir * t;
-		if (!ContainsExclusive(root->bbox, p))	break;
+		if (!Contains(root->bbox, p))	break;
 		float density = sum_density(p, root, volumes);
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
 		tr = fmaxf(tr, make_float3(.0f));
@@ -1060,7 +1058,8 @@ __device__ inline float3 Tr(
 	// Code path 2:
 	// This is a DDA stepping algorithm that checks the quadrant in Octree nodes and skips them if they contain no volumes 
 
-#if 1   
+#if 1  
+	stop1:
 	while (Contains(root->bbox, p)) {
 		if (length(tr) < EPS) break;
 		// First we figure out which quadrant on depth 3 our point sits in
@@ -1071,19 +1070,19 @@ __device__ inline float3 Tr(
 			if (!root->children[depth3_node]->num_volumes > 0) { //We are in the depth3 node but it is empty
 				root->children[depth3_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
 				p += ray_dir * (t_max + EPS);
+				goto stop1;
 			}
 			else { // We are in depth3 node and it's not empty
-
+				stop2:
 				while (Contains(root->children[depth3_node]->bbox, p)) {
-
 					depth2_node = get_quadrant(root->children[depth3_node], p);
 					if (depth2_node > -1) {
 						if (!root->children[depth3_node]->children[depth2_node]->num_volumes > 0) { //We are in the depth2 node but it is empty
 							root->children[depth3_node]->children[depth2_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
 							p += ray_dir * (t_max + EPS);
+							goto stop1;
 						}
 						else {// We are in depth2 node and it's not empty
-
 							while (Contains(root->children[depth3_node]->children[depth2_node]->bbox, p)) {
 
 								leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], p);
@@ -1091,6 +1090,7 @@ __device__ inline float3 Tr(
 									if (!root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes > 0) { //We are in the leaf node but it is empty
 										root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
 										p += ray_dir * (t_max + EPS);
+										goto stop2;
 									}
 									else {//We are in the leaf node and it is not empty. We can finally do the sampling
 
@@ -1100,7 +1100,7 @@ __device__ inline float3 Tr(
 
 											float voxel_size = root->children[depth3_node]->children[depth2_node]->children[leaf_node]->voxel_size;
 
-											t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth * voxel_size;
+											t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth;
 											p += ray_dir * t;
 											float density = sum_density(p, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 											tr *= 1 - fmaxf(.0f, density*inv_max_density);
@@ -1116,8 +1116,6 @@ __device__ inline float3 Tr(
 		}
 	}
 #endif
-
-
 
 	return tr;
 }
@@ -1284,7 +1282,8 @@ __device__ inline float3 estimate_sun(
 	float3 sun_irradiance = GetSunAndSkyIrradiance(atmosphere, ray_pos, ray_dir, wi, sky_irradiance);
 
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
-	Ld = (length(sky_irradiance)*sun_irradiance) * tr  * phase_pdf;
+	//Ld = (length(sky_irradiance)*sun_irradiance) * tr  * phase_pdf;
+	Ld = tr  * phase_pdf;
 
 	// No need for sampling BSDF with importance sampling
 	// please see: http://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Direct_Lighting.html#fragment-SampleBSDFwithmultipleimportancesampling-0
@@ -1344,61 +1343,85 @@ __device__ inline float3 sample(
 	// We assume that the ray_pos is inside the root bbox at the beginning 
 
 	float t_min, t_max, t = 0.0f;
-	
+
+
+#if 1
+
+	float inv_max_density = 1 / volumes[0].vdb_info.max_density;
+	float inv_density_mult = 1.0f / kernel_params.density_mult;
+
+	while (true) {
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
+		ray_pos += ray_dir * t;
+		if (!Contains(root->bbox, ray_pos))	break;
+		float density = sum_density(ray_pos, root, volumes);
+		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		if (tr < 1.0f) tr += density;
+
+		if (density * inv_max_density > rand(&rand_state)) {
+			interaction = true;
+			return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
+		}
+	}
+#endif
+
+
+
+
+
 	// Code path 1:
 	// This is a DDA stepping algorithm that checks the quadrant in Octree nodes and skips them if they contain no volumes 
 	// this is faster but requires more code and a little bit more complex
-#if 1   
-	while (Contains(root->bbox, ray_pos)) {
+#if 0   
 
+	while (Contains(root->bbox, ray_pos)) {
 		// First we figure out which quadrant on depth 3 our point sits in
 
 		int depth3_node = get_quadrant(root, ray_pos);
-		int depth2_node, leaf_node;
 		if (depth3_node > -1 ) {
 			if (!(root->children[depth3_node]->num_volumes > 0)) { //We are in the depth3 node but it is empty
 				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
 				ray_pos += ray_dir * (t_max + EPS);
-				return RED;
+				goto stop;
 			}
 			else { // We are in depth3 node and it's not empty
-
 				while (Contains(root->children[depth3_node]->bbox, ray_pos)) {
-					depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
+					int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
 					if (depth2_node > -1) {
 						if (!(root->children[depth3_node]->children[depth2_node]->num_volumes > 0)) { //We are in the depth2 node but it is empty
 							root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
 							ray_pos += ray_dir * (t_max + EPS);
+							goto stop;
 						}
 						else {// We are in depth2 node and it's not empty
 
 							while (Contains(root->children[depth3_node]->children[depth2_node]->bbox, ray_pos)) {
-
-								leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
+								int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
 								if (leaf_node > -1) {
-									if (!root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes > 0) { //We are in the leaf node but it is empty
+									if (!(root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes > 0)) { //We are in the leaf node but it is empty
 										root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
 										ray_pos += ray_dir * (t_max + EPS);
+										goto stop;
 									}
 									else {//We are in the leaf node and it is not empty. We can finally do the sampling
 
-										float inv_max_density = 1.0f / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
-										float inv_density_mult = 1.0f / kernel_params.density_mult;
-
 										while (Contains(root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox, ray_pos)) {
+											float inv_max_density = 1.0f / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
+											float inv_density_mult = 1.0f / kernel_params.density_mult;
 
 											float voxel_size = root->children[depth3_node]->children[depth2_node]->children[leaf_node]->voxel_size;
 
-											t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult * voxel_size;
+											t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 											ray_pos += ray_dir * t;
 											float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 											// Accumulate opacity
 											if (tr < 1.0f) tr += density;
-
+											
 											if (density * inv_max_density > rand(&rand_state)) {
 												interaction = true;
 												return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
 											}
+											
 										}
 									}
 								}
@@ -1410,7 +1433,6 @@ __device__ inline float3 sample(
 		}
 	}
 #endif
-
 
 	// Code path 2:
 	// This is a DDA stepping algorithm that checks the quadrant in Octree nodes and skips them if they contain no volumes 
@@ -1469,7 +1491,7 @@ __device__ inline float3 sample(
 
 #endif
 
-
+stop:
 	return WHITE;
 
 }
@@ -1566,10 +1588,10 @@ __device__ inline float3 direct_integrator(
 	bool mi = false;
 	float3 env_pos = ray_pos;
 
-	float t, tmax;
+	float t_min, t_max;
 
-	if (root->bbox.Intersect(ray_pos, ray_dir, t, tmax)) {
-		ray_pos += ray_dir * (t + EPS);
+	if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) {
+		ray_pos += ray_dir * (t_min + EPS);
 
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;

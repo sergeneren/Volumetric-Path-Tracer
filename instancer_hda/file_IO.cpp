@@ -93,7 +93,7 @@ namespace vpt_instance {
 		for (auto vdb : unique_vdb_files) {
 
 			vdb_instance new_instance;
-			new_instance.vdb_file = vdb.c_str();
+			new_instance.vdb_file = vdb;
 			file << vdb << std::endl;
 
 			int idx = 0;
