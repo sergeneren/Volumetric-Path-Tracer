@@ -452,7 +452,7 @@ __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(float4 quaternion) {
 }
 
 // Rotation by quaternion about point
-__host__ __device__ __forceinline__ mat4 setRotate(float4 q, float3 center) {
+__host__ __device__ __forceinline__ mat4 rotate_by_point(float4 q, float3 center) {
 
 	mat4 ret;
 
