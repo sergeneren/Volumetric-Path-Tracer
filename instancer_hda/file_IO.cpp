@@ -60,8 +60,10 @@ namespace vpt_instance {
 		GA_ROHandleV3 pos_h(gdp, GA_ATTRIB_POINT, "P");
 		UT_Vector3F pos_val(0, 0, 0);
 
+		GA_ROHandleV3 N_h(gdp, GA_ATTRIB_POINT, "N");
+		GA_ROHandleV3 up_h(gdp, GA_ATTRIB_POINT, "up");
+		GA_ROHandleV4 orient_h(gdp, GA_ATTRIB_POINT, "orient");
 		GA_ROHandleV4 rot_h(gdp, GA_ATTRIB_POINT, "rot");
-		UT_Vector4F rot_val(0, 0, 0, 1);
 
 		GA_ROHandleF rad_h(gdp, GA_ATTRIB_POINT, "pscale");
 		fpreal32 rad_val(1);
@@ -106,27 +108,50 @@ namespace vpt_instance {
 
 					if (vdb_val == UT_String(vdb)) {
 						instance ins;
+
+						// Check if pscale exists if not set it to 1
 						if (rad_h.isValid()) {
 							rad_val = rad_h.get(ptoff);
 						}
 						else rad_val = 1.0f;
-
-						if (rot_h.isValid()) {
-							rot_val = rot_h.get(ptoff);
-						}
-						else rot_val = UT_Vector4F(0, 0, 0, 1);
-
 						ins.scale = rad_val;
 
+						// For rotations we first check if orient attribute is peresent 
+						
+						UT_QuaternionF quat(0, 0, 0, 1); // this will set the instance rotation 
+												
+						if (orient_h.isValid()) {
+							quat = orient_h.get(ptoff);
+						}
+						else { // orient is not present. 
+
+							if (rot_h.isValid()) { // check if rot attribute is present 
+								quat = rot_h.get(ptoff);
+							}
+							else { // neither attributes are present we should construct our own quaternion 
+								UT_Vector3F up(0,1,0);
+								if (up_h.isValid())	up = up_h.get(ptoff);
+
+								UT_Vector3F normal(0,0,1);
+								if (N_h.isValid())	normal = N_h.get(ptoff);
+
+								UT_Matrix3F rot_matrix;
+								rot_matrix.orient(normal, up);
+								
+								quat.updateFromRotationMatrix(rot_matrix);
+							}
+						}
+
+						ins.rotation[0] = quat.x();
+						ins.rotation[1] = quat.y();
+						ins.rotation[2] = quat.z();
+						ins.rotation[3] = quat.w();
+
+						// Get the position of point and set instance position
 						pos_val = pos_h.get(ptoff);
 						ins.position[0] = pos_val.x();
 						ins.position[1] = pos_val.y();
 						ins.position[2] = pos_val.z();
-
-						ins.rotation[0] = rot_val.x();
-						ins.rotation[1] = rot_val.y();
-						ins.rotation[2] = rot_val.z();
-						ins.rotation[3] = rot_val.w();
 
 						new_instance.instances.push_back(ins);
 
