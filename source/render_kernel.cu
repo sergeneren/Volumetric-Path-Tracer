@@ -1675,7 +1675,7 @@ __device__ inline float3 direct_integrator(
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * beta  * kernel_params.sun_color * kernel_params.sun_mult;
-		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta;
+		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta * kernel_params.sky_mult * kernel_params.sky_color;
 
 	}
 	else {

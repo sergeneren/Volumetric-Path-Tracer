@@ -435,37 +435,6 @@ __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(float4 quaternion) {
 	z *= n;
 	w *= n;
 
-	/*
-	float m11 = 1.0f - 2.0f*y*y - 2.0f*z*z;
-	float m12 = 2.0f*x*y + 2.0f*z*w;
-	float m13 = 2.0f*x*z - 2.0f*y*w;
-	float m14 = 0.0f;
-
-	float m21 = 2.0f*x*y - 2.0f*z*w;
-	float m22 = 1.0f - 2.0f*x*x - 2.0f*z*z;
-	float m23 = 2.0f*y*z + 2.0f*x*w;
-	float m24 = 0.0f;
-
-	float m31 = 2.0f*x*z + 2.0f*y*w;
-	float m32 = 2.0f*y*z - 2.0f*x*w;
-	float m33 = 1.0f - 2.0f*x*x - 2.0f*y*y;
-	float m34 = 0.0f;
-
-	float m41 = 0.0f;
-	float m42 = 0.0f;
-	float m43 = 0.0f;
-	float m44 = 1.0f;
-
-
-	mat4 ret(m11, m12, m13, m14,
-		     m21, m22, m23, m24,
-		     m31, m32, m33, m34,
-		     m41, m42, m43, m44);
-	*/
-
-
-	// Alternate Method
-
 	mat4 m1 = mat4(w , z , -y , x,
 				   -z ,  w , x,  y,
 					y,  -x,  w,  z,
@@ -477,6 +446,7 @@ __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(float4 quaternion) {
 					x, y, z, w);
 
 	mat4 ret = m1 * m2;
+
 	return ret;
 
 }
