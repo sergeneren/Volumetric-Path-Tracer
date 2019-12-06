@@ -84,9 +84,11 @@ namespace vpt_instance {
 			}
 		}
 
+		
 		std::sort(unique_vdb_files.begin(), unique_vdb_files.end());
 		std::vector<std::string>::iterator it = std::unique(unique_vdb_files.begin(), unique_vdb_files.end());
 		unique_vdb_files.resize(std::distance(unique_vdb_files.begin(), it));
+		
 
 		file << unique_vdb_files.size() << std::endl;
 
@@ -101,14 +103,14 @@ namespace vpt_instance {
 				for (ptoff = lcl_start; ptoff < lcl_end; ++ptoff) {
 
 					vdb_val = vdb_h.get(ptoff);
-					
-					if (vdb_val.compare(vdb.c_str())) {
+
+					if (vdb_val == UT_String(vdb)) {
 						instance ins;
 						if (rad_h.isValid()) {
 							rad_val = rad_h.get(ptoff);
 						}
 						else rad_val = 1.0f;
-						
+
 						if (rot_h.isValid()) {
 							rot_val = rot_h.get(ptoff);
 						}
@@ -116,11 +118,11 @@ namespace vpt_instance {
 
 						ins.scale = rad_val;
 
-						pos_val = pos_h.get(ptoff);					
+						pos_val = pos_h.get(ptoff);
 						ins.position[0] = pos_val.x();
 						ins.position[1] = pos_val.y();
 						ins.position[2] = pos_val.z();
-						
+
 						ins.rotation[0] = rot_val.x();
 						ins.rotation[1] = rot_val.y();
 						ins.rotation[2] = rot_val.z();
