@@ -1230,10 +1230,10 @@ static void read_instance_file(std::string file_name) {
 }
 
 // Process camera movement.
-static void update_camera(double dx, double dy, double mx, double my, int zoom_delta, const atmosphere &atm)
+static void update_camera(double dx, double dy, double mx, double my, int zoom_delta, const atmosphere &atm, float scene_max)
 {
 	float rot_speed = 1;
-	float zoom_speed = 5;
+	float zoom_speed = scene_max / 4.0f;
 	float dist = length(lookfrom - lookat);
 	// Rotation
 
@@ -1357,6 +1357,12 @@ int main(const int argc, const char* argv[])
 
 	// Send volume instances to gpu
 
+	mat4 xform = unique_vdb_files.at(0).get_xform();
+	
+	mat4 rot = quaternion_to_mat4(make_float4(0, 0.25f, 0, 0.021f));
+	xform = rot * xform;
+	xform.translate(make_float3(0, 100, 0));
+	instances.at(0).set_xform(xform);
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * instances.size()) == cudaSuccess);
@@ -1375,6 +1381,12 @@ int main(const int argc, const char* argv[])
 	fov = 30.0f;
 	aspect = 1.0f;
 	aperture = 0.0f;
+
+	int max_dim = scene_bounds.MaximumDimension();
+	float scene_max = 5.0f;
+	if (max_dim == 0) scene_max = scene_bounds.Diagonal().x;
+	if (max_dim == 1) scene_max = scene_bounds.Diagonal().y;
+	if (max_dim == 2) scene_max = scene_bounds.Diagonal().z;
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
@@ -1725,7 +1737,7 @@ int main(const int argc, const char* argv[])
 		// Restart render if camera moves 
 		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->move_mx != 0.0 || ctx->move_my != 0.0 || ctx->zoom_delta) {
 
-			update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta, earth_atmosphere);
+			update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta, earth_atmosphere, scene_max);
 			ctx->move_dx = ctx->move_dy = ctx->move_mx = ctx->move_my = 0.0;
 			ctx->zoom_delta = 0;
 			kernel_params.iteration = 0;

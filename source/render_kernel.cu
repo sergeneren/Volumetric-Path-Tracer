@@ -1345,7 +1345,7 @@ __device__ inline float3 sample(
 	float t_min, t_max, t = 0.0f;
 
 
-#if 0
+#if 1
 
 	float inv_max_density = 1 / volumes[0].vdb_info.max_density;
 	float inv_density_mult = 1.0f / kernel_params.density_mult;
@@ -1502,7 +1502,7 @@ stop:
 
 
 
-#if 1
+#if 0
 	// Code path 3:
 	// This is the old algorithm with extra position awareness
 

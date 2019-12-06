@@ -414,17 +414,18 @@ __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(float4 quaternion) {
 	float z = quaternion.z;
 	float w = quaternion.w;
 
-	const float n = 1.0f / sqrtf(x*x + y * y + z * z + w * w);
+	const float n = 1.0f / rsqrtf(x*x + y * y + z * z + w * w);
 
 	x *= n;
 	y *= n;
 	z *= n;
 	w *= n;
 
+	/*
 	float m11 = 1.0f - 2.0f*y*y - 2.0f*z*z;
 	float m12 = 2.0f*x*y + 2.0f*z*w;
 	float m13 = 2.0f*x*z - 2.0f*y*w;
-	float m14 = .0f;
+	float m14 = 0.0f;
 
 	float m21 = 2.0f*x*y - 2.0f*z*w;
 	float m22 = 1.0f - 2.0f*x*x - 2.0f*z*z;
@@ -443,10 +444,25 @@ __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(float4 quaternion) {
 
 
 	mat4 ret(m11, m12, m13, m14,
-		m21, m22, m23, m24,
-		m31, m32, m33, m34,
-		m41, m42, m43, m44);
+		     m21, m22, m23, m24,
+		     m31, m32, m33, m34,
+		     m41, m42, m43, m44);
+	*/
 
+
+	// Alternate Method
+
+	mat4 m1 = mat4(w , z , -y , x,
+				   -z ,  w , x,  y,
+					y,  -x,  w,  z,
+					-x, -y, -z, w);
+
+	mat4 m2 = mat4(w , z , -y , -x,
+				   -z ,  w , x,  -y,
+					y,  -x,  w,  -z,
+					x, y, z, w);
+
+	mat4 ret = m1 * m2;
 	return ret;
 
 }
