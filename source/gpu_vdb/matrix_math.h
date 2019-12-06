@@ -263,6 +263,20 @@ struct mat4 {
 		m[0][3] = 0.0; m[1][3] = 0.0; m[2][3] = 0.0; m[3][3] = 1.0;
 	}
 
+	__host__ __device__ __forceinline__ mat4 abs() const{
+
+		mat4 ret;
+
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				float temp = fabsf(m[j][i]);
+				ret[j][i] = temp;
+			}
+		}
+
+		return ret;
+	}
+
 
 	__host__ __device__ __forceinline__ void print() {
 
@@ -414,7 +428,7 @@ __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(float4 quaternion) {
 	float z = quaternion.z;
 	float w = quaternion.w;
 
-	const float n = 1.0f / rsqrtf(x*x + y * y + z * z + w * w);
+	const float n = 1.0f / sqrtf(x*x + y * y + z * z + w * w);
 
 	x *= n;
 	y *= n;

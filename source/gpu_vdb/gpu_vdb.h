@@ -123,10 +123,16 @@ public:
 	
 	__host__ __device__ AABB Bounds() const {
 		
-		float3 pmin = xform.transpose().transform_point(vdb_info.bmin);
-		float3 pmax = xform.transpose().transform_point(vdb_info.bmax);
+		// OOB to AABB conversion from
+		// https://zeux.io/2010/10/17/aabb-from-obb-with-component-wise-abs/
 
-		AABB bounding_box(pmin, pmax);
+		float3 center = (vdb_info.bmax + vdb_info.bmin) * 0.5;
+		float3 extent = (vdb_info.bmax - vdb_info.bmin) * 0.5;
+
+		float3 new_center = xform.transpose().transform_point(center);
+		float3 new_extent = xform.abs().transpose().transform_vector(extent);
+
+		AABB bounding_box(new_center - new_extent, new_center + new_extent);
 	
 		return bounding_box;
 

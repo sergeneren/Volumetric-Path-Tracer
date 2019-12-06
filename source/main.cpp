@@ -1208,7 +1208,7 @@ static void read_instance_file(std::string file_name) {
 				volume_files.at(i).instances.at(x).rotation[2],
 				volume_files.at(i).instances.at(x).rotation[3]);
 
-			//xform.rotate_zyx(euler); //this is bugged 
+			xform.rotate_zyx(euler); //this is bugged 
 			//xform = rotation_matrix_by_q * xform; // this is bugged too 
 
 			// Set scale
@@ -1356,13 +1356,6 @@ int main(const int argc, const char* argv[])
 
 
 	// Send volume instances to gpu
-
-	mat4 xform = unique_vdb_files.at(0).get_xform();
-	
-	mat4 rot = quaternion_to_mat4(make_float4(0, 0.25f, 0, 0.021f));
-	xform = rot * xform;
-	xform.translate(make_float3(0, 100, 0));
-	instances.at(0).set_xform(xform);
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * instances.size()) == cudaSuccess);

@@ -57,7 +57,7 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 
 	// Build octree 
 	octree.root_node = new OCTNode;
-	// <3, 3, 3, 3,> Octree
+	// <3, 3, 3> Octree
 	octree.root_node->depth = 4;
 
 	for (int i = 0; i < num_volumes; ++i) {
@@ -65,26 +65,24 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 		octree.root_node->bbox.pmax = fmaxf(octree.root_node->bbox.pmax, vdbs.at(i).Bounds().pmax);
 		octree.root_node->bbox.pmin = fminf(octree.root_node->bbox.pmin, vdbs.at(i).Bounds().pmin);
 		octree.root_node->vol_indices[i] = i;
+		octree.root_node->num_volumes++;
+
 	}
-	for (int y = 0; y < num_volumes; ++y) {
-		if (Overlaps(octree.root_node->bbox, vdbs.at(y).Bounds())) {
-			octree.root_node->num_volumes++;
-		}
-	}
+
 	std::cout << "num volumes for root is " << octree.root_node->num_volumes << "\n";
 
 	printf("Root node bounds \npmin.x: %f, pmin.y: %f, pmin.z: %f \npmax.x: %f, pmax.y: %f, pmax.z: %f\n",
 		octree.root_node->bbox.pmin.x, octree.root_node->bbox.pmin.y, octree.root_node->bbox.pmin.z,
 		octree.root_node->bbox.pmax.x, octree.root_node->bbox.pmax.y, octree.root_node->bbox.pmax.z);
 
-	octree.m_debug = false; // make this true to debug octree nodes 
+	octree.m_debug = true; // make this true to debug octree nodes 
 	
 	checkCudaErrors(cudaMalloc(&root, sizeof(OCTNode)));
 	checkCudaErrors(cudaMemcpy(root, octree.root_node, sizeof(OCTNode), cudaMemcpyHostToDevice));
 	
-	build_octree(root, volumes, vdbs.size() , /*octree depth*/ octree.root_node->depth-1 , octree.m_debug);
+	build_octree(root, volumes, vdbs.size() , /*octree depth*/ octree.root_node->depth-1 , octree.m_debug); // GPU path
 	
-	//octree.create_tree(vdbs, octree.root_node, 3);
+	//octree.create_tree(vdbs, octree.root_node, 3); // CPU path
 
 	cudaFree(volumes);
 	volumes = nullptr;

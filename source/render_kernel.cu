@@ -904,9 +904,9 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	pos -= gpu_vdb.vdb_info.bmin;
 
 	// index position to [0-1] position
-	pos.x /= float(gpu_vdb.vdb_info.dim.x);
-	pos.y /= float(gpu_vdb.vdb_info.dim.y);
-	pos.z /= float(gpu_vdb.vdb_info.dim.z);
+	pos.x /= fmaxf(float(gpu_vdb.vdb_info.dim.x), .0f);
+	pos.y /= fmaxf(float(gpu_vdb.vdb_info.dim.y), .0f);
+	pos.z /= fmaxf(float(gpu_vdb.vdb_info.dim.z), .0f);
 
 	float density = tex3D<float>(gpu_vdb.vdb_info.density_texture, pos.x, pos.y, pos.z);
 	return density;
@@ -1041,7 +1041,7 @@ __device__ inline float3 Tr(
 
 	// Code path 1:
 	// This is the old transmittance estimate algorithm that is agnostic of octree structure 
-#if 0
+#if 1
 	
 	float inv_max_density = 1 / volumes[0].vdb_info.max_density;
 
@@ -1058,7 +1058,7 @@ __device__ inline float3 Tr(
 	// Code path 2:
 	// This is a DDA stepping algorithm that checks the quadrant in Octree nodes and skips them if they contain no volumes 
 
-#if 1  
+#if 0  
 	stop1:
 	while (Contains(root->bbox, p)) {
 		if (length(tr) < EPS) break;
