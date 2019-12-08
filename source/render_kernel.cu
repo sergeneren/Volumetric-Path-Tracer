@@ -1120,6 +1120,15 @@ __device__ inline float3 Tr(
 	return tr;
 }
 
+//determines if ray intersects volume pyramid projected by octree bbox and returns the calculated transmission
+__device__ inline bool get_shadow_box(float3 ray_pos, float3 ray_dir, OCTNode *root, AtmosphereParameters atmosphere, Kernel_params kernel_params, float &tr) {
+
+	
+
+
+}
+
+
 __device__ inline float pdf_li(
 	Kernel_params kernel_params,
 	float3 wi)
@@ -1560,8 +1569,6 @@ stop:
 	return WHITE;
 
 }
-
-
 
 __device__ void traverse_bvh(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, BVHNode *node, float3 &t, int &volume_idx) {
 
