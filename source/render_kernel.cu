@@ -1203,7 +1203,7 @@ __device__ inline bool get_shadow_box(float3 ray_pos, float3 ray_dir, OCTNode *r
 	float3 pmax = root->bbox.pmax;
 
 	//Find sun direction 
-	float3 l_dir = normalize(degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation));
+	float3 l_dir = -normalize(degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation));
 
 	// First Plane 
 	p0 = pmin;
@@ -1292,7 +1292,12 @@ __device__ inline bool get_shadow_box(float3 ray_pos, float3 ray_dir, OCTNode *r
 	pr_1 = project_to_earth(p1, l_dir, atmosphere);
 	bbox_planes[5] = plane(p0, p1, pr_1, pr_0);
 
+	float t;
 
+	for (int i = 0; i < 12; ++i) {
+	
+		if (bbox_planes[i].intersect(ray_pos, ray_dir, t)) tr = 0;
+	}
 
 }
 
@@ -1847,10 +1852,14 @@ __device__ inline float3 direct_integrator(
 
 	ray_dir = normalize(ray_dir);
 
+	float shadow_tr = 1.0f;
+	get_shadow_box(ray_pos, ray_dir, root, atmosphere, kernel_params, shadow_tr);
+
+
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * beta  * kernel_params.sun_color * kernel_params.sun_mult;
-		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta * kernel_params.sky_mult * kernel_params.sky_color;
+		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta * kernel_params.sky_mult * kernel_params.sky_color * shadow_tr;
 
 	}
 	else {
