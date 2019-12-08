@@ -904,9 +904,9 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	pos -= gpu_vdb.vdb_info.bmin;
 
 	// index position to [0-1] position
-	pos.x /= fmaxf(float(gpu_vdb.vdb_info.dim.x), .0f);
-	pos.y /= fmaxf(float(gpu_vdb.vdb_info.dim.y), .0f);
-	pos.z /= fmaxf(float(gpu_vdb.vdb_info.dim.z), .0f);
+	pos.x /= float(gpu_vdb.vdb_info.dim.x);
+	pos.y /= float(gpu_vdb.vdb_info.dim.y);
+	pos.z /= float(gpu_vdb.vdb_info.dim.z);
 
 	float density = tex3D<float>(gpu_vdb.vdb_info.density_texture, pos.x, pos.y, pos.z);
 	return density;
@@ -1754,72 +1754,6 @@ __device__ inline float3 octree_integrator(
 
 }
 
-
-/*
-__device__ inline float3 bvh_integrator(
-	Rand_state rand_state,
-	float3 ray_pos,
-	float3 ray_dir,
-	float &tr,
-	const Kernel_params kernel_params,
-	const GPU_VDB *gpu_vdb,
-	BVHNode *root_node,
-	const AtmosphereParameters atmosphere)
-{
-	float3 L = BLACK;
-	float3 beta = WHITE;
-
-	float3 t = make_float3(NOHIT);
-	bool mi = false;
-	float3 env_pos = ray_pos;
-	int vol_idx = -1;
-
-	traverse_bvh(ray_pos, ray_dir, gpu_vdb, root_node, t, vol_idx);
-
-	for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
-		mi = false;
-
-		if (t.z != NOHIT) { // found an intersection
-			ray_pos += ray_dir * t.x;
-
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb[vol_idx]);
-			if (isBlack(beta)) break;
-
-			if (mi) { // medium interaction
-				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
-			}
-
-			traverse_bvh(ray_pos, ray_dir, gpu_vdb, root_node, t, vol_idx);
-			ray_pos += ray_dir * t.x;
-		}
-
-	}
-
-
-	ray_dir = normalize(ray_dir);
-
-	if (kernel_params.environment_type == 0) {
-
-		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, root_node, atmosphere) * beta * kernel_params.sun_color * kernel_params.sun_mult;
-		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta;
-
-	}
-	else {
-
-		const float4 texval = tex2D<float4>(
-			kernel_params.env_tex,
-			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
-			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
-	}
-
-
-	tr = fminf(tr, 1.0f);
-	return L;
-
-}
-*/
-
 __device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, BVHNode *root_node)
 {
 	float3 L = BLACK;
@@ -1893,7 +1827,6 @@ __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kern
 	return ground_radiance;
 
 }
-
 
 
 //////////////////////////////////////////////////////////////////////////
