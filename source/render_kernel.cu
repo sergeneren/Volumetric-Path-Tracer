@@ -62,7 +62,7 @@ typedef unsigned long long	uint64;
 #include "camera.h"
 #include "light.h"
 #include "bvh/bvh.h"
-
+#include "plane.h"
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)
@@ -77,6 +77,55 @@ typedef unsigned long long	uint64;
 
 
 // Helper functions
+
+__device__ inline bool solveQuadratic(
+	float a,
+	float b,
+	float c,
+	float& x1,
+	float& x2)
+{
+	if (b == 0) {
+		// Handle special case where the the two vector ray.dir and V are perpendicular
+		// with V = ray.orig - sphere.centre
+		if (a == 0) return false;
+		x1 = 0; x2 = sqrt(-c / a);
+		return true;
+	}
+
+	float discr = b * b - 4 * a * c;
+
+	if (discr < 0) return false;
+
+	float q = (b < 0.f) ? -0.5f * (b - sqrt(discr)) : -0.5f * (b + sqrt(discr));
+	x1 = q / a;
+	x2 = c / q;
+
+	return true;
+}
+
+
+__device__ bool raySphereIntersect(
+	const float3& orig,
+	const float3& dir,
+	const float& radius,
+	float& t0,
+	float& t1)
+{
+
+	float A = squared_length(dir);
+	float B = 2 * (dir.x * orig.x + dir.y * orig.y + dir.z * orig.z);
+	float C = orig.x * orig.x + orig.y * orig.y + orig.z * orig.z - radius * radius;
+
+	if (!solveQuadratic(A, B, C, t0, t1)) return false;
+
+	if (t0 > t1) {
+		float tempt = t1;
+		t1 = t0;
+		t0 = tempt;
+	}
+	return true;
+}
 
 __device__ inline void coordinate_system(
 	float3 v1,
@@ -1120,12 +1169,128 @@ __device__ inline float3 Tr(
 	return tr;
 }
 
+
+// Check if point projects onto top sky or ground and return point 
+__device__ inline float3 project_to_earth(float3 point, float3 dir, AtmosphereParameters atmosphere) {
+
+	float t0, t1;
+
+	if (raySphereIntersect(point + atmosphere.bottom_radius, dir, atmosphere.bottom_radius, t0, t1)) {
+		point += (dir * t0);
+		return point;
+	}
+	if (raySphereIntersect(point + atmosphere.bottom_radius , dir, atmosphere.top_radius, t0, t1)) point += (dir * t0);
+
+	return point;
+
+}
+
+
 //determines if ray intersects volume pyramid projected by octree bbox and returns the calculated transmission
 __device__ inline bool get_shadow_box(float3 ray_pos, float3 ray_dir, OCTNode *root, AtmosphereParameters atmosphere, Kernel_params kernel_params, float &tr) {
 
 	// construct planes created by edges of bbox projected on earth (or top atmosphere if no ground intersection)
+	// we will need 12 planes for 12 edges of bbox 
+
+	float3 p0;
+	float3 p1;
+	float3 pr_0;
+	float3 pr_1;
+
+	plane bbox_planes[12];
+	
+	float3 pmin = root->bbox.pmin;
+	float3 pmax = root->bbox.pmax;
+
+	//Find sun direction 
+	float3 l_dir = normalize(degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation));
+
+	// First Plane 
+	p0 = pmin;
+	p1 = make_float3(pmin.x, pmax.y, pmin.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[0] = plane(p0, p1, pr_1, pr_0);
+
+	// Second Plane 
+	p0 = pmin;
+	p1 = make_float3(pmax.x, pmin.y, pmin.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[1] = plane(p0, p1, pr_1, pr_0);
+
+	// Third Plane 
+	p0 = pmin;
+	p1 = make_float3(pmin.x, pmin.y, pmax.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[2] = plane(p0, p1, pr_1, pr_0);
+
+	// Fourth Plane 
+	p0 = pmax;
+	p1 = make_float3(pmax.x, pmin.y, pmax.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[3] = plane(p0, p1, pr_1, pr_0);
+
+	// Fifth Plane 
+	p0 = pmax;
+	p1 = make_float3(pmax.x, pmax.y, pmin.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[4] = plane(p0, p1, pr_1, pr_0);
+
+	// Sixth Plane 
+	p0 = pmax;
+	p1 = make_float3(pmin.x, pmax.y, pmax.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[5] = plane(p0, p1, pr_1, pr_0);
 
 
+
+
+	// Seventh Plane 
+	p0 = make_float3(pmin.x, pmax.y, pmin.z);
+	p1 = make_float3(pmin.x, pmax.y, pmax.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[0] = plane(p0, p1, pr_1, pr_0);
+
+	// Eighth Plane 
+	p0 = make_float3(pmin.x, pmax.y, pmin.z);
+	p1 = make_float3(pmax.x, pmax.y, pmin.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[1] = plane(p0, p1, pr_1, pr_0);
+
+	// Nineth Plane 
+	p0 = make_float3(pmin.x, pmax.y, pmax.z);
+	p1 = make_float3(pmin.x, pmin.y, pmax.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[2] = plane(p0, p1, pr_1, pr_0);
+
+	// Tenth Plane 
+	p0 = make_float3(pmin.x, pmin.y, pmax.z);
+	p1 = make_float3(pmax.x, pmin.y, pmax.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[3] = plane(p0, p1, pr_1, pr_0);
+
+	// Eleventh Plane 
+	p0 = make_float3(pmax.x, pmin.y, pmax.z);
+	p1 = make_float3(pmax.x, pmin.y, pmin.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[4] = plane(p0, p1, pr_1, pr_0);
+
+	// Twelfth Plane 
+	p0 = make_float3(pmax.x, pmin.y, pmin.z);
+	p1 = make_float3(pmax.x, pmax.y, pmin.z);
+	pr_0 = project_to_earth(p0, l_dir, atmosphere);
+	pr_1 = project_to_earth(p1, l_dir, atmosphere);
+	bbox_planes[5] = plane(p0, p1, pr_1, pr_0);
 
 
 
