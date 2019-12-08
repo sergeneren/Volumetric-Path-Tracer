@@ -1123,7 +1123,10 @@ __device__ inline float3 Tr(
 //determines if ray intersects volume pyramid projected by octree bbox and returns the calculated transmission
 __device__ inline bool get_shadow_box(float3 ray_pos, float3 ray_dir, OCTNode *root, AtmosphereParameters atmosphere, Kernel_params kernel_params, float &tr) {
 
-	
+	// construct planes created by edges of bbox projected on earth (or top atmosphere if no ground intersection)
+
+
+
 
 
 }
