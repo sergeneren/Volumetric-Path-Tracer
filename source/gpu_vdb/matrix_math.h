@@ -326,6 +326,11 @@ struct mat4 {
 
 	}
 
+	__host__ __device__ __forceinline__ float3 extract_translate() {
+
+		return make_float3(m[0][3], m[1][3], m[2][3]);
+	}
+
 	__host__ __device__ __forceinline__ mat4 translate(const float3 &val) {
 		
 		m[0][3] += val.x;

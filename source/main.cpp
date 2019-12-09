@@ -1189,6 +1189,7 @@ static void read_instance_file(std::string file_name) {
 				volume_files.at(i).instances.at(x).rotation[2],
 				volume_files.at(i).instances.at(x).rotation[3]);
 
+			//xform = rotation_matrix * xform;
 			
 			// Translate with instance position
 			xform.translate(make_float3(
@@ -1196,11 +1197,8 @@ static void read_instance_file(std::string file_name) {
 				volume_files.at(i).instances.at(x).position[1],
 				volume_files.at(i).instances.at(x).position[2]));
 			
-			//xform = rotation_matrix.transpose() * xform;
-
-
 			// Set scale
-			xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
+			//xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
 			
 
 			new_instance.set_xform(xform);

@@ -902,11 +902,13 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 
 	// object space position to index position
 	pos -= gpu_vdb.vdb_info.bmin;
-
+	
 	// index position to [0-1] position
 	pos.x /= float(gpu_vdb.vdb_info.dim.x);
 	pos.y /= float(gpu_vdb.vdb_info.dim.y);
 	pos.z /= float(gpu_vdb.vdb_info.dim.z);
+
+	if (pos.x<.0f || pos.y<.0f || pos.z<.0f || pos.x>1.0f || pos.y>1.0f || pos.z>1.0f) return .0f;
 
 	float density = tex3D<float>(gpu_vdb.vdb_info.density_texture, pos.x, pos.y, pos.z);
 	return density;
@@ -1059,62 +1061,50 @@ __device__ inline float3 Tr(
 	// This is a DDA stepping algorithm that checks the quadrant in Octree nodes and skips them if they contain no volumes 
 
 #if 0  
-	stop1:
-	while (Contains(root->bbox, p)) {
-		if (length(tr) < EPS) break;
-		// First we figure out which quadrant on depth 3 our point sits in
-		
-		int depth3_node = get_quadrant(root, p);
-		int depth2_node, leaf_node;
+
+	while (true) {
+
+		int depth3_node = get_quadrant(root, ray_pos);
 		if (depth3_node > -1) {
-			if (!root->children[depth3_node]->num_volumes > 0) { //We are in the depth3 node but it is empty
-				root->children[depth3_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
-				p += ray_dir * (t_max + EPS);
-				goto stop1;
-			}
-			else { // We are in depth3 node and it's not empty
-				stop2:
-				while (Contains(root->children[depth3_node]->bbox, p)) {
-					depth2_node = get_quadrant(root->children[depth3_node], p);
-					if (depth2_node > -1) {
-						if (!root->children[depth3_node]->children[depth2_node]->num_volumes > 0) { //We are in the depth2 node but it is empty
-							root->children[depth3_node]->children[depth2_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
-							p += ray_dir * (t_max + EPS);
-							goto stop1;
-						}
-						else {// We are in depth2 node and it's not empty
-							while (Contains(root->children[depth3_node]->children[depth2_node]->bbox, p)) {
-
-								leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], p);
-								if (leaf_node > -1) {
-									if (!root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes > 0) { //We are in the leaf node but it is empty
-										root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
-										p += ray_dir * (t_max + EPS);
-										goto stop2;
-									}
-									else {//We are in the leaf node and it is not empty. We can finally do the sampling
-
-										float inv_max_density = 1.0f / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
-
-										while (Contains(root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox, p)) {
-
-											float voxel_size = root->children[depth3_node]->children[depth2_node]->children[leaf_node]->voxel_size;
-
-											t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth;
-											p += ray_dir * t;
-											float density = sum_density(p, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
-											tr *= 1 - fmaxf(.0f, density*inv_max_density);
-											tr = fmaxf(tr, make_float3(.0f));
-										}
-									}
-								}
-							}
-						}
-					}
-				}
+			if (root->children[depth3_node]->num_volumes < 1) { //We are in the depth3 node but it is empty
+				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				ray_pos += ray_dir * (t_max + EPS);
+				continue;
 			}
 		}
+		else break;
+
+		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
+		if (depth2_node > -1) {
+			if (root->children[depth3_node]->children[depth2_node]->num_volumes < 1) { //We are in the depth2 node but it is empty
+				root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				ray_pos += ray_dir * (t_max + EPS);
+				continue;
+			}
+		}
+		else break;
+
+
+		int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
+		if (leaf_node > -1) {
+			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes < 1) { //We are in the leaf node but it is empty
+				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				ray_pos += ray_dir * (t_max + EPS);
+				continue;
+			}
+		}
+		else break;
+
+		float inv_max_density = 1 / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
+
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
+		p += ray_dir * t;
+		if (!Contains(root->bbox, p))	break;
+		float density = sum_density(p, root, volumes);
+		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		tr = fmaxf(tr, make_float3(.0f));
 	}
+
 #endif
 
 	return tr;
