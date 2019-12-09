@@ -223,6 +223,7 @@ __device__ void build_octree_recursive(GPU_VDB *vdbs, int num_volumes, OCTNode *
 						idx++;
 					}
 				}
+				if (root->children[i]->num_volumes>0) root->children[i]->has_children = true;
 				if (m_debug) {
 					printf("num volumes for child %d-%d is %d ", depth, i, root->children[i]->num_volumes);
 					if (root->children[i]->num_volumes > 0) {
@@ -233,6 +234,7 @@ __device__ void build_octree_recursive(GPU_VDB *vdbs, int num_volumes, OCTNode *
 					}
 					printf(" max extinction: %f\n", root->children[i]->max_extinction);
 				}
+				
 				build_octree_recursive(vdbs, num_volumes, root->children[i], depth - 1, m_debug);
 			}
 		}

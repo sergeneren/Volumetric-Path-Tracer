@@ -217,6 +217,7 @@ struct OCTNode {
 	float min_extinction = .0f;
 	float voxel_size = M_INF;
 	int depth = -1;
+	bool has_children = false;
 
 	OCTNode *children[8];
 	OCTNode *parent;
