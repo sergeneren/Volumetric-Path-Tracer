@@ -48,7 +48,7 @@
 
 
 class shadow_box {
-
+public:
 	shadow_box();
 	~shadow_box();
 

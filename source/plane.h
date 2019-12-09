@@ -49,19 +49,19 @@ struct triangle {
 
 	__device__ __host__ ~triangle(){}
 
-	__device__ __host__ bool intersect(float3 ray_pos, float3 ray_dir , float &t) {
+	__device__ __host__ bool intersect(float3 ray_pos, float3 ray_dir , float &t) const{
 
 		float3 e1 = v1 - v0;
 		float3 e2 = v2 - v0;
 
 		float3 P = cross(ray_dir, e2);
 		float det = dot(e1, P);
-
+		
 		// Not culling back-facing triangles
 		if (det > -M_EPSILON && det < M_EPSILON) {
 			return false;
 		}
-
+		
 		float invDet = 1.0f / det;
 		float3 T = ray_pos - v0;
 		float u = dot(T, P)*invDet;
@@ -84,7 +84,7 @@ struct triangle {
 			return true;
 		}
 
-		return false;
+		return true;
 
 
 	}
@@ -102,26 +102,27 @@ struct plane {
 	__device__ __host__ plane(float3 p0, float3 p1, float3 p2, float3 p3) {
 		
 		tri1 = triangle(p0, p1, p2);
-		tri2 = triangle(p1, p2, p3);
+		tri2 = triangle(p0, p3, p2);
 
 	}
 	__device__ __host__ plane() {
 
 		float3 p0 = make_float3(0, 0, 0);
-		float3 p1 = make_float3(1, 0, 0);
-		float3 p2 = make_float3(0, 1, 0);
-		float3 p3 = make_float3(1, 1, 0);
+		float3 p1 = make_float3(100, 0, 0);
+		float3 p2 = make_float3(0, 100, 0);
+		float3 p3 = make_float3(100, 100, 0);
 
 		tri1 = triangle(p0, p1, p2);
-		tri2 = triangle(p1, p2, p3);
+		tri2 = triangle(p0, p3, p2);
 
 	}
 
 	__device__ __host__ ~plane(){}
 	   	  
-	__device__ __host__ bool intersect(float3 ray_pos, float3 ray_dir, float &t) {
+	__device__ __host__ bool intersect(float3 ray_pos, float3 ray_dir, float &t) const{
 
-		if (tri1.intersect(ray_pos, ray_dir, t) || tri2.intersect(ray_pos, ray_dir, t)) return true;
+		if (tri1.intersect(ray_pos, ray_dir, t)) return true;
+		if (tri2.intersect(ray_pos, ray_dir, t)) return true;
 		
 		return false;
 

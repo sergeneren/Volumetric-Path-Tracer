@@ -118,11 +118,15 @@ float3 project_to_earth(float3 point, float3 dir, float bottom_radius, float top
 
 	float t0, t1;
 
-	if (raySphereIntersect(point + bottom_radius, dir, bottom_radius, t0, t1)) {
+	float3 temp_point = make_float3(point.x, point.y + bottom_radius, point.z);
+
+	if (raySphereIntersect(temp_point, dir, bottom_radius, t0, t1)) {
 		point += dir * t0;
 		return point;
 	}
-	if (raySphereIntersect(point + bottom_radius, dir, top_radius, t0, t1)) point += dir * t0;
+	if (raySphereIntersect(temp_point, dir, top_radius, t0, t1)) {
+		point += -dir * t1;
+	} 
 
 	return point;
 
@@ -130,17 +134,9 @@ float3 project_to_earth(float3 point, float3 dir, float bottom_radius, float top
 
 shadow_box::shadow_box(){}
 
-shadow_box::~shadow_box() {
-
-	cudaFree(cuda_planes);
-	delete[] bbox_planes;
-
-}
+shadow_box::~shadow_box() {}
 
 void shadow_box::build_planes(float azimuth, float elevation, AABB root_box, float bottom_radius, float top_radius) {
-
-
-	if(cuda_planes) cudaFree(cuda_planes);
 
 	float3 p0;
 	float3 p1;
@@ -151,7 +147,7 @@ void shadow_box::build_planes(float azimuth, float elevation, AABB root_box, flo
 	float3 pmax = root_box.pmax;
 
 	//Find sun direction 
-	float3 l_dir = -normalize(degree_to_cartesian(azimuth, elevation));
+	float3 l_dir = -degree_to_cartesian(azimuth, elevation);
 
 	// First Plane 
 	p0 = pmin;
@@ -159,7 +155,8 @@ void shadow_box::build_planes(float azimuth, float elevation, AABB root_box, flo
 	pr_0 = project_to_earth(p0, l_dir, bottom_radius, top_radius);
 	pr_1 = project_to_earth(p1, l_dir, bottom_radius, top_radius);
 	bbox_planes[0] = plane(p0, p1, pr_1, pr_0);
-
+	
+	
 	// Second Plane 
 	p0 = pmin;
 	p1 = make_float3(pmax.x, pmin.y, pmin.z);
@@ -194,8 +191,6 @@ void shadow_box::build_planes(float azimuth, float elevation, AABB root_box, flo
 	pr_0 = project_to_earth(p0, l_dir, bottom_radius, top_radius);
 	pr_1 = project_to_earth(p1, l_dir, bottom_radius, top_radius);
 	bbox_planes[5] = plane(p0, p1, pr_1, pr_0);
-
-
 
 
 	// Seventh Plane 

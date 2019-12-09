@@ -76,6 +76,7 @@
 #include "light.h"
 #include "atmosphere.h"
 #include "bvh/bvh_builder.h"
+#include "shadow_box.h"
 
 // Image Writers 
 
@@ -113,6 +114,7 @@ std::vector<vdb_instance> volume_files;
 
 static int num_volumes = 3; // TODO: read number of instances from json file 
 BVH_Builder bvh_builder;
+shadow_box root_shadow_box;
 
 // Cam parameters 
 camera	cam;
@@ -1140,7 +1142,7 @@ static void read_instance_file(std::string file_name) {
 		nis >> volume_files.at(i).num_instances;
 		volume_files.at(i).instances.resize(volume_files.at(i).num_instances);
 
-		for (int x = 0; x < volume_files.at(i).num_instances; ++x) {
+		for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
 			
 			std::string instance_parameters;
 			std::getline(stream, instance_parameters);
@@ -1167,7 +1169,7 @@ static void read_instance_file(std::string file_name) {
 		unique_vdb_files.push_back(GPU_VDB());
 		unique_vdb_files.at(i).loadVDB(volume_files.at(i).vdb_file, "density");
 
-		for (int x = 0; x < volume_files.at(i).num_instances; ++x) {
+		for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
 			
 			GPU_VDB new_instance(GPU_VDB(unique_vdb_files.at(i)));
 			
@@ -1411,7 +1413,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.max_interactions = 100;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
-	kernel_params.ray_depth = 10;
+	kernel_params.ray_depth = 1;
 	kernel_params.phase_g1 = 0.0f;
 	kernel_params.phase_g2 = 0.0f;
 	kernel_params.phase_f = 1.0f;
@@ -1452,7 +1454,7 @@ int main(const int argc, const char* argv[])
 
 	int max_interaction = 100;
 	float max_extinction = 1.0f;
-	int ray_depth = 10;
+	int ray_depth = 1;
 	double energy = .0f;
 	float azimuth = 120.0f;
 	float elevation = 30.0f;
@@ -1507,6 +1509,10 @@ int main(const int argc, const char* argv[])
 #endif // DEBUG_TEXTURES
 
 	
+	// Create shadow box
+
+	root_shadow_box.build_planes(azimuth, elevation, bvh_builder.octree.root_node->bbox, earth_atmosphere.atmosphere_parameters.bottom_radius, earth_atmosphere.atmosphere_parameters.top_radius);
+
 	// Create OIDN devices 
 	oidn::DeviceRef oidn_device = oidn::newDevice();
 	oidn_device.commit();
@@ -1648,6 +1654,7 @@ int main(const int argc, const char* argv[])
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
 			create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
+			root_shadow_box.build_planes(azimuth, elevation, bvh_builder.octree.root_node->bbox, atmos_params->bottom_radius, atmos_params->top_radius);
 			kernel_params.iteration = 0;
 		}
 
@@ -1765,7 +1772,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params };
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params, &root_shadow_box.cuda_planes };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
