@@ -1175,6 +1175,13 @@ static void read_instance_file(std::string file_name) {
 			
 			mat4 xform = unique_vdb_files.at(i).get_xform();
 			
+			// Set translation vector to 0 if it's coming from houdini
+			xform.translate(-xform.extract_translate());
+			
+			// Set scale
+			xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
+			
+			
 			// Apply instance rotation
 
 			float3 euler = quaternion_to_euler(
@@ -1189,16 +1196,14 @@ static void read_instance_file(std::string file_name) {
 				volume_files.at(i).instances.at(x).rotation[2],
 				volume_files.at(i).instances.at(x).rotation[3]);
 
-			//xform = rotation_matrix * xform;
+			xform = rotation_matrix * xform;
 			
 			// Translate with instance position
+
 			xform.translate(make_float3(
 				volume_files.at(i).instances.at(x).position[0],
 				volume_files.at(i).instances.at(x).position[1],
 				volume_files.at(i).instances.at(x).position[2]));
-			
-			// Set scale
-			//xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
 			
 
 			new_instance.set_xform(xform);

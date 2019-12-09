@@ -349,6 +349,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 
 	openvdb::Mat4R ref_xform = grid->transform().baseMap()->getAffineMap()->getMat4();
 	mat4 xform_temp = convert_to_mat4(ref_xform);
+	xform_temp.print();
 	set_xform(xform_temp);
 	return true;
 }

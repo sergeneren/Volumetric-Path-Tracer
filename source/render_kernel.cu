@@ -36,6 +36,8 @@
 //
 //-----------------------------------------------
 
+#define DDA_STEP_TRUE
+
 #define _USE_MATH_DEFINES
 #include <cmath>
 
