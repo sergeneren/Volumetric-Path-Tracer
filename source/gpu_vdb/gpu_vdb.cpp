@@ -178,12 +178,12 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 				for (int x = 0; x < dim_x; x++) {
 					int idx = z * dim_x*dim_y + y * dim_x + x;
 					float val = dense.getValue(idx);
-					vdb_info.max_density = max(vdb_info.max_density, val);
+					vdb_info.max_density = fmaxf(vdb_info.max_density, val);
 					volume_data_host[idx] = val;
 				}
 			}
 		}
-
+		printf("max density: %f\n", vdb_info.max_density);
 
 		// create 3D array
 		cudaArray *d_volumeArray = 0;

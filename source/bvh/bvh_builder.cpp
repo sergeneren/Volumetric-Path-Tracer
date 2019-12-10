@@ -69,13 +69,16 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 		octree.root_node->has_children = true;
 	}
 
+	octree.root_node->bbox.pmax += make_float3(1.0f);
+	octree.root_node->bbox.pmin -= make_float3(1.0f);
+
 	std::cout << "num volumes for root is " << octree.root_node->num_volumes << "\n";
 
 	printf("Root node bounds \npmin.x: %f, pmin.y: %f, pmin.z: %f \npmax.x: %f, pmax.y: %f, pmax.z: %f\n",
 		octree.root_node->bbox.pmin.x, octree.root_node->bbox.pmin.y, octree.root_node->bbox.pmin.z,
 		octree.root_node->bbox.pmax.x, octree.root_node->bbox.pmax.y, octree.root_node->bbox.pmax.z);
 
-	octree.m_debug = false; // make this true to debug octree nodes 
+	octree.m_debug = true; // make this true to debug octree nodes 
 	
 	checkCudaErrors(cudaMalloc(&root, sizeof(OCTNode)));
 	checkCudaErrors(cudaMemcpy(root, octree.root_node, sizeof(OCTNode), cudaMemcpyHostToDevice));

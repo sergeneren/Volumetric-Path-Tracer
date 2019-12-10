@@ -904,7 +904,7 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 
 	// object space position to index position
 	pos -= gpu_vdb.vdb_info.bmin;
-	
+
 	// index position to [0-1] position
 	pos.x /= float(gpu_vdb.vdb_info.dim.x);
 	pos.y /= float(gpu_vdb.vdb_info.dim.y);
@@ -1020,7 +1020,7 @@ __device__ inline int get_quadrant(OCTNode *root, float3 pos) {
 	int child_idx = -1;
 
 	for (int i = 0; i < 8; ++i) {
-		if(root->has_children){
+		if (root->has_children) {
 			if (Contains(root->children[i]->bbox, pos)) child_idx = i;
 		}
 	}
@@ -1045,9 +1045,9 @@ __device__ inline float3 Tr(
 
 	// Code path 1:
 	// This is the old transmittance estimate algorithm that is agnostic of octree structure 
-#ifdef DDA_STEP_TRUE
-	
-	float inv_max_density = 1 / volumes[0].vdb_info.max_density;
+#ifndef DDA_STEP_TRUE
+
+	float inv_max_density = 1.0f;
 
 	while (true) {
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
@@ -1062,42 +1062,48 @@ __device__ inline float3 Tr(
 	// Code path 2:
 	// This is a DDA stepping algorithm that checks the quadrant in Octree nodes and skips them if they contain no volumes 
 
-#ifndef DDA_STEP_TRUE  
+#ifdef DDA_STEP_TRUE  
 
 	while (true) {
 
-		int depth3_node = get_quadrant(root, ray_pos);
+		int depth3_node = get_quadrant(root, p);
 		if (depth3_node > -1) {
 			if (root->children[depth3_node]->num_volumes < 1) { //We are in the depth3 node but it is empty
-				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				ray_pos += ray_dir * (t_max + EPS);
+				root->children[depth3_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1);
+				p += ray_dir * t_max;
 				continue;
+
+
 			}
 		}
 		else break;
 
-		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
+		int depth2_node = get_quadrant(root->children[depth3_node], p);
 		if (depth2_node > -1) {
 			if (root->children[depth3_node]->children[depth2_node]->num_volumes < 1) { //We are in the depth2 node but it is empty
-				root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				ray_pos += ray_dir * (t_max + EPS);
+				root->children[depth3_node]->children[depth2_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1);
+				p += ray_dir * t_max;
 				continue;
 			}
 		}
 		else break;
 
 
-		int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
+		int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], p);
 		if (leaf_node > -1) {
 			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes < 1) { //We are in the leaf node but it is empty
-				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				ray_pos += ray_dir * (t_max + EPS);
+				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(p, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1);
+				p += ray_dir * t_max;
 				continue;
 			}
 		}
 		else break;
 
 		float inv_max_density = 1 / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
+		//float inv_max_density = 1.0f;
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		p += ray_dir * t;
@@ -1114,19 +1120,27 @@ __device__ inline float3 Tr(
 
 
 //determines if ray intersects volume pyramid projected by octree bbox and returns the calculated transmission
-__device__ inline bool get_shadow_box(Rand_state &randstate, float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, const plane *shadow_planes, OCTNode *root, Kernel_params kernel_params, float3 &tr) {
+__device__ inline bool get_shadow_box(
+	Rand_state &randstate, 
+	float3 ray_pos, 
+	float3 ray_dir, 
+	const GPU_VDB *volumes, 
+	const plane *shadow_planes, 
+	OCTNode *root, 
+	Kernel_params kernel_params, 
+	float3 &tr) {
 
 	float t = FLT_MAX;
 	bool hit = false;
 	for (int i = 0; i < 12; ++i) {
-	
+
 		if (shadow_planes[i].intersect(ray_pos, ray_dir, t)) {
 			hit = true;
 			//tr = make_float3(t);
-			ray_pos += ray_dir * (t+EPS);
+			ray_pos += ray_dir * (t + EPS);
 			break;
 
-		}	
+		}
 	}
 
 	if (!hit) return false;
@@ -1137,8 +1151,8 @@ __device__ inline bool get_shadow_box(Rand_state &randstate, float3 ray_pos, flo
 
 		float t_min, t_max;
 		if (root->bbox.Intersect(ray_pos, l_dir, t_min, t_max)) {
-			
-			float3 p = ray_pos + (l_dir * (t_min+EPS));		
+
+			float3 p = ray_pos + (l_dir * (t_min + EPS));
 			tr *= Tr(randstate, p, l_dir, kernel_params, volumes, root);
 		}
 		ray_pos += ray_dir;
@@ -1311,7 +1325,7 @@ __device__ inline float3 estimate_sun(
 
 	// Ld = Li * visibility.Tr * scattering_pdf / light_pdf  
 	//Ld = (length(sky_irradiance)*sun_irradiance) * tr  * phase_pdf;
-	Ld = tr  * phase_pdf;
+	Ld = tr * phase_pdf;
 
 	// No need for sampling BSDF with importance sampling
 	// please see: http://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Direct_Lighting.html#fragment-SampleBSDFwithmultipleimportancesampling-0
@@ -1375,7 +1389,7 @@ __device__ inline float3 sample(
 
 #ifndef DDA_STEP_TRUE
 
-	float inv_max_density = 1 / volumes[0].vdb_info.max_density;
+	float inv_max_density = 1.0f;
 	float inv_density_mult = 1.0f / kernel_params.density_mult;
 
 	while (true) {
@@ -1403,8 +1417,11 @@ __device__ inline float3 sample(
 		if (depth3_node > -1) {
 			if (root->children[depth3_node]->num_volumes < 1) { //We are in the depth3 node but it is empty
 				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				ray_pos += ray_dir * (100 + EPS);
+				t_max = fmaxf(t_max, 0.1);
+				ray_pos += ray_dir * t_max;
 				continue;
+
+
 			}
 		}
 		else break;
@@ -1413,7 +1430,8 @@ __device__ inline float3 sample(
 		if (depth2_node > -1) {
 			if (root->children[depth3_node]->children[depth2_node]->num_volumes < 1) { //We are in the depth2 node but it is empty
 				root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				ray_pos += ray_dir * (100 + EPS);
+				t_max = fmaxf(t_max, 0.1);
+				ray_pos += ray_dir * t_max;
 				continue;
 			}
 		}
@@ -1424,13 +1442,15 @@ __device__ inline float3 sample(
 		if (leaf_node > -1) {
 			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes < 1) { //We are in the leaf node but it is empty
 				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				ray_pos += ray_dir * (100 + EPS);
+				t_max = fmaxf(t_max, 0.1);
+				ray_pos += ray_dir * t_max;
 				continue;
 			}
 		}
 		else break;
 
-		float inv_max_density = 1 / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
+		float inv_max_density = 1.0f / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
+		//float inv_max_density = 1.0f;
 		float inv_density_mult = 1.0f / kernel_params.density_mult;
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
@@ -1558,11 +1578,11 @@ __device__ inline float3 direct_integrator(
 			}
 		}
 	}
-	
+
 	if (kernel_params.environment_type == 0) {
 
 		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * beta  * kernel_params.sun_color * kernel_params.sun_mult;
-		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta * kernel_params.sky_mult * kernel_params.sky_color ;
+		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta * kernel_params.sky_mult * kernel_params.sky_color;
 
 	}
 	else {
@@ -1595,7 +1615,7 @@ __device__ inline float3 shadow_box_test(float3 ray_pos, float3 ray_dir, const p
 
 	if (root->bbox.Intersect(ray_pos, ray_dir, tmin, tmax)) {
 		float d = tmax - tmin;
-		
+
 		L = make_float3(d / 100.0f);
 
 	}
@@ -1788,10 +1808,8 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		value = shadow_box_test(ray_pos, ray_dir, root_bbox_planes, oct_root, kernel_params);
-		//if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
-		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
-
+		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
+		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
 	}
 
 
