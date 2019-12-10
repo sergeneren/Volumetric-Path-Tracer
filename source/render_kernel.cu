@@ -1585,16 +1585,22 @@ __device__ inline float3 direct_integrator(
 // Test Kernels 
 //////////////////////////////////////////////////////////////////////////
 
-__device__ inline float3 shadow_box_test(float3 ray_pos, float3 ray_dir, const plane *planes) {
+__device__ inline float3 shadow_box_test(float3 ray_pos, float3 ray_dir, const plane *planes, const OCTNode *root, Kernel_params kernel_params) {
 
 	float3 L = BLACK;
 
-	float tr;
+	float tmin, tmax;
 
-	//if (get_shadow_box(ray_pos, ray_dir, planes, tr)) L = RED;
+	float3 l_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
+
+	if (root->bbox.Intersect(ray_pos, ray_dir, tmin, tmax)) {
+		float d = tmax - tmin;
+		
+		L = make_float3(d / 100.0f);
+
+	}
 
 	return L;
-
 }
 
 
@@ -1782,8 +1788,9 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
+		value = shadow_box_test(ray_pos, ray_dir, root_bbox_planes, oct_root, kernel_params);
+		//if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
+		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
 
 	}
 
