@@ -460,7 +460,7 @@ static GLFWwindow *init_opengl()
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
 
-	GLFWwindow *window = glfwCreateWindow(1280, 640, "volume path tracer", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(1800, 640, "volume path tracer", NULL, NULL);
 	if (!window) {
 		fprintf(stderr, "Error creating OpenGL window.\n");;
 		glfwTerminate();
