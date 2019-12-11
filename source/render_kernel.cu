@@ -1069,23 +1069,22 @@ __device__ inline float3 Tr(
 	while (true) {
 
 		int depth3_node = get_quadrant(root, ray_pos);
+
 		if (depth3_node > -1) {
-			if (root->children[depth3_node]->num_volumes < 1) { //We are in the depth3 node but it is empty
+			if (root->children[depth3_node]->num_volumes == 0) { //We are in the depth3 node but it is empty
 				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				t_max = fmaxf(t_max, 0.1);
+				t_max = fmaxf(t_max, 0.1f);
 				ray_pos += ray_dir * t_max;
 				continue;
-
-
 			}
 		}
 		else break;
 
 		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
 		if (depth2_node > -1) {
-			if (root->children[depth3_node]->children[depth2_node]->num_volumes < 1) { //We are in the depth2 node but it is empty
+			if (root->children[depth3_node]->children[depth2_node]->num_volumes == 0) { //We are in the depth2 node but it is empty
 				root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				t_max = fmaxf(t_max, 0.1);
+				t_max = fmaxf(t_max, 0.1f);
 				ray_pos += ray_dir * t_max;
 				continue;
 			}
@@ -1094,19 +1093,18 @@ __device__ inline float3 Tr(
 
 
 		int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
+
 		if (leaf_node > -1) {
-			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes < 1) { //We are in the leaf node but it is empty
+			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes == 0) { //We are in the leaf node but it is empty
 				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				t_max = fmaxf(t_max, 0.1);
+				t_max = fmaxf(t_max, 0.1f);
 				ray_pos += ray_dir * t_max;
 				continue;
 			}
 		}
 		else break;
 
-		//float inv_max_density = 1 / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
-		float inv_max_density = 1.0f / root->max_extinction;
-		//float inv_max_density = 1.0f;
+		float inv_max_density = 1 / root->max_extinction;
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		ray_pos += ray_dir * t;
@@ -1114,6 +1112,7 @@ __device__ inline float3 Tr(
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
 		tr = fmaxf(tr, make_float3(.0f));
+		if (length(tr) < EPS) break;
 	}
 
 #endif
@@ -1379,7 +1378,7 @@ __device__ inline float3 sample(
 	float3 &ray_pos,
 	const float3 &ray_dir,
 	bool &interaction,
-	float &tr,
+	float &Alpha,
 	const Kernel_params &kernel_params,
 	const GPU_VDB *volumes,
 	OCTNode *root)
@@ -1387,7 +1386,6 @@ __device__ inline float3 sample(
 	// Run delta tracking with octree traversal
 	// We assume that the ray_pos is inside the root bbox at the beginning 
 
-	
 	float t = .0f;
 	float t_min = .0f, t_max = .0f;
 
@@ -1445,24 +1443,22 @@ __device__ inline float3 sample(
 		
 		if (leaf_node > -1) {
 			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes == 0) { //We are in the leaf node but it is empty
-				//root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
-				//t_max = fmaxf(t_max, 0.1f);
-				//ray_pos += ray_dir * t_max;
-				//continue;
+				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1f);
+				ray_pos += ray_dir * t_max;
+				continue;
 			}
 		}
 		else break;
 		
-		//float inv_max_density = 1.0f / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction ;
-		float inv_max_density = 1.0f ;
-		
+		float inv_max_density = 1.0f / root->max_extinction ;		
 		float inv_density_mult = 1.0f / kernel_params.density_mult;
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
-		if (tr < 1.0f) tr += density;
+		if (Alpha < 1.0f) Alpha += density;
 
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
