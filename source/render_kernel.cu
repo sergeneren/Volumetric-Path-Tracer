@@ -1605,6 +1605,151 @@ __device__ inline float3 direct_integrator(
 // Test Kernels 
 //////////////////////////////////////////////////////////////////////////
 
+
+__device__ inline float3 sample_cost(
+	Rand_state &rand_state,
+	float3 &ray_pos,
+	const float3 &ray_dir,
+	bool &interaction,
+	float &tr,
+	const Kernel_params &kernel_params,
+	const GPU_VDB *volumes,
+	OCTNode *root)
+{
+	
+	float t_min, t_max, t = 0.0f;
+
+	float3 COST = BLACK;
+
+#ifndef DDA_STEP_TRUE
+
+	float inv_max_density = 1.0f;
+	float inv_density_mult = 1.0f / kernel_params.density_mult;
+
+	while (true) {
+
+		COST += RED;
+
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
+		ray_pos += ray_dir * t;
+		if (!Contains(root->bbox, ray_pos))	break;
+		float density = sum_density(ray_pos, root, volumes);
+		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		if (tr < 1.0f) tr += density;
+
+		if (density * inv_max_density > rand(&rand_state)) {
+			interaction = true;
+			return COST;
+		}
+	}
+#endif
+
+#ifdef DDA_STEP_TRUE
+	// Code path 2:
+	// This is the old algorithm with extra position awareness
+
+	while (true) {
+		
+		COST += RED;
+
+		int depth3_node = get_quadrant(root, ray_pos);
+		if (depth3_node > -1) {
+			if (root->children[depth3_node]->num_volumes < 1) { //We are in the depth3 node but it is empty
+				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1);
+				ray_pos += ray_dir * t_max;
+				continue;
+
+
+			}
+		}
+		else break;
+
+		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
+		if (depth2_node > -1) {
+			if (root->children[depth3_node]->children[depth2_node]->num_volumes < 1) { //We are in the depth2 node but it is empty
+				root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1);
+				ray_pos += ray_dir * t_max;
+				continue;
+			}
+		}
+		else break;
+
+
+		int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
+		if (leaf_node > -1) {
+			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes < 1) { //We are in the leaf node but it is empty
+				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1);
+				ray_pos += ray_dir * t_max;
+				continue;
+			}
+		}
+		else break;
+
+		float inv_max_density = 1.0f / root->children[depth3_node]->children[depth2_node]->children[leaf_node]->max_extinction;
+		//float inv_max_density = 1.0f;
+		float inv_density_mult = 1.0f / kernel_params.density_mult;
+
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
+		ray_pos += ray_dir * t;
+		if (!Contains(root->bbox, ray_pos))	break;
+		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		if (tr < 1.0f) tr += density;
+
+		if (density * inv_max_density > rand(&rand_state)) {
+			interaction = true;
+			return COST;
+		}
+	}
+
+#endif
+
+	return COST;
+
+}
+
+
+__device__ inline float3 cost_calculator(
+	Rand_state rand_state,
+	float3 ray_pos,
+	float3 ray_dir,
+	float &tr,
+	const Kernel_params kernel_params,
+	const GPU_VDB *gpu_vdb,
+	OCTNode *root,
+	const AtmosphereParameters atmosphere,
+	const plane *shadow_planes)
+{
+	float3 L = BLACK;
+	float3 beta = WHITE;
+	bool mi = false;
+	float t_min = FLT_MIN, t_max = FLT_MAX;
+
+	if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) {
+		ray_pos += ray_dir * (t_min + EPS);
+
+		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
+			mi = false;
+
+			beta += sample_cost(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root);
+			if (isBlack(beta)) break;
+
+			if (mi) { // medium interaction 
+				L = beta;
+				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
+			}
+		}
+	}
+
+	tr = 1.0f;
+	return L;
+
+}
+
+
 __device__ inline float3 shadow_box_test(float3 ray_pos, float3 ray_dir, const plane *planes, const OCTNode *root, Kernel_params kernel_params) {
 
 	float3 L = BLACK;
@@ -1808,8 +1953,9 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
+		value = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
+		//if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
+		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
 	}
 
 
