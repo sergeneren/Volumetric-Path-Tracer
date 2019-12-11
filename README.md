@@ -1,6 +1,6 @@
 # Volumetric Path Tracer
 
-![banner](https://github.com/sergeneren/Volumetric-Path-Tracer/blob/master/img/banner.png)
+![banner](https://github.com/sergeneren/Volumetric-Path-Tracer/blob/master/img/VPT_Banner.gif)
 
 VPT is a path tracer to render openvdb files on gpu using Cuda. It uses the [Ray Tracing Gems Vol 28.](https://github.com/Apress/ray-tracing-gems/tree/master/Ch_28_Ray_Tracing_Inhomogeneous_Volumes) as the base, and implements volume rendering algorithms from [PBRT](https://www.pbrt.org/). This repo is currently built and tested only under Windows.
 
