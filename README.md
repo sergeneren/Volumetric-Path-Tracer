@@ -2,7 +2,19 @@
 
 ![banner](https://github.com/sergeneren/Volumetric-Path-Tracer/blob/master/img/VPT_Banner.gif)
 
-VPT is a path tracer to render openvdb files on gpu using Cuda. It uses the [Ray Tracing Gems Vol 28.](https://github.com/Apress/ray-tracing-gems/tree/master/Ch_28_Ray_Tracing_Inhomogeneous_Volumes) as the base, and implements volume rendering algorithms from [PBRT](https://www.pbrt.org/). This repo is currently built and tested only under Windows.
+VPT is a volumetric path tracer to render openvdb files on gpu using Cuda. It uses the [Ray Tracing Gems Vol 28.](https://github.com/Apress/ray-tracing-gems/tree/master/Ch_28_Ray_Tracing_Inhomogeneous_Volumes) as the base, and implements volume rendering algorithms from [PBRT](https://www.pbrt.org/). Features of VPT is listed below 
+
+* Ability to render Open VDB files with thousands of ray depths on gpu
+* Realistic lighting with a procedural atmosphere and sun system
+* HDRI maps for environmental lighting
+* Point lights 
+* Eric Bruneton style sky implementation
+* Ability to render planetary atmospheres   
+* Instanced rendering of vdb files with custom file format (.ins)
+* BVH and Octree structures for fast ray traversal
+* Custom instance file writer plugin for Houdini written in HDK 
+
+This repo is currently built and tested only under Windows.
 
 ## Release Notes
 
