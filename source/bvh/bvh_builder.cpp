@@ -66,6 +66,7 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 		octree.root_node->bbox.pmin = fminf(octree.root_node->bbox.pmin, vdbs.at(i).Bounds().pmin);
 		octree.root_node->vol_indices[i] = i;
 		octree.root_node->num_volumes++;
+		octree.root_node->max_extinction = fmaxf(octree.root_node->max_extinction, vdbs.at(i).vdb_info.max_density);
 		octree.root_node->has_children = true;
 	}
 

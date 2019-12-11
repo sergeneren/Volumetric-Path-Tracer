@@ -212,7 +212,6 @@ __device__ void build_octree_recursive(GPU_VDB *vdbs, int num_volumes, OCTNode *
 				float3 pmin = root->bbox.pmin;
 				float3 pmax = root->bbox.pmax;
 				root->children[i]->bbox = divide_bbox(i, pmin, pmax);
-				root->children[i]->max_extinction = .0f; // does this not initilize?
 
 				int idx = 0;
 				for (int y = 0; y < num_volumes; ++y) {
