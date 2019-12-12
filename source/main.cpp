@@ -1118,6 +1118,38 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 	return true;
 }
 
+static bool load_emmission_texture(float3 **buffer, std::string filename, int &width, int &height) {
+
+	// Load blue noise texture from assets directory and send to gpu 
+
+	float *rgba;
+	const char *err;
+	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
+
+	if (ret != 0) {
+		printf("err: %s\n", err);
+		return false;
+	}
+
+	float3 *values = new float3[height * width];
+
+	int float_idx = 0;
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			int idx = y * width + x;
+			values[idx].x = rgba[float_idx++] * (1.0f / 2.2f); // r
+			values[idx].y = rgba[float_idx++] * (1.0f / 2.2f); // g
+			values[idx].z = rgba[float_idx++] * (1.0f / 2.2f); // b
+			float_idx++; // alpha
+		}
+	}
+
+	check_success(cudaMalloc(buffer, width * height * sizeof(float3)) == cudaSuccess);
+	check_success(cudaMemcpy(*buffer, values, width * height * sizeof(float3), cudaMemcpyHostToDevice) == cudaSuccess);
+
+	return true;
+}
+
 static void read_instance_file(std::string file_name) {
 	
 	assert(!file_name.empty());
@@ -1452,6 +1484,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.sky_mult = 1.0f;
 	kernel_params.env_sample_tex_res = 360;
 	kernel_params.integrator = 0;
+	kernel_params.emmission_scale = 1.0f;
 
 	std::string bn_path = ASSET_PATH;
 	bn_path.append("BN0.bmp");
@@ -1462,6 +1495,14 @@ int main(const int argc, const char* argv[])
 	kernel_params.blue_noise_buffer = bn_buffer;
 	update_debug_buffer(&debug_buffer, kernel_params);
 	kernel_params.debug_buffer = debug_buffer;
+
+	std::string emm_path = ASSET_PATH;
+	emm_path.append("blackbody_texture.exr");
+	float3 *emmission_buffer = NULL;
+	int emm_width, emm_height;
+	load_emmission_texture(&emmission_buffer, emm_path, emm_width, emm_height);
+	kernel_params.emmission_texture = emmission_buffer;
+
 
 	//kernel parameters env data
 	cudaArray_t env_val_data = 0;
@@ -1495,6 +1536,7 @@ int main(const int argc, const char* argv[])
 	bool use_ozone = true;
 	bool do_white_balance = true;
 	float exposure = 1.0f;
+	float emmission_scale = 1.0f;
 
 	// End ImGui parameters
 
@@ -1556,6 +1598,7 @@ int main(const int argc, const char* argv[])
 		kernel_params.azimuth = azimuth;
 		kernel_params.elevation = elevation;
 		kernel_params.debug = debug;
+		kernel_params.emmission_scale = emmission_scale;
 		if (energy == 0) kernel_params.energy_inject = 1.0;
 		else kernel_params.energy_inject = 1.0 + (energy / 100000.0);
 
@@ -1592,6 +1635,7 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
 		ImGui::InputDouble("Energy Injection", &energy, 0.0);
+		ImGui::SliderFloat("Emission Scale", &emmission_scale, .0f, 10.0f);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 
@@ -1650,7 +1694,8 @@ int main(const int argc, const char* argv[])
 		if (ctx->change ||
 			max_interaction != kernel_params.max_interactions ||
 			ray_depth != kernel_params.ray_depth ||
-			integrator != kernel_params.integrator) {
+			integrator != kernel_params.integrator ||
+			emmission_scale != kernel_params.emmission_scale) {
 
 			kernel_params.integrator = integrator;
 			//update_debug_buffer(&debug_buffer, kernel_params);

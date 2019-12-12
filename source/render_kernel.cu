@@ -897,7 +897,7 @@ __device__ inline float3 sample_env_tex(
 }
 
 
-__device__ __inline__ float3 get_emmission(float3 pos, const GPU_VDB &gpu_vdb) {
+__device__ __inline__ float3 get_emmission(float3 pos, Kernel_params kernel_params, const GPU_VDB &gpu_vdb) {
 
 	pos = gpu_vdb.get_xform().transpose().inverse().transform_point(pos);
 
@@ -911,19 +911,22 @@ __device__ __inline__ float3 get_emmission(float3 pos, const GPU_VDB &gpu_vdb) {
 
 	if (pos.x<.0f || pos.y<.0f || pos.z<.0f || pos.x>1.0f || pos.y>1.0f || pos.z>1.0f) return make_float3(.0f);
 
-	float heat = tex3D<float>(gpu_vdb.vdb_info.emission_texture, pos.x, pos.y, pos.z);
+	float index = tex3D<float>(gpu_vdb.vdb_info.emission_texture, pos.x, pos.y, pos.z);
 	
-	return make_float3(heat); // TODO blackbody transfer function here
+	index = clamp(index, .0f, 1.0f) * 255.0f; 
+	float3 emission = kernel_params.emmission_texture[int(index)] * kernel_params.emmission_scale;
+
+	return emission; // TODO blackbody transfer function here
 
 }
 
-__device__ __inline__ float3 sum_emission(float3 ray_pos, OCTNode *leaf_node, const GPU_VDB *volumes) {
+__device__ __inline__ float3 sum_emission(float3 ray_pos, Kernel_params kernel_params, OCTNode *leaf_node, const GPU_VDB *volumes) {
 
 	float3 emmission = make_float3(0.0f);
 
 	for (int i = 0; i < leaf_node->num_volumes; ++i) {
 
-		emmission += get_emmission(ray_pos, volumes[leaf_node->vol_indices[i]]);
+		emmission += get_emmission(ray_pos, kernel_params, volumes[leaf_node->vol_indices[i]]);
 
 	}
 
@@ -1145,16 +1148,81 @@ __device__ inline float3 Tr(
 		if (!Contains(root->bbox, ray_pos))	break;
 		
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
-		float3 emmission = sum_emission(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+		float3 emmission = sum_emission(ray_pos, kernel_params, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 		
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
-		tr = fmaxf(tr, make_float3(.0f)) + emmission;
+		tr = fmaxf(tr, make_float3(.0f));
 		if (length(tr) < EPS) break;
 	}
 
 #endif
 
 	return tr;
+}
+
+__device__ inline float3 estimate_emmission(
+	Rand_state &rand_state,
+	float3 ray_pos,
+	float3 ray_dir,
+	const Kernel_params &kernel_params,
+	const GPU_VDB *volumes,
+	OCTNode *root)
+{
+
+	// Run ratio tracking to estimate emission
+
+
+	float3 emission = BLACK;
+	float t_min, t_max, t = 0.0f; 
+
+	while (true) {
+
+		int depth3_node = get_quadrant(root, ray_pos);
+
+		if (depth3_node > -1) {
+			if (root->children[depth3_node]->num_volumes == 0) { //We are in the depth3 node but it is empty
+				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1f);
+				ray_pos += ray_dir * t_max;
+				continue;
+			}
+		}
+		else break;
+
+		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
+		if (depth2_node > -1) {
+			if (root->children[depth3_node]->children[depth2_node]->num_volumes == 0) { //We are in the depth2 node but it is empty
+				root->children[depth3_node]->children[depth2_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1f);
+				ray_pos += ray_dir * t_max;
+				continue;
+			}
+		}
+		else break;
+
+
+		int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
+
+		if (leaf_node > -1) {
+			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes == 0) { //We are in the leaf node but it is empty
+				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
+				t_max = fmaxf(t_max, 0.1f);
+				ray_pos += ray_dir * t_max;
+				continue;
+			}
+		}
+		else break;
+
+		float inv_max_density = 1 / root->max_extinction;
+
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
+		ray_pos += ray_dir * t;
+		if (!Contains(root->bbox, ray_pos))	break;
+		
+		emission += sum_emission(ray_pos, kernel_params, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+	}
+
+	return emission;
 }
 
 
@@ -1631,6 +1699,9 @@ __device__ inline float3 direct_integrator(
 		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
 
+	if (kernel_params.emmission_scale > 0 && mi) {
+		L += estimate_emmission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root)*beta;
+	}
 
 	tr = fminf(tr, 1.0f);
 	return L;

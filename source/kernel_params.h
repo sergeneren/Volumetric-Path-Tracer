@@ -49,6 +49,10 @@ struct Kernel_params {
 	float4 *raw_buffer;
 	float3 *blue_noise_buffer;
 
+	float3 *emmission_texture;
+	float emmission_scale;
+	float emmission_pivot;
+
 	// Progressive rendering state
 	unsigned int iteration;
 	float3 *accum_buffer;
