@@ -10,6 +10,7 @@ VPT is a volumetric path tracer to render openvdb files on gpu using Cuda. It us
 * Point lights 
 * Eric Bruneton style sky implementation
 * Depth of field 
+* Volume emission 
 * Ability to render planetary atmospheres   
 * Instanced rendering of vdb files with custom file format (.ins)
 * BVH and Octree structures for fast ray traversal
