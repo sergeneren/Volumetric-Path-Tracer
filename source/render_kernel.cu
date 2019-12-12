@@ -897,6 +897,40 @@ __device__ inline float3 sample_env_tex(
 }
 
 
+__device__ __inline__ float3 get_emmission(float3 pos, const GPU_VDB &gpu_vdb) {
+
+	pos = gpu_vdb.get_xform().transpose().inverse().transform_point(pos);
+
+	// object space position to index position
+	pos -= gpu_vdb.vdb_info.bmin;
+
+	// index position to [0-1] position
+	pos.x /= float(gpu_vdb.vdb_info.dim.x);
+	pos.y /= float(gpu_vdb.vdb_info.dim.y);
+	pos.z /= float(gpu_vdb.vdb_info.dim.z);
+
+	if (pos.x<.0f || pos.y<.0f || pos.z<.0f || pos.x>1.0f || pos.y>1.0f || pos.z>1.0f) return make_float3(.0f);
+
+	float heat = tex3D<float>(gpu_vdb.vdb_info.emission_texture, pos.x, pos.y, pos.z);
+	
+	return make_float3(heat); // TODO blackbody transfer function here
+
+}
+
+__device__ __inline__ float3 sum_emission(float3 ray_pos, OCTNode *leaf_node, const GPU_VDB *volumes) {
+
+	float3 emmission = make_float3(0.0f);
+
+	for (int i = 0; i < leaf_node->num_volumes; ++i) {
+
+		emmission += get_emmission(ray_pos, volumes[leaf_node->vol_indices[i]]);
+
+	}
+
+	return emmission;
+
+}
+
 __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 
 	// world space to object space
@@ -1109,9 +1143,12 @@ __device__ inline float3 Tr(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
+		
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+		float3 emmission = sum_emission(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+		
 		tr *= 1 - fmaxf(.0f, density*inv_max_density);
-		tr = fmaxf(tr, make_float3(.0f));
+		tr = fmaxf(tr, make_float3(.0f)) + emmission;
 		if (length(tr) < EPS) break;
 	}
 

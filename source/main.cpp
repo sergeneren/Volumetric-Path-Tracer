@@ -1321,7 +1321,7 @@ int main(const int argc, const char* argv[])
 
 		instances.clear();
 		instances.push_back(GPU_VDB());
-		instances.at(0).loadVDB(file_path, "density");
+		instances.at(0).loadVDB(file_path, "density", "heat");
 	}
 	else if (file_extension == ".ins") {
 		read_instance_file(fname);
