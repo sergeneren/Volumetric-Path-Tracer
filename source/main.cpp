@@ -64,6 +64,9 @@
 #include <assert.h>
 #include <vector>
 #include <random>
+
+#include "boost/filesystem.hpp"
+
 #undef APIENTRY
 
 #include "hdr_loader.h"
@@ -1310,7 +1313,23 @@ int main(const int argc, const char* argv[])
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
 
-	read_instance_file(fname);
+	std::string file_extension = boost::filesystem::extension(fname);
+	if (file_extension == ".vdb") {
+	
+		std::string file_path = ASSET_PATH;
+		file_path.append(fname);
+
+		instances.clear();
+		instances.push_back(GPU_VDB());
+		instances.at(0).loadVDB(file_path, "density");
+	}
+	else if (file_extension == ".ins") {
+		read_instance_file(fname);
+	}
+	else {
+		printf("Unknown file format! Please provide a valid vdb file or an instance file");
+	}
+	
 
 	// Setup modules and contexes 
 

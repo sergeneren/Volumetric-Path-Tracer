@@ -212,7 +212,7 @@ struct OCTNode {
 	__host__ __device__ bool isLeaf() { return !children; }
 
 	int num_volumes = 0;
-	int vol_indices[128];
+	int vol_indices[600];
 	float max_extinction = .0f;
 	float min_extinction = .0f;
 	float voxel_size = M_INF;
