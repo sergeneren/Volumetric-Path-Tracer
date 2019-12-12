@@ -1638,12 +1638,11 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
 		ImGui::InputDouble("Energy Injection", &energy, 0.0);
 		ImGui::SliderFloat("Emission Scale", &emmission_scale, .0f, 10.0f);
-		
+		ImGui::SliderFloat("Emission Pivot", &emission_pivot, .0f, 10.0f);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 
 		ImGui::Begin("Atmosphere Parameters");
-		ImGui::SliderFloat("Emission Pivot", &emission_pivot, .0f, 10.0f);
 		ImGui::SliderFloat("Sky Exposure", &exposure, -10.0f, 10.0f);
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
