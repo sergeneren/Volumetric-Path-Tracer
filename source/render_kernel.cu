@@ -1146,17 +1146,16 @@ __device__ inline float3 Tr(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
-		
+
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
-		float3 emmission = sum_emission(ray_pos, kernel_params, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 		
-		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		tr *= (1 - fmaxf(.0f, density*inv_max_density));
 		tr = fmaxf(tr, make_float3(.0f));
 		if (length(tr) < EPS) break;
 	}
 
 #endif
-
+	
 	return tr;
 }
 
@@ -1563,6 +1562,10 @@ __device__ inline float3 sample(
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+		
+		float index = clamp(density * 255.0f / kernel_params.emmission_pivot, .0f, 255.0f);
+		float3 density_color = kernel_params.emmission_texture[int(index)];
+
 		if (Alpha < 1.0f) Alpha += density;
 
 		if (density * inv_max_density > rand(&rand_state)) {
