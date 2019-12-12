@@ -60,7 +60,7 @@ VPT expects [vcpkg](https://github.com/Microsoft/vcpkg), Visual Studio 2017 and 
  
 ### Usage 
 
-VPT has two command line arguments: A vdb file name as first argument, and a second optional environment texture. If you wish to use an environment map with VPT just specify the hdri in command line, for example: 
+VPT has two command line arguments: A vdb file name or a an instance file (.ins format) as the first argument, and a second optional environment texture. If you wish to use an environment map with VPT just specify the hdri in command line, for example: 
 
 ```.\vpt.exe dragon.vdb Barce_Rooftop_C_3k.hdr```
 
