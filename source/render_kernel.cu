@@ -1565,13 +1565,13 @@ __device__ inline float3 sample(
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 		
 		int index = int( floorf( fminf(fmaxf((density * inv_max_density * 255.0f / kernel_params.emmission_pivot), 0.0f), 255.0f ) ) );
-		float3 density_color = kernel_params.density_color_texture[index];
+		float3 density_color = make_float3(1.0f) - kernel_params.density_color_texture[index];
 
 		if (Alpha < 1.0f) Alpha += density;
 
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
-			return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
+			return (density_color / kernel_params.extinction) * float(kernel_params.energy_inject) ;
 		}
 	}
 
