@@ -1356,7 +1356,7 @@ int main(const int argc, const char* argv[])
 
 		instances.clear();
 		instances.push_back(GPU_VDB());
-		instances.at(0).loadVDB(file_path, "density", "heat");
+		instances.at(0).loadVDB(file_path, "density");
 	}
 	else if (file_extension == ".ins") {
 		read_instance_file(fname);
@@ -1487,7 +1487,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.sky_mult = 1.0f;
 	kernel_params.env_sample_tex_res = 360;
 	kernel_params.integrator = 0;
-	kernel_params.emmission_scale = 1.0f;
+	kernel_params.emmission_scale = 0.0f;
 	kernel_params.emmission_pivot = 1.0f;
 
 	std::string bn_path = ASSET_PATH;
@@ -1545,7 +1545,7 @@ int main(const int argc, const char* argv[])
 	bool use_ozone = true;
 	bool do_white_balance = true;
 	float exposure = 1.0f;
-	float emmission_scale = 1.0f;
+	float emmission_scale = 0.0f;
 	float emission_pivot = 1.0f;
 	// End ImGui parameters
 

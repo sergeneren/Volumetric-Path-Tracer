@@ -1170,6 +1170,7 @@ __device__ inline float3 estimate_emmission(
 
 	// Run ratio tracking to estimate emission
 
+	if (kernel_params.emmission_scale == 0) return BLACK;
 
 	float3 emission = BLACK;
 	float t_min, t_max, t = 0.0f; 
@@ -1563,14 +1564,14 @@ __device__ inline float3 sample(
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 		
-		float index = clamp(density * inv_max_density * 255.0f / kernel_params.emmission_pivot, .0f, 255.0f);
-		float3 density_color = kernel_params.density_color_texture[int(index)];
+		int index = int( floorf( fminf(fmaxf((density * inv_max_density * 255.0f / kernel_params.emmission_pivot), 0.0f), 255.0f ) ) );
+		float3 density_color = kernel_params.density_color_texture[index];
 
 		if (Alpha < 1.0f) Alpha += density;
 
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
-			return density_color; //(kernel_params.albedo * density_color / kernel_params.extinction) * float(kernel_params.energy_inject);
+			return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
 		}
 	}
 
