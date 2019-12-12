@@ -1563,14 +1563,14 @@ __device__ inline float3 sample(
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 		
-		float index = clamp(density * 255.0f / kernel_params.emmission_pivot, .0f, 255.0f);
-		float3 density_color = kernel_params.emmission_texture[int(index)];
+		float index = clamp(density * inv_max_density * 255.0f / kernel_params.emmission_pivot, .0f, 255.0f);
+		float3 density_color = kernel_params.density_color_texture[int(index)];
 
 		if (Alpha < 1.0f) Alpha += density;
 
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
-			return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
+			return (kernel_params.albedo * density_color / kernel_params.extinction) * float(kernel_params.energy_inject);
 		}
 	}
 

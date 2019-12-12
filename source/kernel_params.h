@@ -53,6 +53,8 @@ struct Kernel_params {
 	float emmission_scale;
 	float emmission_pivot;
 
+	float3 *density_color_texture;
+
 	// Progressive rendering state
 	unsigned int iteration;
 	float3 *accum_buffer;

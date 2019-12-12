@@ -1118,9 +1118,12 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 	return true;
 }
 
-static bool load_emmission_texture(float3 **buffer, std::string filename, int &width, int &height) {
+static bool load_emmission_texture(float3 **buffer, std::string filename) {
 
 	// Load blue noise texture from assets directory and send to gpu 
+
+	int width;
+	int height;
 
 	float *rgba;
 	const char *err;
@@ -1500,9 +1503,14 @@ int main(const int argc, const char* argv[])
 	std::string emm_path = ASSET_PATH;
 	emm_path.append("blackbody_texture.exr");
 	float3 *emmission_buffer = NULL;
-	int emm_width, emm_height;
-	load_emmission_texture(&emmission_buffer, emm_path, emm_width, emm_height);
+	load_emmission_texture(&emmission_buffer, emm_path);
 	kernel_params.emmission_texture = emmission_buffer;
+
+	std::string color_path = ASSET_PATH;
+	color_path.append("density_color_texture.exr");
+	float3 *density_color_buffer = NULL;
+	load_emmission_texture(&density_color_buffer, color_path);
+	kernel_params.density_color_texture = density_color_buffer;
 
 
 	//kernel parameters env data
