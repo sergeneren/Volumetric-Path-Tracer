@@ -1485,6 +1485,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.env_sample_tex_res = 360;
 	kernel_params.integrator = 0;
 	kernel_params.emmission_scale = 1.0f;
+	kernel_params.emmission_pivot = 1.0f;
 
 	std::string bn_path = ASSET_PATH;
 	bn_path.append("BN0.bmp");
@@ -1537,7 +1538,7 @@ int main(const int argc, const char* argv[])
 	bool do_white_balance = true;
 	float exposure = 1.0f;
 	float emmission_scale = 1.0f;
-
+	float emission_pivot = 1.0f;
 	// End ImGui parameters
 
 	//Create env texture 
@@ -1599,6 +1600,7 @@ int main(const int argc, const char* argv[])
 		kernel_params.elevation = elevation;
 		kernel_params.debug = debug;
 		kernel_params.emmission_scale = emmission_scale;
+		kernel_params.emmission_pivot = emission_pivot;
 		if (energy == 0) kernel_params.energy_inject = 1.0;
 		else kernel_params.energy_inject = 1.0 + (energy / 100000.0);
 
@@ -1636,10 +1638,12 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
 		ImGui::InputDouble("Energy Injection", &energy, 0.0);
 		ImGui::SliderFloat("Emission Scale", &emmission_scale, .0f, 10.0f);
+		
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 
 		ImGui::Begin("Atmosphere Parameters");
+		ImGui::SliderFloat("Emission Pivot", &emission_pivot, .0f, 10.0f);
 		ImGui::SliderFloat("Sky Exposure", &exposure, -10.0f, 10.0f);
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
@@ -1695,7 +1699,8 @@ int main(const int argc, const char* argv[])
 			max_interaction != kernel_params.max_interactions ||
 			ray_depth != kernel_params.ray_depth ||
 			integrator != kernel_params.integrator ||
-			emmission_scale != kernel_params.emmission_scale) {
+			emmission_scale != kernel_params.emmission_scale || 
+			emission_pivot != kernel_params.emmission_pivot) {
 
 			kernel_params.integrator = integrator;
 			//update_debug_buffer(&debug_buffer, kernel_params);

@@ -913,7 +913,7 @@ __device__ __inline__ float3 get_emmission(float3 pos, Kernel_params kernel_para
 
 	float index = tex3D<float>(gpu_vdb.vdb_info.emission_texture, pos.x, pos.y, pos.z);
 	
-	index = clamp(index, .0f, 1.0f) * 255.0f; 
+	index = clamp(index * 255.0f / kernel_params.emmission_pivot, .0f, 255.0f) ;
 	float3 emission = kernel_params.emmission_texture[int(index)] * kernel_params.emmission_scale;
 
 	return emission; // TODO blackbody transfer function here
@@ -1633,7 +1633,7 @@ __device__ inline float3 vol_integrator(
 			if (isBlack(beta)) break;
 
 			if (mi) { // medium interaction 
-				L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb, root, atmosphere);
+				L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb, root, atmosphere) + estimate_emmission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
 
@@ -1700,7 +1700,7 @@ __device__ inline float3 direct_integrator(
 	}
 
 	if (kernel_params.emmission_scale > 0 && mi) {
-		L += estimate_emmission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root)*beta;
+		L += estimate_emmission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 	}
 
 	tr = fminf(tr, 1.0f);
