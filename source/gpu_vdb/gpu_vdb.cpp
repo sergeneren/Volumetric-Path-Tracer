@@ -249,14 +249,12 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		vol_size.depth = dim_z;
 
 		float *volume_data_host = (float *)malloc(dim_x * dim_y * dim_z * sizeof(float));
-		vdb_info.max_density = .0f;
 		// Copy vdb values
 		for (int z = 0; z < dim_z; z++) {
 			for (int y = 0; y < dim_y; y++) {
 				for (int x = 0; x < dim_x; x++) {
 					int idx = z * dim_x*dim_y + y * dim_x + x;
 					float val = dense.getValue(idx);
-					vdb_info.max_density = max(vdb_info.max_density, val);
 					volume_data_host[idx] = val;
 				}
 			}

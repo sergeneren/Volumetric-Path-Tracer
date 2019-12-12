@@ -1128,7 +1128,7 @@ static bool load_exr_texture(float3 **buffer, std::string filename) {
 	float *rgba;
 	const char *err;
 	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-
+	printf("loaded file %s, width: %i, height: %i \n", filename.c_str(), width, height);
 	if (ret != 0) {
 		printf("err: %s\n", err);
 		return false;
