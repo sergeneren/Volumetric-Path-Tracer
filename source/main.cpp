@@ -2008,6 +2008,7 @@ int main(const int argc, const char* argv[])
 	check_success(cudaFree(accum_buffer) == cudaSuccess);
 	check_success(cudaFree(raw_buffer) == cudaSuccess);
 	check_success(cudaFree(debug_buffer) == cudaSuccess);
+	check_success(cudaFree(cost_buffer) == cudaSuccess);
 
 	// Cleanup OpenGL.
 	glDeleteVertexArrays(1, &quad_vao);
