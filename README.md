@@ -20,7 +20,9 @@ This repo is currently built and tested only under Windows.
 
 ## Release Notes
 
-v1.1 Alpha
+v 1.0.2 Alpha
+
+*Please see the releases section for release notes.*
 
 ## Installation
 
