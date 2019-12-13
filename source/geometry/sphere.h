@@ -45,7 +45,7 @@
 
 
 
-__device__ __host__ inline bool solveQuadratic(
+__device__ __host__ inline bool find_discr(
 	float a,
 	float b,
 	float c,
@@ -73,6 +73,7 @@ __device__ __host__ inline bool solveQuadratic(
 
 
 class sphere {
+public:
 
 	__device__ __host__ sphere(){
 		center = make_float3(.0f);
@@ -90,13 +91,16 @@ class sphere {
 
 	__device__ __host__ ~sphere(){}
 
-	__device__ __host__ bool intersect(float3 ray_pos, float3 ray_dir, float &t_min, float &t_max) {
+	__device__ __host__ bool intersect(float3 ray_pos, float3 ray_dir, float &t_min, float &t_max) const {
 
-		float A = squared_length(ray_dir);
-		float B = 2 * (ray_dir.x * center.x + ray_dir.y * center.y + ray_dir.z * center.z);
-		float C = center.x * center.x + center.y * center.y + center.z * center.z - radius * radius;
+		float3 orig = ray_pos - center;
+		
 
-		if (!solveQuadratic(A, B, C, t_min, t_max)) return false;
+		float A = ray_dir.x * ray_dir.x + ray_dir.y * ray_dir.y + ray_dir.z * ray_dir.z;
+		float B = 2 * (ray_dir.x * orig.x + ray_dir.y * orig.y + ray_dir.z * orig.z);
+		float C = orig.x * orig.x + orig.y * orig.y + orig.z * orig.z - radius * radius;
+
+		if (!find_discr(A, B, C, t_min, t_max)) return false;
 
 		if (t_min > t_max) {
 			float tempt = t_max;
@@ -104,6 +108,7 @@ class sphere {
 			t_min = tempt;
 		}
 		return true;
+
 	}
 
 	float3 center;

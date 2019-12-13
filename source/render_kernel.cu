@@ -64,7 +64,8 @@ typedef unsigned long long	uint64;
 #include "camera.h"
 #include "light.h"
 #include "bvh/bvh.h"
-#include "plane.h"
+#include "geometry/plane.h"
+#include "geometry/sphere.h"
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)
@@ -292,6 +293,7 @@ __device__ inline float sample_spherical(
 
 	return isotropic();
 }
+
 
 __device__ inline float sample_hg(
 	float3 &wo,
@@ -1663,6 +1665,7 @@ __device__ inline float3 direct_integrator(
 	float &tr,
 	const Kernel_params kernel_params,
 	const GPU_VDB *gpu_vdb,
+	const sphere &ref_sphere,
 	OCTNode *root,
 	const AtmosphereParameters atmosphere,
 	const plane *shadow_planes)
@@ -1673,6 +1676,31 @@ __device__ inline float3 direct_integrator(
 	float3 env_pos = ray_pos;
 	float t_min, t_max;
 
+	
+	if (ref_sphere.intersect(ray_pos, ray_dir, t_min, t_max)) {
+
+		ray_pos += ray_dir * t_min;
+		float3 normal = normalize((ray_pos - ref_sphere.center) / ref_sphere.radius);
+		float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
+		
+		float phi = 2 * M_PI * rand(&rand_state);
+		float r2 = rand(&rand_state);
+		float r2s = sqrtf(r2);
+		
+		float3 w = normalize(nl);
+		float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
+		float3 v = cross(w, u);
+		
+		float3 hemisphere_dir = normalize(u*cosf(phi)*r2s + v * sinf(phi)*r2s + w * sqrtf(1 - r2));
+		float3 ref = reflect(ray_dir, normal);
+		ray_dir = lerp(ref, hemisphere_dir, kernel_params.emission_pivot);
+		beta *= ref_sphere.color;
+
+		ray_pos += ray_dir * EPS;
+
+	}
+
+	
 	if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) {
 		ray_pos += ray_dir * (t_min + EPS);
 
@@ -1687,6 +1715,8 @@ __device__ inline float3 direct_integrator(
 			}
 		}
 	}
+	
+
 
 	if (kernel_params.environment_type == 0) {
 
@@ -2032,6 +2062,7 @@ extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
 	const light_list lights,
 	const GPU_VDB *gpu_vdb,
+	const sphere &sphere,
 	BVHNode *root_node,
 	OCTNode *oct_root,
 	const AtmosphereParameters atmosphere,
@@ -2068,7 +2099,7 @@ extern "C" __global__ void volume_rt_kernel(
 	{
 		//cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
 		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
+		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere, root_bbox_planes);
 	}
 
 

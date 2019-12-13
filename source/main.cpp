@@ -80,6 +80,7 @@
 #include "atmosphere.h"
 #include "bvh/bvh_builder.h"
 #include "shadow_box.h"
+#include "sphere.h"
 
 // Image Writers 
 
@@ -1413,6 +1414,15 @@ int main(const int argc, const char* argv[])
 	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
 
+	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
+	float3 center = make_float3(200.0f, 30.0f, 0);
+	float radius = 30.0f;
+	sphere ref_sphere(center, radius);
+	ref_sphere.roughness = 1.0f;
+
+	CUdeviceptr d_geo_ptr;
+	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_geo_ptr, &ref_sphere, sizeof(sphere) * 1) == cudaSuccess);
 
 	// Send volume instances to gpu
 
@@ -1905,7 +1915,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params, &root_shadow_box.cuda_planes };
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params, &root_shadow_box.cuda_planes };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
