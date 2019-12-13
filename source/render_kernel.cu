@@ -897,7 +897,7 @@ __device__ inline float3 sample_env_tex(
 }
 
 
-__device__ __inline__ float3 get_emmission(float3 pos, Kernel_params kernel_params, const GPU_VDB &gpu_vdb) {
+__device__ __inline__ float3 get_emission(float3 pos, Kernel_params kernel_params, const GPU_VDB &gpu_vdb) {
 
 	pos = gpu_vdb.get_xform().transpose().inverse().transform_point(pos);
 
@@ -913,8 +913,8 @@ __device__ __inline__ float3 get_emmission(float3 pos, Kernel_params kernel_para
 
 	float index = tex3D<float>(gpu_vdb.vdb_info.emission_texture, pos.x, pos.y, pos.z);
 	
-	index = clamp(index * 255.0f / kernel_params.emmission_pivot, .0f, 255.0f) ;
-	float3 emission = kernel_params.emmission_texture[int(index)] * kernel_params.emmission_scale;
+	index = clamp(index * 255.0f / kernel_params.emission_pivot, .0f, 255.0f) ;
+	float3 emission = kernel_params.emission_texture[int(index)] * kernel_params.emission_scale;
 
 	return emission; // TODO blackbody transfer function here
 
@@ -926,7 +926,7 @@ __device__ __inline__ float3 sum_emission(float3 ray_pos, Kernel_params kernel_p
 
 	for (int i = 0; i < leaf_node->num_volumes; ++i) {
 
-		emmission += get_emmission(ray_pos, kernel_params, volumes[leaf_node->vol_indices[i]]);
+		emmission += get_emission(ray_pos, kernel_params, volumes[leaf_node->vol_indices[i]]);
 
 	}
 
@@ -1159,7 +1159,7 @@ __device__ inline float3 Tr(
 	return tr;
 }
 
-__device__ inline float3 estimate_emmission(
+__device__ inline float3 estimate_emission(
 	Rand_state &rand_state,
 	float3 ray_pos,
 	float3 ray_dir,
@@ -1170,7 +1170,7 @@ __device__ inline float3 estimate_emmission(
 
 	// Run ratio tracking to estimate emission
 
-	if (kernel_params.emmission_scale == 0) return BLACK;
+	if (kernel_params.emission_scale == 0) return BLACK;
 
 	float3 emission = BLACK;
 	float t_min, t_max, t = 0.0f; 
@@ -1564,7 +1564,7 @@ __device__ inline float3 sample(
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 		
-		int index = int( floorf( fminf(fmaxf((density * inv_max_density * 255.0f / kernel_params.emmission_pivot), 0.0f), 255.0f ) ) );
+		int index = int( floorf( fminf(fmaxf((density * inv_max_density * 255.0f / kernel_params.emission_pivot), 0.0f), 255.0f ) ) );
 		float3 density_color = make_float3(1.0f) - kernel_params.density_color_texture[index];
 
 		if (Alpha < 1.0f) Alpha += density;
@@ -1637,7 +1637,7 @@ __device__ inline float3 vol_integrator(
 			if (isBlack(beta)) break;
 
 			if (mi) { // medium interaction 
-				L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb, root, atmosphere) + estimate_emmission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
+				L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb, root, atmosphere) + estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
 
@@ -1703,8 +1703,8 @@ __device__ inline float3 direct_integrator(
 		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
 
-	if (kernel_params.emmission_scale > 0 && mi) {
-		L += estimate_emmission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
+	if (kernel_params.emission_scale > 0 && mi) {
+		L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 	}
 
 	tr = fminf(tr, 1.0f);

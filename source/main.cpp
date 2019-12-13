@@ -1487,8 +1487,8 @@ int main(const int argc, const char* argv[])
 	kernel_params.sky_mult = 1.0f;
 	kernel_params.env_sample_tex_res = 360;
 	kernel_params.integrator = 0;
-	kernel_params.emmission_scale = 0.0f;
-	kernel_params.emmission_pivot = 1.0f;
+	kernel_params.emission_scale = 0.0f;
+	kernel_params.emission_pivot = 1.0f;
 
 	std::string bn_path = ASSET_PATH;
 	bn_path.append("BN0.bmp");
@@ -1504,7 +1504,7 @@ int main(const int argc, const char* argv[])
 	emm_path.append("blackbody_texture.exr");
 	float3 *emmission_buffer = NULL;
 	load_exr_texture(&emmission_buffer, emm_path);
-	kernel_params.emmission_texture = emmission_buffer;
+	kernel_params.emission_texture = emmission_buffer;
 
 	std::string color_path = ASSET_PATH;
 	color_path.append("density_color_texture.exr");
@@ -1545,7 +1545,7 @@ int main(const int argc, const char* argv[])
 	bool use_ozone = true;
 	bool do_white_balance = true;
 	float exposure = 1.0f;
-	float emmission_scale = 0.0f;
+	float emission_scale = 0.0f;
 	float emission_pivot = 1.0f;
 	// End ImGui parameters
 
@@ -1607,8 +1607,8 @@ int main(const int argc, const char* argv[])
 		kernel_params.azimuth = azimuth;
 		kernel_params.elevation = elevation;
 		kernel_params.debug = debug;
-		kernel_params.emmission_scale = emmission_scale;
-		kernel_params.emmission_pivot = emission_pivot;
+		kernel_params.emission_scale = emission_scale;
+		kernel_params.emission_pivot = emission_pivot;
 		if (energy == 0) kernel_params.energy_inject = 1.0;
 		else kernel_params.energy_inject = 1.0 + (energy / 100000.0);
 
@@ -1645,7 +1645,7 @@ int main(const int argc, const char* argv[])
 		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
 		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
 		ImGui::InputDouble("Energy Injection", &energy, 0.0);
-		ImGui::SliderFloat("Emission Scale", &emmission_scale, .0f, 10.0f);
+		ImGui::SliderFloat("Emission Scale", &emission_scale, .0f, 10.0f);
 		ImGui::SliderFloat("Emission Pivot", &emission_pivot, .0f, 10.0f);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
@@ -1706,8 +1706,8 @@ int main(const int argc, const char* argv[])
 			max_interaction != kernel_params.max_interactions ||
 			ray_depth != kernel_params.ray_depth ||
 			integrator != kernel_params.integrator ||
-			emmission_scale != kernel_params.emmission_scale || 
-			emission_pivot != kernel_params.emmission_pivot) {
+			emission_scale != kernel_params.emission_scale || 
+			emission_pivot != kernel_params.emission_pivot) {
 
 			kernel_params.integrator = integrator;
 			//update_debug_buffer(&debug_buffer, kernel_params);

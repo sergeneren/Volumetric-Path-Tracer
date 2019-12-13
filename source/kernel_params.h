@@ -49,9 +49,9 @@ struct Kernel_params {
 	float4 *raw_buffer;
 	float3 *blue_noise_buffer;
 
-	float3 *emmission_texture;
-	float emmission_scale;
-	float emmission_pivot;
+	float3 *emission_texture;
+	float emission_scale;
+	float emission_pivot;
 
 	float3 *density_color_texture;
 
