@@ -1720,8 +1720,8 @@ __device__ inline float3 direct_integrator(
 
 		float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
-		L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f);
-
+		if(!mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f);
+		
 		ray_pos += ray_dir * EPS;
 
 	}
@@ -1729,7 +1729,8 @@ __device__ inline float3 direct_integrator(
 
 	if (kernel_params.environment_type == 0) {
 
-		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * beta  * kernel_params.sun_color * kernel_params.sun_mult;
+		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * beta;
+		float3 tr = Tr(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta * kernel_params.sky_mult * kernel_params.sky_color;
 
 	}

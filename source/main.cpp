@@ -1302,7 +1302,7 @@ static void update_camera(double dx, double dy, double mx, double my, int zoom_d
 
 	float3 earth_center = make_float3(.0f, -atm.atmosphere_parameters.bottom_radius, .0f);
 
-	//if (length(lookfrom - earth_center) < atm.atmosphere_parameters.bottom_radius) lookfrom += normalize(lookfrom - earth_center) * (atm.atmosphere_parameters.bottom_radius - length(lookfrom - earth_center));
+	if (length(lookfrom - earth_center) < atm.atmosphere_parameters.bottom_radius) lookfrom += normalize(lookfrom - earth_center) * (atm.atmosphere_parameters.bottom_radius - length(lookfrom - earth_center));
 
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
@@ -1378,6 +1378,11 @@ int main(const int argc, const char* argv[])
 		instances.clear();
 		instances.push_back(GPU_VDB());
 		instances.at(0).loadVDB(file_path, "density");
+
+		mat4 xform = instances.at(0).get_xform();
+		xform.translate(make_float3(0, 200, 0));
+		instances.at(0).set_xform(xform);
+
 	}
 	else if (file_extension == ".ins") {
 		read_instance_file(fname);
@@ -1606,8 +1611,8 @@ int main(const int argc, const char* argv[])
 
 
 	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
-	float3 center = make_float3(atmos_params->bottom_radius, atmos_params->bottom_radius, atmos_params->bottom_radius);
-	float radius = atmos_params->bottom_radius / 6.0f;
+	float3 center = make_float3(400, 200, 0);
+	float radius = 100;
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 1.0f;
 	ref_sphere.color = make_float3(0.18f);
