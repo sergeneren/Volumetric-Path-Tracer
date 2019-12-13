@@ -2066,7 +2066,7 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
+		//cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
 		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
 	}
@@ -2083,7 +2083,7 @@ extern "C" __global__ void volume_rt_kernel(
 	} 
 	else if (kernel_params.iteration < kernel_params.max_interactions) {
 		kernel_params.accum_buffer[idx] = kernel_params.accum_buffer[idx] +	(value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
-		kernel_params.cost_buffer[idx] = kernel_params.cost_buffer[idx] +	(value - kernel_params.cost_buffer[idx]) / (float)(kernel_params.iteration + 1);
+		kernel_params.cost_buffer[idx] = kernel_params.cost_buffer[idx] +	(cost - kernel_params.cost_buffer[idx]) / (float)(kernel_params.iteration + 1);
 	}
 
 	// Update display buffer (ACES Tonemapping).

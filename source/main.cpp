@@ -590,6 +590,7 @@ struct Window_context
 	bool moving;
 	bool panning;
 	bool save_image;
+	bool save_cost_image;
 	double move_start_x, move_start_y;
 	double move_dx, move_dy, move_mx, move_my;
 
@@ -632,8 +633,11 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 			ctx->change = true;
 			break;
-		case GLFW_KEY_S:
+		case GLFW_KEY_S: // Save linear image 
 			ctx->save_image = true;
+			break;
+		case GLFW_KEY_C: // Save cost image 
+			ctx->save_cost_image = true;
 			break;
 		case GLFW_KEY_F: // Frame camera to include objects
 
@@ -1327,6 +1331,8 @@ int main(const int argc, const char* argv[])
 	int height = -1;
 	window_context.change = false;
 	window_context.save_image = false;
+	window_context.save_cost_image = false;
+
 	// Init OpenGL window and callbacks.
 	window = init_opengl();
 	glfwSetWindowUserPointer(window, &window_context);
@@ -1856,6 +1862,34 @@ int main(const int argc, const char* argv[])
 			frame++;
 			ctx->save_image = false;
 		}
+
+
+
+		if (ctx->save_cost_image) {
+
+			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+
+			char frame_string[100];
+			sprintf_s(frame_string, "%d", frame);
+			char file_name[100] = "./render/cost.";
+			strcat_s(file_name, frame_string);
+
+#ifdef SAVE_OPENEXR
+			int res = width * height;
+			float3 *c = (float3*)malloc(res * sizeof(float3));
+			check_success(cudaMemcpy(c, cost_buffer, sizeof(float3) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
+
+			bool success = save_exr(c, width, height, file_name);
+			if (!success) printf("!Unable to save exr file.\n");
+
+#endif
+			frame++;
+			ctx->save_cost_image = false;
+		}
+
+
+
+
 
 		// Map GL buffer for access with CUDA.
 		check_success(cudaGraphicsMapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
