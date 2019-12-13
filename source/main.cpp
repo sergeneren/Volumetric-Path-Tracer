@@ -1302,7 +1302,7 @@ static void update_camera(double dx, double dy, double mx, double my, int zoom_d
 
 	float3 earth_center = make_float3(.0f, -atm.atmosphere_parameters.bottom_radius, .0f);
 
-	if (length(lookfrom - earth_center) < atm.atmosphere_parameters.bottom_radius) lookfrom += normalize(lookfrom - earth_center) * (atm.atmosphere_parameters.bottom_radius - length(lookfrom - earth_center));
+	//if (length(lookfrom - earth_center) < atm.atmosphere_parameters.bottom_radius) lookfrom += normalize(lookfrom - earth_center) * (atm.atmosphere_parameters.bottom_radius - length(lookfrom - earth_center));
 
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
@@ -1414,15 +1414,6 @@ int main(const int argc, const char* argv[])
 	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
 
-	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
-	float3 center = make_float3(200.0f, 30.0f, 0);
-	float radius = 30.0f;
-	sphere ref_sphere(center, radius);
-	ref_sphere.roughness = 1.0f;
-
-	CUdeviceptr d_geo_ptr;
-	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
-	check_success(cuMemcpyHtoD(d_geo_ptr, &ref_sphere, sizeof(sphere) * 1) == cudaSuccess);
 
 	// Send volume instances to gpu
 
@@ -1612,6 +1603,18 @@ int main(const int argc, const char* argv[])
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
 
 #endif // DEBUG_TEXTURES
+
+
+	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
+	float3 center = make_float3(atmos_params->bottom_radius, atmos_params->bottom_radius, atmos_params->bottom_radius);
+	float radius = atmos_params->bottom_radius / 6.0f;
+	sphere ref_sphere(center, radius);
+	ref_sphere.roughness = 1.0f;
+	ref_sphere.color = make_float3(0.18f);
+
+	CUdeviceptr d_geo_ptr;
+	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_geo_ptr, &ref_sphere, sizeof(sphere) * 1) == cudaSuccess);
 
 	
 	// Create shadow box

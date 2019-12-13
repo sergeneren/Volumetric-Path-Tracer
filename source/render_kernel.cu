@@ -1078,11 +1078,16 @@ __device__ inline float3 Tr(
 	OCTNode *root)
 {
 
+	
+
 	// Run ratio tracking to estimate transmittance
-
-
 	float3 tr = WHITE;
 	float t_min, t_max, t = 0.0f;
+
+	if (!Contains(root->bbox, ray_pos)) { // position is out of root bbox
+		if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) ray_pos += ray_dir * (t_min + EPS); // The direction is towards volume bbox 
+		else return tr;
+	}
 
 	// Code path 1:
 	// This is the old transmittance estimate algorithm that is agnostic of octree structure 
@@ -1439,7 +1444,7 @@ __device__ inline float3 estimate_sun(
 	// No need for sampling BSDF with importance sampling
 	// please see: http://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Direct_Lighting.html#fragment-SampleBSDFwithmultipleimportancesampling-0
 
-	return Ld;
+	return Ld * kernel_params.sun_color * kernel_params.sun_mult;
 
 }
 
@@ -1463,7 +1468,7 @@ __device__ inline float3 uniform_sample_one_light(
 	if (light_num < 1) {
 
 		if (kernel_params.sun_mult > .0f)
-			L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * kernel_params.sun_mult * kernel_params.sun_color;
+			L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, root, atmosphere);
 	}
 	else if (light_num >= 1 && light_num < 2) {
 
@@ -1676,30 +1681,9 @@ __device__ inline float3 direct_integrator(
 	float3 env_pos = ray_pos;
 	float t_min, t_max;
 
+	// TODO use bvh to determine if we intersect volume or geometry
 	
-	if (ref_sphere.intersect(ray_pos, ray_dir, t_min, t_max)) {
-
-		ray_pos += ray_dir * t_min;
-		float3 normal = normalize((ray_pos - ref_sphere.center) / ref_sphere.radius);
-		float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
-		
-		float phi = 2 * M_PI * rand(&rand_state);
-		float r2 = rand(&rand_state);
-		float r2s = sqrtf(r2);
-		
-		float3 w = normalize(nl);
-		float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
-		float3 v = cross(w, u);
-		
-		float3 hemisphere_dir = normalize(u*cosf(phi)*r2s + v * sinf(phi)*r2s + w * sqrtf(1 - r2));
-		float3 ref = reflect(ray_dir, normal);
-		ray_dir = lerp(ref, hemisphere_dir, kernel_params.emission_pivot);
-		beta *= ref_sphere.color;
-
-		ray_pos += ray_dir * EPS;
-
-	}
-
+	
 	
 	if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) {
 		ray_pos += ray_dir * (t_min + EPS);
@@ -1716,6 +1700,31 @@ __device__ inline float3 direct_integrator(
 		}
 	}
 	
+	if (ref_sphere.intersect(ray_pos, ray_dir, t_min, t_max)) {
+
+		ray_pos += ray_dir * t_min;
+		float3 normal = normalize((ray_pos - ref_sphere.center) / ref_sphere.radius);
+		float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
+
+		float phi = 2 * M_PI * rand(&rand_state);
+		float r2 = rand(&rand_state);
+		float r2s = sqrtf(r2);
+
+		float3 w = normalize(nl);
+		float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
+		float3 v = cross(w, u);
+
+		float3 hemisphere_dir = normalize(u*cosf(phi)*r2s + v * sinf(phi)*r2s + w * sqrtf(1 - r2));
+		float3 ref = reflect(ray_dir, normal);
+		ray_dir = lerp(ref, hemisphere_dir, kernel_params.emission_pivot);
+
+		float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
+
+		L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, root, atmosphere) * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f);
+
+		ray_pos += ray_dir * EPS;
+
+	}
 
 
 	if (kernel_params.environment_type == 0) {

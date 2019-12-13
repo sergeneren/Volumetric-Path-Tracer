@@ -95,7 +95,6 @@ public:
 
 		float3 orig = ray_pos - center;
 		
-
 		float A = ray_dir.x * ray_dir.x + ray_dir.y * ray_dir.y + ray_dir.z * ray_dir.z;
 		float B = 2 * (ray_dir.x * orig.x + ray_dir.y * orig.y + ray_dir.z * orig.z);
 		float C = orig.x * orig.x + orig.y * orig.y + orig.z * orig.z - radius * radius;
@@ -107,6 +106,12 @@ public:
 			t_max = t_min;
 			t_min = tempt;
 		}
+
+		if (t_min < 0) {
+			t_min = t_max;
+			if (t_min < 0) return false;
+		}
+
 		return true;
 
 	}
