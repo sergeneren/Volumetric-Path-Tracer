@@ -99,7 +99,7 @@ struct Kernel_params {
 	// Debug parameters
 
 	float3 *debug_buffer;
-	
+	float3 *cost_buffer;
 	// Integrators
 
 	int integrator;

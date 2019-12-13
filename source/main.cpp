@@ -737,6 +737,29 @@ static void resize_buffers(
 
 }
 
+static void resize_buffer(float3 **buffer, int width, int height) {
+
+	if (*buffer)	check_success(cudaFree(*buffer) == cudaSuccess);
+	check_success(cudaMalloc(buffer, width * height * sizeof(float3)) == cudaSuccess);
+
+}
+
+static void resize_buffer(float4 **buffer, int width, int height) {
+
+	if (*buffer)	check_success(cudaFree(*buffer) == cudaSuccess);
+	check_success(cudaMalloc(buffer, width * height * sizeof(float4)) == cudaSuccess);
+
+}
+
+static void update_debug_buffer(
+	float3 **debug_buffer_cuda,
+	Kernel_params kernel_params)
+{
+	if (*debug_buffer_cuda)	check_success(cudaFree(*debug_buffer_cuda) == cudaSuccess);
+	check_success(cudaMalloc(debug_buffer_cuda, 1000 * sizeof(float3)) == cudaSuccess);
+}
+
+
 // TO-DO: make gpu do this.  
 static bool create_cdf(
 	Kernel_params &kernel_params,
@@ -1282,15 +1305,6 @@ static void update_camera(double dx, double dy, double mx, double my, int zoom_d
 }
 
 
-static void update_debug_buffer(
-	float3 **debug_buffer_cuda,
-	Kernel_params kernel_params)
-{
-	if (*debug_buffer_cuda)	check_success(cudaFree(*debug_buffer_cuda) == cudaSuccess);
-	check_success(cudaMalloc(debug_buffer_cuda, 1000 * sizeof(float3)) == cudaSuccess);
-}
-
-
 int main(const int argc, const char* argv[])
 {
 
@@ -1462,6 +1476,7 @@ int main(const int argc, const char* argv[])
 	float4 *raw_buffer = NULL;
 	cudaGraphicsResource_t display_buffer_cuda = NULL;
 	float3 *debug_buffer = NULL;
+	float3 *cost_buffer = NULL;
 
 	Kernel_params kernel_params;
 	memset(&kernel_params, 0, sizeof(Kernel_params));
@@ -1497,6 +1512,7 @@ int main(const int argc, const char* argv[])
 	int bn_width, bn_height;
 	load_blue_noise(&bn_buffer, bn_path, bn_width, bn_height);
 	kernel_params.blue_noise_buffer = bn_buffer;
+	
 	update_debug_buffer(&debug_buffer, kernel_params);
 	kernel_params.debug_buffer = debug_buffer;
 
@@ -1785,6 +1801,9 @@ int main(const int argc, const char* argv[])
 			aspect = float(width) / float(height);
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 			resize_buffers(&accum_buffer, &raw_buffer, &display_buffer_cuda, width, height, display_buffer);
+			resize_buffer(&cost_buffer, width, height);
+
+			kernel_params.cost_buffer = cost_buffer;
 			kernel_params.accum_buffer = accum_buffer;
 			kernel_params.raw_buffer = raw_buffer;
 			glViewport(0, 0, width, height);
