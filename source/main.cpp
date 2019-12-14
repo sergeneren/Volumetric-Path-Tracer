@@ -1535,7 +1535,7 @@ int main(const int argc, const char* argv[])
 	kernel_params.emission_texture = emmission_buffer;
 
 	std::string color_path = ASSET_PATH;
-	color_path.append("density_color_texture.exr");
+	color_path.append("density_color_texture2.exr");
 	float3 *density_color_buffer = NULL;
 	load_exr_texture(&density_color_buffer, color_path);
 	kernel_params.density_color_texture = density_color_buffer;
