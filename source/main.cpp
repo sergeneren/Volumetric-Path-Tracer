@@ -1380,8 +1380,8 @@ int main(const int argc, const char* argv[])
 		instances.at(0).loadVDB(file_path, "density", "heat");
 
 		mat4 xform = instances.at(0).get_xform();
-		xform.scale(make_float3(20.0f));
-		//xform.translate(make_float3(0, 50, 0));
+		//xform.scale(make_float3(20.0f));
+		xform.translate(make_float3(0, 200, 0));
 		instances.at(0).set_xform(xform);
 
 	}
