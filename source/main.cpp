@@ -1168,9 +1168,9 @@ static bool load_exr_texture(float3 **buffer, std::string filename) {
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			int idx = y * width + x;
-			values[idx].x = rgba[float_idx++] * (1.0f / 2.2f); // r
-			values[idx].y = rgba[float_idx++] * (1.0f / 2.2f); // g
-			values[idx].z = rgba[float_idx++] * (1.0f / 2.2f); // b
+			values[idx].x = rgba[float_idx++]; // r
+			values[idx].y = rgba[float_idx++]; // g
+			values[idx].z = rgba[float_idx++]; // b
 			float_idx++; // alpha
 		}
 	}
