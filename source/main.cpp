@@ -1377,7 +1377,7 @@ int main(const int argc, const char* argv[])
 
 		instances.clear();
 		instances.push_back(GPU_VDB());
-		instances.at(0).loadVDB(file_path, "density", "heat");
+		instances.at(0).loadVDB(file_path, "density");
 
 		mat4 xform = instances.at(0).get_xform();
 		//xform.scale(make_float3(20.0f));
@@ -1614,7 +1614,7 @@ int main(const int argc, const char* argv[])
 
 
 	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
-	float3 center = make_float3(400, 200, 0);
+	float3 center = make_float3(100, 320, 0);
 	float radius = 100;
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 1.0f;

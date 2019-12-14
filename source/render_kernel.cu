@@ -1520,9 +1520,11 @@ __device__ inline float3 sample(
 	float3 &ray_pos,
 	const float3 &ray_dir,
 	bool &interaction,
+	int &obj,
 	float &Alpha,
 	const Kernel_params &kernel_params,
 	const GPU_VDB *volumes,
+	const sphere ref_sphere,
 	OCTNode *root)
 {
 	// Run delta tracking with octree traversal
@@ -1530,20 +1532,29 @@ __device__ inline float3 sample(
 
 	float t = .0f;
 	float t_min = .0f, t_max = .0f;
+	float distance = M_INF;
 
+	
+	
 #ifndef DDA_STEP_TRUE
 
 	float inv_max_density = 1.0f;
 	float inv_density_mult = 1.0f / kernel_params.density_mult;
-
+	
+	
 	while (true) {
+		bool geo = ref_sphere.intersect(ray_pos, ray_dir, distance, t_max);
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
+		
+
+		if (geo && t >= distance) {
+			obj = 2;
+			break;
+		}
+
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root, volumes);
-		tr *= 1 - fmaxf(.0f, density*inv_max_density);
-		if (tr < 1.0f) tr += density;
-
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
 			return (kernel_params.albedo / kernel_params.extinction) * float(kernel_params.energy_inject);
@@ -1595,10 +1606,19 @@ __device__ inline float3 sample(
 
 		float inv_max_density = 1.0f / root->max_extinction;
 		float inv_density_mult = 1.0f / kernel_params.density_mult;
-
+		bool geo = ref_sphere.intersect(ray_pos, ray_dir, distance, t_max);
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
+		
+		if (geo && t >= distance) {
+			obj = 2;
+			break;
+		}
+		
 		ray_pos += ray_dir * t;
+
 		if (!Contains(root->bbox, ray_pos))	break;
+		
+
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 
 		int index = int(floorf(fminf(fmaxf((density * inv_max_density * 255.0f / kernel_params.emission_pivot), 0.0f), 255.0f)));
@@ -1613,7 +1633,6 @@ __device__ inline float3 sample(
 	}
 
 #endif
-	
 	return WHITE;
 
 }
@@ -1665,13 +1684,14 @@ __device__ inline float3 vol_integrator(
 	float3 env_pos = ray_pos;
 	bool mi;
 	float t, tmax;
+	int obj; 
 
 	if (root->bbox.Intersect(ray_pos, ray_dir, t, tmax)) { // found an intersection
 		ray_pos += ray_dir * (t + EPS);
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root);
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, ref_sphere, root);
 			if (isBlack(beta)) break;
 
 			if (mi) { // medium interaction 
@@ -1710,21 +1730,21 @@ __device__ inline float3 direct_integrator(
 	float3 beta = WHITE;
 	bool mi = false;
 	float3 env_pos = ray_pos;
-	float t_min, t_max;
-
+	float t_min;
+	int obj;
 	// TODO use bvh to determine if we intersect volume or geometry
 
 	for (int ray_depth = 1; ray_depth <= kernel_params.ray_depth; ray_depth++) {
 		
-		int obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
+		obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
 
 		if (obj == 1) {
 			ray_pos += ray_dir * (t_min + EPS);
 			for (int volume_depth = 1; volume_depth <= kernel_params.volume_depth; volume_depth++) {
 				mi = false;
 				
-				beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root);
-				if (isBlack(beta)) break;
+				beta *= sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, ref_sphere, root);
+				if (isBlack(beta) || obj == 2) break;
 
 				if (mi) { // medium interaction 
 					sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
@@ -1736,9 +1756,9 @@ __device__ inline float3 direct_integrator(
 				L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			}
 		}
-
+		obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
 		if (obj == 2) {
-			ray_pos += ray_dir * t_min;
+			ray_pos += ray_dir * t_min ;
 			float3 normal = normalize((ray_pos - ref_sphere.center) / ref_sphere.radius);
 			float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
 
@@ -1758,7 +1778,7 @@ __device__ inline float3 direct_integrator(
 
 			ray_pos += normal * EPS;
 
-			L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f);
+			L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f) * beta;
 
 			env_pos = ray_pos;
 
@@ -1975,6 +1995,7 @@ __device__ inline float3 octree_integrator(
 	bool mi = false;
 	float3 env_pos = ray_pos;
 
+	int obj;
 	float t, tmax;
 
 	if (root_node->bbox.Intersect(ray_pos, ray_dir, t, tmax)) {
@@ -1983,7 +2004,7 @@ __device__ inline float3 octree_integrator(
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root_node);
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, ref_sphere, root_node);
 			if (isBlack(beta)) break;
 
 			if (mi) { // medium interaction 

@@ -194,10 +194,12 @@ __host__ __device__ inline bool AABB::Intersect(const float3 origin, const float
 	if (tmax <= 0.0f) return false; // box is behind
 	if (tmin > tmax) return false; // ray missed
 
+	
 	if (tmin < 0) {
 		tmin = tmax;
 		if (tmin < 0) return false;
 	}
+	
 
 	return true;
 }
