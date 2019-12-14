@@ -222,9 +222,9 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		checkCudaErrors(cudaCreateTextureObject(&vdb_info.density_texture, &texRes, &texDescr, NULL));
 
 	}
-
+	
 	// Fill emission channel if specified
-	if (!emission_channel.empty()) {
+	if (!emission_channel.empty() && emissionGridBase) {
 
 		openvdb::FloatGrid::Ptr grid = openvdb::gridPtrCast<openvdb::FloatGrid>(emissionGridBase);
 

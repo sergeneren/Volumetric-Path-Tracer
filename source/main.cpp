@@ -1377,7 +1377,7 @@ int main(const int argc, const char* argv[])
 
 		instances.clear();
 		instances.push_back(GPU_VDB());
-		instances.at(0).loadVDB(file_path, "density");
+		instances.at(0).loadVDB(file_path, "density", "heat");
 
 		mat4 xform = instances.at(0).get_xform();
 		//xform.scale(make_float3(20.0f));
