@@ -914,8 +914,8 @@ __device__ __inline__ float3 get_emission(float3 pos, Kernel_params kernel_param
 	if (pos.x<.0f || pos.y<.0f || pos.z<.0f || pos.x>1.0f || pos.y>1.0f || pos.z>1.0f) return make_float3(.0f);
 
 	float index = tex3D<float>(gpu_vdb.vdb_info.emission_texture, pos.x, pos.y, pos.z);
-	
-	index = clamp(index * 255.0f / kernel_params.emission_pivot, .0f, 255.0f) ;
+
+	index = clamp(index * 255.0f / kernel_params.emission_pivot, .0f, 255.0f);
 	float3 emission = kernel_params.emission_texture[int(index)] * kernel_params.emission_scale;
 
 	return emission; // TODO blackbody transfer function here
@@ -1077,10 +1077,10 @@ __device__ inline int get_closest_object(float3 ray_pos, float3 ray_dir, OCTNode
 
 	bool i1 = root->bbox.Intersect(ray_pos, ray_dir, tmin1, tmax1);
 	bool i2 = ref_sphere.intersect(ray_pos, ray_dir, tmin2, tmax2);
-	
-	if(i1 && !i2) { t_min = tmin1; return 1; }
-	if(!i1 && i2) { t_min = tmin2; return 2; }
-	if ( i1 && i2) {
+
+	if (i1 && !i2) { t_min = tmin1; return 1; }
+	if (!i1 && i2) { t_min = tmin2; return 2; }
+	if (i1 && i2) {
 		if (tmin1 < tmin2) { t_min = tmin1; return 1; }
 		if (tmin2 < tmin1) { t_min = tmin2; return 2; }
 	}
@@ -1100,8 +1100,8 @@ __device__ inline float3 Tr(
 {
 
 
-	
-	
+
+
 
 	// Run ratio tracking to estimate transmittance
 	float3 tr = WHITE;
@@ -1180,14 +1180,14 @@ __device__ inline float3 Tr(
 		if (!Contains(root->bbox, ray_pos))	break;
 
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
-		
+
 		tr *= (1 - fmaxf(.0f, density*inv_max_density));
 		tr = fmaxf(tr, make_float3(.0f));
 		if (length(tr) < EPS) break;
 	}
 
 #endif
-	
+
 	return tr;
 }
 
@@ -1205,7 +1205,7 @@ __device__ inline float3 estimate_emission(
 	if (kernel_params.emission_scale == 0) return BLACK;
 
 	float3 emission = BLACK;
-	float t_min, t_max, t = 0.0f; 
+	float t_min, t_max, t = 0.0f;
 
 	while (true) {
 
@@ -1250,7 +1250,7 @@ __device__ inline float3 estimate_emission(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
-		
+
 		emission += sum_emission(ray_pos, kernel_params, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 	}
 
@@ -1260,14 +1260,14 @@ __device__ inline float3 estimate_emission(
 
 //determines if ray intersects volume pyramid projected by octree bbox and returns the calculated transmission
 __device__ inline bool get_shadow_box(
-	Rand_state &randstate, 
-	float3 ray_pos, 
-	float3 ray_dir, 
-	const GPU_VDB *volumes, 
+	Rand_state &randstate,
+	float3 ray_pos,
+	float3 ray_dir,
+	const GPU_VDB *volumes,
 	const sphere ref_sphere,
-	const plane *shadow_planes, 
-	OCTNode *root, 
-	Kernel_params kernel_params, 
+	const plane *shadow_planes,
+	OCTNode *root,
+	Kernel_params kernel_params,
 	float3 &tr) {
 
 	float t = FLT_MAX;
@@ -1293,7 +1293,7 @@ __device__ inline bool get_shadow_box(
 		if (root->bbox.Intersect(ray_pos, l_dir, t_min, t_max)) {
 
 			float3 p = ray_pos + (l_dir * (t_min + EPS));
-			tr *= Tr(randstate, p, l_dir, kernel_params, volumes, ref_sphere , root);
+			tr *= Tr(randstate, p, l_dir, kernel_params, volumes, ref_sphere, root);
 		}
 		ray_pos += ray_dir;
 	}
@@ -1385,7 +1385,7 @@ __device__ inline float3 estimate_sky(
 			if (light_pdf == 0.0f) return Ld;
 			weight = power_heuristic(1, phase_pdf, 1, light_pdf);
 
-			float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb, ref_sphere ,root);
+			float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb, ref_sphere, root);
 
 			if (kernel_params.environment_type == 0)
 			{
@@ -1558,7 +1558,7 @@ __device__ inline float3 sample(
 	while (true) {
 
 		int depth3_node = get_quadrant(root, ray_pos);
-		
+
 		if (depth3_node > -1) {
 			if (root->children[depth3_node]->num_volumes == 0) { //We are in the depth3 node but it is empty
 				root->children[depth3_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
@@ -1580,9 +1580,9 @@ __device__ inline float3 sample(
 		}
 		else break;
 
-		
+
 		int leaf_node = get_quadrant(root->children[depth3_node]->children[depth2_node], ray_pos);
-		
+
 		if (leaf_node > -1) {
 			if (root->children[depth3_node]->children[depth2_node]->children[leaf_node]->num_volumes == 0) { //We are in the leaf node but it is empty
 				root->children[depth3_node]->children[depth2_node]->children[leaf_node]->bbox.Intersect(ray_pos, ray_dir, t_min, t_max);
@@ -1592,28 +1592,28 @@ __device__ inline float3 sample(
 			}
 		}
 		else break;
-		
-		float inv_max_density = 1.0f / root->max_extinction ;		
+
+		float inv_max_density = 1.0f / root->max_extinction;
 		float inv_density_mult = 1.0f / kernel_params.density_mult;
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
-		
-		int index = int( floorf( fminf(fmaxf((density * inv_max_density * 255.0f / kernel_params.emission_pivot), 0.0f), 255.0f ) ) );
+
+		int index = int(floorf(fminf(fmaxf((density * inv_max_density * 255.0f / kernel_params.emission_pivot), 0.0f), 255.0f)));
 		float3 density_color = kernel_params.density_color_texture[index];
 
 		if (Alpha < 1.0f) Alpha += density;
 
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
-			return (density_color / kernel_params.extinction) * float(kernel_params.energy_inject) ;
+			return (kernel_params.albedo * density_color / kernel_params.extinction) * float(kernel_params.energy_inject);
 		}
 	}
 
 #endif
-
+	
 	return WHITE;
 
 }
@@ -1713,55 +1713,61 @@ __device__ inline float3 direct_integrator(
 	float t_min, t_max;
 
 	// TODO use bvh to determine if we intersect volume or geometry
-	
-	int obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
 
-	if (obj == 1) {
-		ray_pos += ray_dir * (t_min + EPS);
-		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
-			mi = false;
+	for (int ray_depth = 1; ray_depth <= kernel_params.ray_depth; ray_depth++) {
+		
+		int obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
 
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root);
-			if (isBlack(beta)) break;
+		if (obj == 1) {
+			ray_pos += ray_dir * (t_min + EPS);
+			for (int volume_depth = 1; volume_depth <= kernel_params.volume_depth; volume_depth++) {
+				mi = false;
+				
+				beta *= sample(rand_state, ray_pos, ray_dir, mi, tr, kernel_params, gpu_vdb, root);
+				if (isBlack(beta)) break;
 
-			if (mi) { // medium interaction 
-				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
+				if (mi) { // medium interaction 
+					sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
+				}
+				
+			}
+			if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * beta;
+			if (kernel_params.emission_scale > 0 && mi) {
+				L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			}
 		}
+
+		if (obj == 2) {
+			ray_pos += ray_dir * t_min;
+			float3 normal = normalize((ray_pos - ref_sphere.center) / ref_sphere.radius);
+			float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
+
+			float phi = 2 * M_PI * rand(&rand_state);
+			float r2 = rand(&rand_state);
+			float r2s = sqrtf(r2);
+
+			float3 w = normalize(nl);
+			float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
+			float3 v = cross(w, u);
+
+			float3 hemisphere_dir = normalize(u*cosf(phi)*r2s + v * sinf(phi)*r2s + w * sqrtf(1 - r2));
+			float3 ref = reflect(ray_dir, normal);
+			ray_dir = lerp(ref, hemisphere_dir, ref_sphere.roughness);
+
+			float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
+
+			ray_pos += normal * EPS;
+
+			L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f);
+
+			env_pos = ray_pos;
+
+		}
+
 	}
-	
-	if (obj == 2) {
-		ray_pos += ray_dir * t_min;
-		float3 normal = normalize((ray_pos - ref_sphere.center) / ref_sphere.radius);
-		float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
-
-		float phi = 2 * M_PI * rand(&rand_state);
-		float r2 = rand(&rand_state);
-		float r2s = sqrtf(r2);
-
-		float3 w = normalize(nl);
-		float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
-		float3 v = cross(w, u);
-
-		float3 hemisphere_dir = normalize(u*cosf(phi)*r2s + v * sinf(phi)*r2s + w * sqrtf(1 - r2));
-		float3 ref = reflect(ray_dir, normal);
-		ray_dir = lerp(ref, hemisphere_dir, kernel_params.emission_pivot);
-
-		float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
-
-		ray_pos += normal * EPS;
-
-		L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f);
-		
-		
-
-	}
-
 
 	if (kernel_params.environment_type == 0) {
-
-		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * beta;
-		float3 tr = Tr(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, ref_sphere, root);
+		
 		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta * kernel_params.sky_mult * kernel_params.sky_color;
 
 	}
@@ -1774,9 +1780,7 @@ __device__ inline float3 direct_integrator(
 		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
 
-	if (kernel_params.emission_scale > 0 && mi) {
-		L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
-	}
+	
 
 	tr = fminf(tr, 1.0f);
 	return L;
@@ -1799,7 +1803,7 @@ __device__ inline float3 sample_cost(
 	const GPU_VDB *volumes,
 	OCTNode *root)
 {
-	
+
 	float t_min, t_max, t = 0.0f;
 
 	float3 COST = BLACK;
@@ -1823,7 +1827,7 @@ __device__ inline float3 sample_cost(
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
 			return COST;
-		}
+}
 	}
 #endif
 
@@ -1832,7 +1836,7 @@ __device__ inline float3 sample_cost(
 	// This is the old algorithm with extra position awareness
 
 	while (true) {
-		
+
 		COST += RED;
 
 		int depth3_node = get_quadrant(root, ray_pos);
@@ -2153,10 +2157,10 @@ extern "C" __global__ void volume_rt_kernel(
 	if (kernel_params.iteration == 0) {
 		kernel_params.accum_buffer[idx] = value;
 		kernel_params.cost_buffer[idx] = cost;
-	} 
+	}
 	else if (kernel_params.iteration < kernel_params.max_interactions) {
-		kernel_params.accum_buffer[idx] = kernel_params.accum_buffer[idx] +	(value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
-		kernel_params.cost_buffer[idx] = kernel_params.cost_buffer[idx] +	(cost - kernel_params.cost_buffer[idx]) / (float)(kernel_params.iteration + 1);
+		kernel_params.accum_buffer[idx] = kernel_params.accum_buffer[idx] + (value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
+		kernel_params.cost_buffer[idx] = kernel_params.cost_buffer[idx] + (cost - kernel_params.cost_buffer[idx]) / (float)(kernel_params.iteration + 1);
 	}
 
 	// Update display buffer (ACES Tonemapping).

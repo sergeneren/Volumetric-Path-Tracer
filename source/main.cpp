@@ -1377,10 +1377,11 @@ int main(const int argc, const char* argv[])
 
 		instances.clear();
 		instances.push_back(GPU_VDB());
-		instances.at(0).loadVDB(file_path, "density");
+		instances.at(0).loadVDB(file_path, "density", "heat");
 
 		mat4 xform = instances.at(0).get_xform();
-		xform.translate(make_float3(0, 200, 0));
+		xform.scale(make_float3(20.0f));
+		//xform.translate(make_float3(0, 50, 0));
 		instances.at(0).set_xform(xform);
 
 	}
@@ -1497,7 +1498,8 @@ int main(const int argc, const char* argv[])
 	kernel_params.max_interactions = 100;
 	kernel_params.exposure_scale = 1.0f;
 	kernel_params.environment_type = 0;
-	kernel_params.ray_depth = 1;
+	kernel_params.ray_depth = 50;
+	kernel_params.volume_depth = 1;
 	kernel_params.phase_g1 = 0.0f;
 	kernel_params.phase_g2 = 0.0f;
 	kernel_params.phase_f = 1.0f;
@@ -1554,7 +1556,8 @@ int main(const int argc, const char* argv[])
 
 	int max_interaction = 100;
 	float max_extinction = 1.0f;
-	int ray_depth = 1;
+	int ray_depth = 50;
+	int volume_depth = 1;
 	double energy = .0f;
 	float azimuth = 120.0f;
 	float elevation = 30.0f;
@@ -1643,6 +1646,7 @@ int main(const int argc, const char* argv[])
 		kernel_params.exposure_scale = powf(2.0f, ctx->exposure);
 		kernel_params.max_interactions = max_interaction;
 		kernel_params.ray_depth = ray_depth;
+		kernel_params.volume_depth = volume_depth;
 		kernel_params.render = render;
 		kernel_params.azimuth = azimuth;
 		kernel_params.elevation = elevation;
@@ -1674,6 +1678,7 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
 		ImGui::InputInt("Ray Depth", &ray_depth, 1);
+		ImGui::InputInt("Volume Depth", &volume_depth, 1);
 		ImGui::InputInt("Integrator", &integrator, 0);
 		ImGui::SliderFloat("Camera Aperture", &aperture, .0f, 10.0f);
 		ImGui::Checkbox("debug", &debug);

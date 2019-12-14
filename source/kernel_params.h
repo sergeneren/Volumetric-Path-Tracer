@@ -62,6 +62,7 @@ struct Kernel_params {
 	// Limit on path length
 	unsigned int max_interactions;		// Accumulation buffer count
 	int ray_depth;						// Max number of bounces 
+	int volume_depth;					// Max number of volume bounces 
 
 	//Volume parameters ( No absorbtion coefficient)
 
