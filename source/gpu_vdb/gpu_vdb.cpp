@@ -147,7 +147,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	// Copy the grids to 3d cuda arrays 
 
 	//fill_texture(densityGridBase, vdb_info.density_texture);
-	{
+	if(densityGridBase){
 		openvdb::FloatGrid::Ptr grid = openvdb::gridPtrCast<openvdb::FloatGrid>(densityGridBase);
 
 		openvdb::FloatTree tree = grid->tree();
