@@ -45,20 +45,34 @@
 #include <vector>
 #include <string>
 
-
+// Saves a jpg with given float3 buffer 
 bool save_texture_jpg(float3 *buffer, std::string filename, const int width, const int height);
+
+// Saves a jpg with given float4 buffer ignores w component 
 bool save_texture_jpg(float4 *buffer, std::string filename, const int width, const int height);
 
+// Saves a png with given float3 buffer ignores alpha
 bool save_texture_png(float3 *buffer, std::string filename, const int width, const int height);
+
+// Saves a png with given float4 buffer
 bool save_texture_png(float4 *buffer, std::string filename, const int width, const int height);
 
+// Saves a tga with given float3 buffer ignores alpha
 bool save_texture_tga(float3 *buffer, std::string filename, const int width, const int height);
+
+// Saves a tga with given float4 buffer
 bool save_texture_tga(float4 *buffer, std::string filename, const int width, const int height);
 
+// Saves a exr with given float3 buffer
 bool save_texture_exr(float3 *buffer, std::string filename, const int width, const int height, bool flip);
+
+// Saves a exr with given float4 buffer
 bool save_texture_exr(float4 *buffer, std::string filename, const int width, const int height, bool flip);
 
+// Loads an exr to a float3 buffer
 bool load_texture_exr(float3 **buffer, std::string filename, int &width, int &height, bool flip);
+
+// Loads an exr to a float4 buffer
 bool load_texture_exr(float4 **buffer, std::string filename, int &width, int &height, bool flip);
 
 
