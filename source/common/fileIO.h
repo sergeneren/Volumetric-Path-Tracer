@@ -70,10 +70,10 @@ bool save_texture_exr(float3 *buffer, std::string filename, const int width, con
 bool save_texture_exr(float4 *buffer, std::string filename, const int width, const int height, bool flip);
 
 // Loads an exr to a float3 buffer
-bool load_texture_exr(float3 **buffer, std::string filename, int &width, int &height, bool flip);
+bool load_texture_exr(float3 *buffer, std::string filename, int &width, int &height, bool flip);
 
 // Loads an exr to a float4 buffer
-bool load_texture_exr(float4 **buffer, std::string filename, int &width, int &height, bool flip);
+bool load_texture_exr(float4 *buffer, std::string filename, int &width, int &height, bool flip);
 
 
 

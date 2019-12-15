@@ -35,6 +35,8 @@
 //
 //-----------------------------------------------
 
+#define NOMINMAX
+#define _CRT_SECURE_NO_WARNINGS
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
@@ -58,9 +60,9 @@ bool save_texture_jpg(float3 * buffer, std::string filename, const int width, co
 		for (int y = 0; y < height; ++y) {
 
 			int index = i * height + y;
-			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].x * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].y * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].z * 255)), 255);
 
 		}
 	}
@@ -83,9 +85,9 @@ bool save_texture_jpg(float4 * buffer, std::string filename, const int width, co
 		for (int y = 0; y < height; ++y) {
 
 			int index = i * height + y;
-			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].x * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].y * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].z * 255)), 255);
 
 		}
 	}
@@ -107,9 +109,9 @@ bool save_texture_png(float3 * buffer, std::string filename, const int width, co
 		for (int y = 0; y < height; ++y) {
 
 			int index = i * height + y;
-			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].x * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].y * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].z * 255)), 255);
 
 		}
 	}
@@ -132,10 +134,10 @@ bool save_texture_png(float4 * buffer, std::string filename, const int width, co
 		for (int y = 0; y < height; ++y) {
 
 			int index = i * height + y;
-			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].w * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].x * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].y * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].z * 255)), 255);
+			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].w * 255)), 255);
 		}
 	}
 	stbi_flip_vertically_on_write(1);
@@ -263,7 +265,7 @@ bool save_texture_exr(float3 *buffer, std::string filename, const int width, con
 
 	for (int i = 0; i < image.num_channels; i++) images[i].clear();
 	images->clear();
-	delete images;
+	delete[] images;
 
 	return true;
 }
@@ -338,8 +340,7 @@ bool save_texture_exr(float4 *buffer, std::string filename, const int width, con
 
 	for (int i = 0; i < image.num_channels; i++) images[i].clear();
 	images->clear();
-	delete images;
-
+	delete[] images;
 	return true;
 }
 

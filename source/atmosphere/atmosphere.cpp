@@ -44,7 +44,7 @@
 
 #include "atmosphere/atmosphere.h"
 #include "atmosphere/constants.h"
-
+#include "fileIO.h"
 
 #include "matrix_math.h"
 #include <driver_types.h>
@@ -242,247 +242,6 @@ DensityProfile atmosphere::adjust_units(DensityProfile density) {
 	return density;
 }
 
-bool atmosphere::save_texture_jpg(float3 *buffer, std::string filename, const int width, const int height)
-{
-
-#ifndef DEBUG_TEXTURES
-
-	printf("Requested save texture_jpg but DEBUG_TEXTURES is not defined!");
-
-#endif // !DEBUG_TEXTURES
-
-
-
-#ifdef DEBUG_TEXTURES
-
-	unsigned char *data = new unsigned char[width*height * 3];
-
-	int idx = 0;
-	for (int i = 0; i < width; ++i) {
-		for (int y = 0; y < height; ++y) {
-
-			int index = i * height + y;
-			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
-
-		}
-	}
-	stbi_flip_vertically_on_write(1);
-	if(stbi_write_jpg(filename, width, height, 3, (void*)data, 100)) return true;
-		
-#endif
-
-	return false;
-}
-
-bool atmosphere::save_texture_jpg(float4 *buffer, std::string filename, const int width, const int height)
-{
-
-
-#ifndef DEBUG_TEXTURES
-
-	printf("Requested save texture_jpg but DEBUG_TEXTURES is not defined!");
-
-#endif // !DEBUG_TEXTURES
-
-
-
-#ifdef DEBUG_TEXTURES
-	unsigned char *data = new unsigned char[width*height * 4];
-
-	int idx = 0;
-	for (int i = 0; i < width; ++i) {
-		for (int y = 0; y < height; ++y) {
-
-			int index = i * height + y;
-			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
-			//data[idx++] = min(max(0, unsigned char(buffer[index].w * 255)), 255);
-			data[idx++] = 255;
-		}
-	}
-	stbi_flip_vertically_on_write(1);
-	if(stbi_write_png(filename, width, height, 4, (void*)data, 0)) return true;
-#endif
-
-	return false;
-
-}
-
-bool atmosphere::save_texture_exr(float3 *rgba, std::string filename, const int width, const int height)
-{
-
-
-
-#ifndef DEBUG_TEXTURES
-
-	printf("Requested save texture_exr but DEBUG_TEXTURES is not defined!");
-
-#endif // !DEBUG_TEXTURES
-
-
-
-#ifdef DEBUG_TEXTURES
-	   	  
-	EXRHeader header;
-	InitEXRHeader(&header);
-
-	EXRImage image;
-	InitEXRImage(&image);
-
-	image.num_channels = 3;
-
-	std::vector<float> images[3];
-	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
-
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-
-			int idx = i * width + j;
-
-			// Flip image vertically
-			i = height - i - 1;
-			int idx2 = i * width + j;
-
-			images[0][idx] = rgba[idx2].x;
-			images[1][idx] = rgba[idx2].y;
-			images[2][idx] = rgba[idx2].z;
-		}
-	}
-
-	float* image_ptr[3];
-
-	image_ptr[0] = &(images[2].at(0)); // B
-	image_ptr[1] = &(images[1].at(0)); // G
-	image_ptr[2] = &(images[0].at(0)); // R
-
-	image.images = (unsigned char**)image_ptr;
-	image.width = width;
-	image.height = height;
-
-	header.num_channels = 3;
-	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
-	strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
-	strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
-
-	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	for (int i = 0; i < header.num_channels; i++) {
-		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-	}
-
-	const char* err = NULL; // or nullptr in C++11 or later.
-	int ret = SaveEXRImageToFile(&image, &header, filename, &err);
-	if (ret != TINYEXR_SUCCESS) {
-		fprintf(stderr, "Save EXR err: %s\n", err);
-		return false;
-	}
-	printf("Saved exr file. [ %s ] \n", filename);
-
-	free(header.channels);
-	free(header.pixel_types);
-	free(header.requested_pixel_types);
-
-	
-#endif
-
-	return false;
-
-
-}
-
-bool atmosphere::save_texture_exr(float4 * rgba, std::string filename, const int width, const int height)
-{
-
-
-#ifndef DEBUG_TEXTURES
-
-	printf("Requested save texture_exr but DEBUG_TEXTURES is not defined!");
-
-#endif // !DEBUG_TEXTURES
-
-
-
-#ifdef DEBUG_TEXTURES
-
-	EXRHeader header;
-	InitEXRHeader(&header);
-
-	EXRImage image;
-	InitEXRImage(&image);
-
-	image.num_channels = 3;
-
-	std::vector<float> images[3];
-	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
-
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-
-			int idx = i * width + j;
-
-			// Flip image vertically
-			i = height - i - 1;
-			int idx2 = i * width + j;
-
-			images[0][idx] = rgba[idx2].x;
-			images[1][idx] = rgba[idx2].y;
-			images[2][idx] = rgba[idx2].z;
-		}
-	}
-
-	float* image_ptr[3];
-
-	image_ptr[0] = &(images[2].at(0)); // B
-	image_ptr[1] = &(images[1].at(0)); // G
-	image_ptr[2] = &(images[0].at(0)); // R
-
-	image.images = (unsigned char**)image_ptr;
-	image.width = width;
-	image.height = height;
-
-	header.num_channels = 3;
-	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
-	strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
-	strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
-
-	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	for (int i = 0; i < header.num_channels; i++) {
-		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-	}
-
-	const char* err = NULL; // or nullptr in C++11 or later.
-	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
-	if (ret != TINYEXR_SUCCESS) {
-		fprintf(stderr, "Save EXR err: %s\n", err);
-		return false;
-	}
-	printf("Saved exr file. [ %s ] \n", filename.c_str());
-
-	free(header.channels);
-	free(header.pixel_types);
-	free(header.requested_pixel_types);
-
-
-#endif
-
-	return false;
-
-
-}
-
-
-
-
 bool atmosphere::load_textures()
 {
 	
@@ -491,11 +250,10 @@ bool atmosphere::load_textures()
 
 	const char *filename = "atmosphere_textures/scattering.exr", *err;
 
-	LoadEXR(&buffer, &width, &height, filename, &err);
+	//LoadEXR(&buffer, &width, &height, filename, &err);
 
 	return true;
 }
-
 
 // Clear buffers for next round of precomputation
 atmosphere_error_t atmosphere::clear_buffers() {
@@ -976,9 +734,11 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
 
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
+	
+	save_texture_exr(host_transmittance_buffer, "./atmosphere_textures/transmittance.exr", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT, false);
 
-	print_texture(host_transmittance_buffer, "./atmosphere_textures/transmittance.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
 	delete[] host_transmittance_buffer;
+
 #endif
 
 	// Compute direct irradiance 
@@ -998,7 +758,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	float4 *host_irradiance_buffer = new float4[IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT];
 
 	checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
-	print_texture(host_irradiance_buffer, "./atmosphere_textures/irradiance.png", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
+	save_texture_exr(host_irradiance_buffer, "./atmosphere_textures/irradiance.exr", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT, true);
 	
 #endif
 
@@ -1030,13 +790,13 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	float4 *host_scattering_buffer = new float4[SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH];
 
 	checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-	print_texture(host_scattering_buffer, "./atmosphere_textures/scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+	save_texture_exr(host_scattering_buffer, "./atmosphere_textures/scattering.exr", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
 
 	checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_rayleigh_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-	print_texture(host_scattering_buffer, "./atmosphere_textures/delta_rayleigh_scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+	save_texture_exr(host_scattering_buffer, "./atmosphere_textures/delta_rayleigh_scattering.exr", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
 
 	checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_mie_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-	print_texture(host_scattering_buffer, "./atmosphere_textures/delta_mie_scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+	save_texture_exr(host_scattering_buffer, "./atmosphere_textures/delta_mie_scattering.exr", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
 
 #endif
 
@@ -1068,9 +828,9 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_scattering_density_buffer, scattering_size, cudaMemcpyDeviceToHost));
 		std::string name("./atmosphere_textures/scattering_density_");
 		name.append(std::to_string(scattering_order));
-		name.append(".png");
+		name.append(".exr");
 
-		print_texture(host_scattering_buffer, name.c_str(), SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+		save_texture_exr(host_scattering_buffer, name, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
 
 #endif
 
@@ -1092,8 +852,8 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
 		std::string name_indirect("./atmosphere_textures/delta_irradiance_");
 		name_indirect.append(std::to_string(scattering_order));
-		name_indirect.append(".png");
-		print_texture(host_irradiance_buffer, name_indirect.c_str(), IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
+		name_indirect.append(".exr");
+		save_texture_exr(host_irradiance_buffer, name_indirect, IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT, true);
 
 #endif
 
@@ -1115,8 +875,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		std::string name_multi("./atmosphere_textures/multiple_scattering_");
 		name_multi.append(std::to_string(scattering_order));
 		name_multi.append(".png");
-
-		print_texture(host_scattering_buffer, name_multi.c_str(), SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+		save_texture_exr(host_scattering_buffer, name_multi, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
 
 #endif
 
@@ -1176,8 +935,7 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 	float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
 
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
-
-	print_texture(host_transmittance_buffer, "./atmosphere_textures/transmittance.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
+	save_texture_exr(host_transmittance_buffer, "./atmosphere_textures/transmittance.exr", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT, true);
 	delete[] host_transmittance_buffer;
 #endif
 

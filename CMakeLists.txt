@@ -26,6 +26,19 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/vpt/bin)
 option (BUILD_VPT "Builds Volumetric Path Tracer" ON)
 option (BUILD_INSTANCER "Builds Houdini plugin to save instance files" OFF)
 
+set(DebugLevel "Error" CACHE STRING "Choose a debug level that VPT will use in message display")
+set_property(CACHE DebugLevel PROPERTY STRINGS Error Warning Log)
+
+message(STATUS "Debug Level is ${DebugLevel}")
+if(${DebugLevel} STREQUAL "Error")
+	add_definitions(-DDEBUG_LEVEL_ERROR)
+elseif(${DebugLevel} STREQUAL "Warning")
+	add_definitions(-DDEBUG_LEVEL_WARNING)
+elseif(${DebugLevel} STREQUAL "Log")
+	add_definitions(-DDEBUG_LEVEL_LOG)
+endif()
+
+
 
 if(BUILD_VPT)
 	add_subdirectory(${CMAKE_SOURCE_DIR}/source)

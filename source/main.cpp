@@ -36,9 +36,6 @@
 //-----------------------------------------------
 
 
-#define NOMINMAX
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -59,6 +56,7 @@
 #include <cstring>
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 #include <sys/stat.h>
 #include "helper_math.h"
 #include <assert.h>
@@ -81,6 +79,7 @@
 #include "bvh/bvh_builder.h"
 #include "shadow_box.h"
 #include "sphere.h"
+#include "fileIO.h"
 
 // Instance file parser
 #include "instancer_hda/volume_instance.h"
@@ -94,7 +93,6 @@
 
 #define OIDN_STATIC_LIB
 #include <OpenImageDenoise/oidn.hpp>
-
 
 // Atmosphere
 
@@ -271,177 +269,6 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 
 
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
-}
-
-// Save Exr Images
-static bool save_exr(float4 *rgba, int width, int height, std::string filename) {
-
-	filename.append(".exr");
-
-	EXRHeader header;
-	InitEXRHeader(&header);
-
-	EXRImage image;
-	InitEXRImage(&image);
-
-	image.num_channels = 4;
-
-	std::vector<float> images[4];
-	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
-
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-
-			int idx = i * width + j;
-
-			// Flip image vertically
-			i = height - i - 1;
-			int idx2 = i * width + j;
-
-			images[0][idx] = rgba[idx2].x;
-			images[1][idx] = rgba[idx2].y;
-			images[2][idx] = rgba[idx2].z;
-			images[3][idx] = rgba[idx2].w;
-
-		}
-	}
-
-	float* image_ptr[4];
-
-	image_ptr[0] = &(images[3].at(0)); // A
-	image_ptr[1] = &(images[2].at(0)); // B
-	image_ptr[2] = &(images[1].at(0)); // G
-	image_ptr[3] = &(images[0].at(0)); // R
-
-	image.images = (unsigned char**)image_ptr;
-	image.width = width;
-	image.height = height;
-
-	header.num_channels = 4;
-	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "A", 255); header.channels[0].name[strlen("A")] = '\0';
-	strncpy(header.channels[1].name, "B", 255); header.channels[1].name[strlen("B")] = '\0';
-	strncpy(header.channels[2].name, "G", 255); header.channels[2].name[strlen("G")] = '\0';
-	strncpy(header.channels[3].name, "R", 255); header.channels[3].name[strlen("R")] = '\0';
-
-	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	for (int i = 0; i < header.num_channels; i++) {
-		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-	}
-
-	const char* err = NULL; // or nullptr in C++11 or later.
-	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
-	if (ret != TINYEXR_SUCCESS) {
-		fprintf(stderr, "Save EXR err: %s\n", err);
-		return false;
-	}
-	printf("Saved exr file. [ %s ] \n", filename.c_str());
-
-	free(header.channels);
-	free(header.pixel_types);
-	free(header.requested_pixel_types);
-
-	return true;
-}
-
-static bool save_exr(float3 *rgba, int width, int height, std::string filename) {
-
-	filename.append(".exr");
-
-	EXRHeader header;
-	InitEXRHeader(&header);
-
-	EXRImage image;
-	InitEXRImage(&image);
-
-	image.num_channels = 3;
-
-	std::vector<float> images[3];
-	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
-
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-
-			int idx = i * width + j;
-
-			// Flip image vertically
-			i = height - i - 1;
-			int idx2 = i * width + j;
-
-			images[0][idx] = rgba[idx2].x;
-			images[1][idx] = rgba[idx2].y;
-			images[2][idx] = rgba[idx2].z;
-		}
-	}
-
-	float* image_ptr[3];
-
-	image_ptr[0] = &(images[2].at(0)); // B
-	image_ptr[1] = &(images[1].at(0)); // G
-	image_ptr[2] = &(images[0].at(0)); // R
-
-	image.images = (unsigned char**)image_ptr;
-	image.width = width;
-	image.height = height;
-
-	header.num_channels = 3;
-	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
-	strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
-	strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
-
-	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	for (int i = 0; i < header.num_channels; i++) {
-		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-	}
-
-	const char* err = NULL; // or nullptr in C++11 or later.
-	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
-	if (ret != TINYEXR_SUCCESS) {
-		fprintf(stderr, "Save EXR err: %s\n", err);
-		return false;
-	}
-	printf("Saved exr file. [ %s ] \n", filename.c_str());
-
-	free(header.channels);
-	free(header.pixel_types);
-	free(header.requested_pixel_types);
-
-	return true;
-}
-
-static bool save_tga(float4 *rgba, int width, int height, std::string filename) {
-
-	filename.append(".tga");
-
-	unsigned char* image_data;
-	image_data = new unsigned char[(width * height * 3)];
-
-	int idx = 0;
-	for (int i = 0; i < width * height; i++) {
-
-		unsigned char ir = (unsigned int)(255.0f * fminf(fmaxf(rgba[i].x, 0.0f), 1.0f));
-		unsigned char ig = (unsigned int)(255.0f * fminf(fmaxf(rgba[i].y, 0.0f), 1.0f));
-		unsigned char ib = (unsigned int)(255.0f * fminf(fmaxf(rgba[i].z, 0.0f), 1.0f));
-
-		image_data[idx++] = ir;
-		image_data[idx++] = ig;
-		image_data[idx++] = ib;
-
-	}
-
-	stbi_flip_vertically_on_write(1);
-	int success = stbi_write_tga(filename.c_str(), width, height, 3, image_data);
-
-	if (!success) return false;
-
-	return true;
 }
 
 // Initialize GLFW and GLEW.
@@ -756,7 +583,6 @@ static void update_debug_buffer(
 }
 
 
-// TO-DO: make gpu do this.  
 static bool create_cdf(
 	Kernel_params &kernel_params,
 	cudaArray_t *env_val_data,
@@ -1137,41 +963,6 @@ static bool load_blue_noise(float3 **buffer, std::string filename, int &width, i
 	return true;
 }
 
-static bool load_exr_texture(float3 **buffer, std::string filename) {
-
-	// Load blue noise texture from assets directory and send to gpu 
-
-	int width;
-	int height;
-
-	float *rgba;
-	const char *err;
-	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-	printf("loaded file %s, width: %i, height: %i \n", filename.c_str(), width, height);
-	if (ret != 0) {
-		printf("err: %s\n", err);
-		return false;
-	}
-
-	float3 *values = new float3[height * width];
-
-	int float_idx = 0;
-	for (int y = 0; y < height; ++y) {
-		for (int x = 0; x < width; ++x) {
-			int idx = y * width + x;
-			values[idx].x = rgba[float_idx++]; // r
-			values[idx].y = rgba[float_idx++]; // g
-			values[idx].z = rgba[float_idx++]; // b
-			float_idx++; // alpha
-		}
-	}
-
-	check_success(cudaMalloc(buffer, width * height * sizeof(float3)) == cudaSuccess);
-	check_success(cudaMemcpy(*buffer, values, width * height * sizeof(float3), cudaMemcpyHostToDevice) == cudaSuccess);
-
-	return true;
-}
-
 static void read_instance_file(std::string file_name) {
 	
 	assert(!file_name.empty());
@@ -1422,7 +1213,7 @@ int main(const int argc, const char* argv[])
 	// Create BVH from vdb vector 
 	AABB scene_bounds(make_float3(.0f), make_float3(.0f));
 	bvh_builder.m_debug_bvh = false;
-	bvh_builder.build_bvh(instances, instances.size(), scene_bounds);
+	bvh_builder.build_bvh(instances, (int)instances.size(), scene_bounds);
 
 	// Setup initial camera 
 	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
@@ -1520,19 +1311,25 @@ int main(const int argc, const char* argv[])
 	
 	update_debug_buffer(&debug_buffer, kernel_params);
 	kernel_params.debug_buffer = debug_buffer;
-
+	
+	
+	printf("Loading color lookup textures");
+	
+		
 	std::string emm_path = ASSET_PATH;
 	emm_path.append("blackbody_texture.exr");
 	float3 *emmission_buffer = NULL;
-	load_exr_texture(&emmission_buffer, emm_path);
-	kernel_params.emission_texture = emmission_buffer;
+	int file_width, file_height;
+	load_texture_exr(emmission_buffer, emm_path, file_width, file_height, false);
+	check_success(cudaMalloc(&kernel_params.emission_texture, file_width * file_height * sizeof(float3)) == cudaSuccess);
+	check_success(cudaMemcpy(kernel_params.emission_texture, &emmission_buffer, file_width * file_height * sizeof(float3), cudaMemcpyHostToDevice) == cudaSuccess);
 
 	std::string color_path = ASSET_PATH;
 	color_path.append("density_color_texture2.exr");
 	float3 *density_color_buffer = NULL;
-	load_exr_texture(&density_color_buffer, color_path);
-	kernel_params.density_color_texture = density_color_buffer;
-
+	load_texture_exr(density_color_buffer, color_path, file_width, file_height, false);
+	check_success(cudaMalloc(&kernel_params.density_color_texture, file_width * file_height * sizeof(float3)) == cudaSuccess);
+	check_success(cudaMemcpy(kernel_params.density_color_texture, &density_color_buffer, file_width * file_height * sizeof(float3), cudaMemcpyHostToDevice) == cudaSuccess);
 
 	//kernel parameters env data
 	cudaArray_t env_val_data = 0;
@@ -1868,7 +1665,7 @@ int main(const int argc, const char* argv[])
 			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			bool success = save_exr(c, width, height, file_name);
+			bool success = save_texture_exr(c, file_name, width, height, true);
 			if (!success) printf("!Unable to save exr file.\n");
 
 #endif
@@ -1893,7 +1690,7 @@ int main(const int argc, const char* argv[])
 			float3 *c = (float3*)malloc(res * sizeof(float3));
 			check_success(cudaMemcpy(c, cost_buffer, sizeof(float3) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			bool success = save_exr(c, width, height, file_name);
+			bool success = save_texture_exr(c, file_name, width, height, true);
 			if (!success) printf("!Unable to save exr file.\n");
 
 #endif
@@ -1977,7 +1774,7 @@ int main(const int argc, const char* argv[])
 				char file_name[100] = "./render/pathtrace.";
 				strcat_s(file_name, frame_string);
 
-				bool success = save_exr(temp_out_buffer, width, height, file_name);
+				bool success = save_texture_exr(temp_out_buffer, file_name, width, height, true);
 				if (!success) printf("!Unable to save exr file.\n");
 
 				frame++;
