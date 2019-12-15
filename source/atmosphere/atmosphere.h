@@ -117,6 +117,8 @@ public:
 	atmosphere_error_t recompute();
 	void update_model();
 
+	
+
 private:
 	atmosphere_error_t clear_buffers();
 	void update_model(const float3 lambdas);
@@ -132,10 +134,6 @@ private:
 	atmosphere_error_t init_functions(CUmodule &cuda_module);
 	atmosphere_error_t compute_transmittance(double* lambdas, double* luminance_from_radiance, bool blend, int num_scattering_orders);
 	DensityProfile adjust_units(DensityProfile density);
-	bool save_texture_jpg(float3 *buffer, const char* filename, const int width, const int height);
-	bool save_texture_jpg(float4 *buffer, const char* filename, const int width, const int height);
-	bool save_texture_exr(float3 *buffer, const char* filename, const int width, const int height);
-	bool save_texture_exr(float4 *buffer, const char* filename, const int width, const int height);
 	double coeff(double lambda, int component);
 	void sky_sun_radiance_to_luminance(float3& sky_spectral_radiance_to_luminance, float3& sun_spectral_radiance_to_luminance);
 	static double cie_color_matching_function_table_value(double wavelength, int column);

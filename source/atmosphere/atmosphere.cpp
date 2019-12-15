@@ -45,18 +45,6 @@
 #include "atmosphere/atmosphere.h"
 #include "atmosphere/constants.h"
 
-#ifdef DEBUG_TEXTURES
-#ifndef STB_IMAGE_WRITE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#endif // !STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
-#endif // DEBUG_TEXTURES
-
-#define TINYEXR_USE_MINIZ 0
-#include "zlib.h"
-#define TINYEXR_IMPLEMENTATION
-#include "tinyexr.h"
-
 
 #include "matrix_math.h"
 #include <driver_types.h>
@@ -254,8 +242,17 @@ DensityProfile atmosphere::adjust_units(DensityProfile density) {
 	return density;
 }
 
-bool atmosphere::save_texture_jpg(float3 * buffer, const char * filename, const int width, const int height)
+bool atmosphere::save_texture_jpg(float3 *buffer, std::string filename, const int width, const int height)
 {
+
+#ifndef DEBUG_TEXTURES
+
+	printf("Requested save texture_jpg but DEBUG_TEXTURES is not defined!");
+
+#endif // !DEBUG_TEXTURES
+
+
+
 #ifdef DEBUG_TEXTURES
 
 	unsigned char *data = new unsigned char[width*height * 3];
@@ -272,12 +269,25 @@ bool atmosphere::save_texture_jpg(float3 * buffer, const char * filename, const 
 		}
 	}
 	stbi_flip_vertically_on_write(1);
-	stbi_write_jpg(filename, width, height, 3, (void*)data, 100);
+	if(stbi_write_jpg(filename, width, height, 3, (void*)data, 100)) return true;
+		
 #endif
+
+	return false;
 }
 
-bool atmosphere::save_texture_jpg(float4 * buffer, const char * filename, const int width, const int height)
+bool atmosphere::save_texture_jpg(float4 *buffer, std::string filename, const int width, const int height)
 {
+
+
+#ifndef DEBUG_TEXTURES
+
+	printf("Requested save texture_jpg but DEBUG_TEXTURES is not defined!");
+
+#endif // !DEBUG_TEXTURES
+
+
+
 #ifdef DEBUG_TEXTURES
 	unsigned char *data = new unsigned char[width*height * 4];
 
@@ -294,14 +304,28 @@ bool atmosphere::save_texture_jpg(float4 * buffer, const char * filename, const 
 		}
 	}
 	stbi_flip_vertically_on_write(1);
-	stbi_write_png(filename, width, height, 4, (void*)data, 0);
+	if(stbi_write_png(filename, width, height, 4, (void*)data, 0)) return true;
 #endif
+
+	return false;
+
 }
 
-bool atmosphere::save_texture_exr(float3 *rgba, const char * filename, const int width, const int height)
+bool atmosphere::save_texture_exr(float3 *rgba, std::string filename, const int width, const int height)
 {
-#ifdef DEBUG_TEXTURES
 
+
+
+#ifndef DEBUG_TEXTURES
+
+	printf("Requested save texture_exr but DEBUG_TEXTURES is not defined!");
+
+#endif // !DEBUG_TEXTURES
+
+
+
+#ifdef DEBUG_TEXTURES
+	   	  
 	EXRHeader header;
 	InitEXRHeader(&header);
 
@@ -358,36 +382,102 @@ bool atmosphere::save_texture_exr(float3 *rgba, const char * filename, const int
 		fprintf(stderr, "Save EXR err: %s\n", err);
 		return false;
 	}
+	printf("Saved exr file. [ %s ] \n", filename);
+
+	free(header.channels);
+	free(header.pixel_types);
+	free(header.requested_pixel_types);
+
+	
+#endif
+
+	return false;
+
+
+}
+
+bool atmosphere::save_texture_exr(float4 * rgba, std::string filename, const int width, const int height)
+{
+
+
+#ifndef DEBUG_TEXTURES
+
+	printf("Requested save texture_exr but DEBUG_TEXTURES is not defined!");
+
+#endif // !DEBUG_TEXTURES
+
+
+
+#ifdef DEBUG_TEXTURES
+
+	EXRHeader header;
+	InitEXRHeader(&header);
+
+	EXRImage image;
+	InitEXRImage(&image);
+
+	image.num_channels = 3;
+
+	std::vector<float> images[3];
+	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
+
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+
+			int idx = i * width + j;
+
+			// Flip image vertically
+			i = height - i - 1;
+			int idx2 = i * width + j;
+
+			images[0][idx] = rgba[idx2].x;
+			images[1][idx] = rgba[idx2].y;
+			images[2][idx] = rgba[idx2].z;
+		}
+	}
+
+	float* image_ptr[3];
+
+	image_ptr[0] = &(images[2].at(0)); // B
+	image_ptr[1] = &(images[1].at(0)); // G
+	image_ptr[2] = &(images[0].at(0)); // R
+
+	image.images = (unsigned char**)image_ptr;
+	image.width = width;
+	image.height = height;
+
+	header.num_channels = 3;
+	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
+	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
+	strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
+	strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
+	strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
+
+	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
+	for (int i = 0; i < header.num_channels; i++) {
+		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
+		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
+	}
+
+	const char* err = NULL; // or nullptr in C++11 or later.
+	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
+	if (ret != TINYEXR_SUCCESS) {
+		fprintf(stderr, "Save EXR err: %s\n", err);
+		return false;
+	}
 	printf("Saved exr file. [ %s ] \n", filename.c_str());
 
 	free(header.channels);
 	free(header.pixel_types);
 	free(header.requested_pixel_types);
 
-	return true;
+
 #endif
-}
 
-bool atmosphere::save_texture_exr(float4 * buffer, const char * filename, const int width, const int height)
-{
-#ifdef DEBUG_TEXTURES
-	unsigned char *data = new unsigned char[width*height * 4];
+	return false;
 
-	int idx = 0;
-	for (int i = 0; i < width; ++i) {
-		for (int y = 0; y < height; ++y) {
 
-			int index = i * height + y;
-			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
-			//data[idx++] = min(max(0, unsigned char(buffer[index].w * 255)), 255);
-			data[idx++] = 255;
-		}
-	}
-	stbi_flip_vertically_on_write(1);
-	stbi_write_png(filename, width, height, 4, (void*)data, 0);
-#endif
 }
 
 

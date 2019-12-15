@@ -82,16 +82,7 @@
 #include "shadow_box.h"
 #include "sphere.h"
 
-// Image Writers 
-
-#include "stb_image_write.h"
-
-#define TINYEXR_USE_MINIZ 0
-#include "zlib.h"
-#define TINYEXR_IMPLEMENTATION
-#include "tinyexr.h"
-
-// File parsers
+// Instance file parser
 #include "instancer_hda/volume_instance.h"
 
 //#define SAVE_TGA

@@ -1,6 +1,4 @@
 
-set(CMAKE_EXE_LINKER_FLAGS "/FORCE")
-
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
@@ -45,7 +43,9 @@ file( GLOB	HEADERS
 	"*.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb/*.h")
 
-file ( GLOB COMMON "${CMAKE_CURRENT_SOURCE_DIR}/common/*.h"	)
+file ( GLOB COMMON 
+	"${CMAKE_CURRENT_SOURCE_DIR}/common/*.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/common/*.cpp"	)
 
 file ( GLOB GEOMETRY 
 	"${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.h"	
