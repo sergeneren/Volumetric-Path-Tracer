@@ -1,4 +1,6 @@
 
+set(CMAKE_EXE_LINKER_FLAGS "/FORCE")
+
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)

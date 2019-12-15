@@ -1975,9 +1975,6 @@ __device__ inline float3 shadow_box_test(float3 ray_pos, float3 ray_dir, const p
 	return L;
 }
 
-
-
-
 __device__ inline float3 octree_integrator(
 	Rand_state rand_state,
 	float3 ray_pos,

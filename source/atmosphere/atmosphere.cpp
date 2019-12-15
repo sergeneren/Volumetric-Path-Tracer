@@ -52,6 +52,10 @@
 #include "stb_image_write.h"
 #endif // DEBUG_TEXTURES
 
+#define TINYEXR_USE_MINIZ 0
+#include "zlib.h"
+#define TINYEXR_IMPLEMENTATION
+#include "tinyexr.h"
 
 
 #include "matrix_math.h"
@@ -61,6 +65,7 @@
 
 // TO-DO convert all device pointers to thrust device pointers 
 //#include "thrust/device_ptr.h"
+
 
 // Functions that hold the texture calculation kernels from atmosphere_kernels.ptx file
 atmosphere_error_t atmosphere::init_functions(CUmodule &cuda_module) {
@@ -270,6 +275,7 @@ void atmosphere::print_texture(float3 * buffer, const char * filename, const int
 	stbi_write_jpg(filename, width, height, 3, (void*)data, 100);
 #endif
 }
+
 void atmosphere::print_texture(float4 * buffer, const char * filename, const int width, const int height)
 {
 #ifdef DEBUG_TEXTURES
@@ -291,6 +297,67 @@ void atmosphere::print_texture(float4 * buffer, const char * filename, const int
 	stbi_write_png(filename, width, height, 4, (void*)data, 0);
 #endif
 }
+
+void atmosphere::print_texture_exr(float3 * buffer, const char * filename, const int width, const int height)
+{
+#ifdef DEBUG_TEXTURES
+
+	unsigned char *data = new unsigned char[width*height * 3];
+
+	int idx = 0;
+	for (int i = 0; i < width; ++i) {
+		for (int y = 0; y < height; ++y) {
+
+			int index = i * height + y;
+			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
+			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
+			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
+
+		}
+	}
+	stbi_flip_vertically_on_write(1);
+	stbi_write_jpg(filename, width, height, 3, (void*)data, 100);
+#endif
+}
+
+void atmosphere::print_texture_exr(float4 * buffer, const char * filename, const int width, const int height)
+{
+#ifdef DEBUG_TEXTURES
+	unsigned char *data = new unsigned char[width*height * 4];
+
+	int idx = 0;
+	for (int i = 0; i < width; ++i) {
+		for (int y = 0; y < height; ++y) {
+
+			int index = i * height + y;
+			data[idx++] = min(max(0, unsigned char(buffer[index].x * 255)), 255);
+			data[idx++] = min(max(0, unsigned char(buffer[index].y * 255)), 255);
+			data[idx++] = min(max(0, unsigned char(buffer[index].z * 255)), 255);
+			//data[idx++] = min(max(0, unsigned char(buffer[index].w * 255)), 255);
+			data[idx++] = 255;
+		}
+	}
+	stbi_flip_vertically_on_write(1);
+	stbi_write_png(filename, width, height, 4, (void*)data, 0);
+#endif
+}
+
+
+
+
+bool atmosphere::load_textures()
+{
+	
+	float *buffer;
+	int width, height;
+
+	const char *filename = "atmosphere_textures/scattering.exr", *err;
+
+	LoadEXR(&buffer, &width, &height, filename, &err);
+
+	return true;
+}
+
 
 // Clear buffers for next round of precomputation
 atmosphere_error_t atmosphere::clear_buffers() {
@@ -984,7 +1051,8 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 // Initialization function that fills the atmosphere parameters 
 atmosphere_error_t atmosphere::init()
 {
-	   
+	load_textures();
+
 	// Bind precomputation functions from ptx file 
 	CUresult error = cuModuleLoad(&atmosphere_module, "atmosphere_kernels.ptx");
 	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
