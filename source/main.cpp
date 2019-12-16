@@ -1067,6 +1067,11 @@ int main(const int argc, const char* argv[])
 		return 0;
 	}
 
+	// Create necessary folders 
+	if (!CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) log("Unable to create folder ""render"" ", WARNING);
+	if (!CreateDirectory("./atmosphere_textures", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) log("Unable to create folder ""atmosphere_textures"" ", WARNING);
+	if (!CreateDirectory("./atmosphere_textures_debug", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) log("Unable to create folder ""atmosphere_textures_debug"" ", WARNING);
+
 	Window_context window_context;
 	memset(&window_context, 0, sizeof(Window_context));
 
@@ -1364,12 +1369,6 @@ int main(const int argc, const char* argv[])
 	
 
 	log("Creating atmosphere...", LOG);
-	if (CreateDirectory("./atmosphere_textures", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) NULL;
-	else {
-		log("unable to create directory for atmosphere textures", ERROR);
-		exit(-1);
-	};
-
 	earth_atmosphere.texture_folder = "./atmosphere_textures";
 	earth_atmosphere.init();
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
@@ -1618,8 +1617,6 @@ int main(const int argc, const char* argv[])
 
 		if (ctx->save_image) {
 
-			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) NULL;
-
 			char frame_string[100];
 			sprintf_s(frame_string, "%d", frame);
 			char file_name[100] = "./render/pathtrace.";
@@ -1653,8 +1650,6 @@ int main(const int argc, const char* argv[])
 
 
 		if (ctx->save_cost_image) {
-
-			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) NULL;
 
 			char frame_string[100];
 			sprintf_s(frame_string, "%d", frame);
@@ -1742,8 +1737,6 @@ int main(const int argc, const char* argv[])
 
 				}
 				*/
-
-				if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) NULL;
 
 				char frame_string[100];
 				sprintf_s(frame_string, "%d", frame);
