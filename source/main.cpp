@@ -1362,7 +1362,7 @@ int main(const int argc, const char* argv[])
 
 	// Init atmosphere 
 	
-#ifdef DEBUG_TEXTURES
+
 	log("Creating atmosphere...", LOG);
 	if (CreateDirectory("./atmosphere_textures", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
 	else {
@@ -1374,7 +1374,7 @@ int main(const int argc, const char* argv[])
 	earth_atmosphere.init();
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
 
-#endif // DEBUG_TEXTURES
+
 
 	log("Setting up geometry and device pointers...", LOG);
 	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  

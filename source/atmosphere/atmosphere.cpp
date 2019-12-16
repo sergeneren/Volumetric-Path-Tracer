@@ -262,7 +262,8 @@ atmosphere_error_t atmosphere::save_textures()
 	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);
 	float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
-	file_path = texture_folder.append("/transmittance.exr");
+	file_path = texture_folder;
+	file_path.append("/transmittance.exr");
 	save_texture_exr(host_transmittance_buffer, file_path, TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT, false);
 	delete[] host_transmittance_buffer;
 
@@ -271,7 +272,9 @@ atmosphere_error_t atmosphere::save_textures()
 	int irradiance_size = IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT * sizeof(float4);
 	float4 *host_irradiance_buffer = new float4[IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT];
 	checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
-	file_path = texture_folder.append("/irradiance.exr");
+	file_path.clear();
+	file_path = texture_folder;
+	file_path.append("/irradiance.exr");
 	save_texture_exr(host_irradiance_buffer, file_path, IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT, true);
 	delete[] host_irradiance_buffer;
 
@@ -286,7 +289,9 @@ atmosphere_error_t atmosphere::save_textures()
 
 	for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
 
-		file_path = texture_folder.append("/scattering_");
+		file_path.clear();
+		file_path = texture_folder;
+		file_path.append("/scattering_");
 		file_path.append(std::to_string(i));
 		file_path.append(".exr");
 
@@ -312,7 +317,9 @@ atmosphere_error_t atmosphere::save_textures()
 	
 	for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
 
-		file_path = texture_folder.append("/single_scattering_");
+		file_path.clear();
+		file_path = texture_folder;
+		file_path.append("/single_scattering_");
 		file_path.append(std::to_string(i));
 		file_path.append(".exr");
 
@@ -964,9 +971,10 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 
 	}
+#ifdef DEBUG_TEXTURES
 	delete[] host_irradiance_buffer;
 	delete[] host_scattering_buffer;
-
+#endif
 	return ATMO_NO_ERR;
 
 }
