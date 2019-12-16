@@ -50,6 +50,7 @@
 #include "helper_cuda.h"
 
 #include "fileIO.h"
+#include "logger.h"
 
 bool save_texture_jpg(float3 * buffer, std::string filename, const int width, const int height)
 {
@@ -67,11 +68,14 @@ bool save_texture_jpg(float3 * buffer, std::string filename, const int width, co
 		}
 	}
 	stbi_flip_vertically_on_write(1);
-	
+
 	int res = stbi_write_jpg(filename.c_str(), width, height, 3, (void*)data, 100);
 	delete[] data;
 
-	if (res) return true;
+	if (res) {
+		log("Saved jpg file " + filename, LOG);
+		return true;
+	}
 	return false;
 }
 
@@ -96,7 +100,10 @@ bool save_texture_jpg(float4 * buffer, std::string filename, const int width, co
 	int res = stbi_write_jpg(filename.c_str(), width, height, 3, (void*)data, 100);
 	delete[] data;
 
-	if (res) return true;
+	if (res) {
+		log("Saved jpg file " + filename, LOG);
+		return true;
+	}
 	return false;
 }
 
@@ -120,7 +127,10 @@ bool save_texture_png(float3 * buffer, std::string filename, const int width, co
 	int res = stbi_write_png(filename.c_str(), width, height, 3, (void*)data, 0);
 	delete[] data;
 
-	if (res) return true;
+	if (res) {
+		log("Saved png file " + filename, LOG);
+		return true;
+	}
 	return false;
 
 }
@@ -144,7 +154,10 @@ bool save_texture_png(float4 * buffer, std::string filename, const int width, co
 	int res = stbi_write_png(filename.c_str(), width, height, 4, (void*)data, 0);
 	delete[] data;
 
-	if (res) return true;
+	if (res) {
+		log("Saved png file " + filename, LOG);
+		return true;
+	}
 	return false;
 }
 
@@ -169,7 +182,10 @@ bool save_texture_tga(float3 * buffer, std::string filename, const int width, co
 	int res = stbi_write_tga(filename.c_str(), width, height, 3, data);
 	delete[] data;
 
-	if (res) return true;
+	if (res) {
+		log("Saved tga file " + filename, LOG);
+		return true;
+	}
 	return false;
 
 }
@@ -195,7 +211,10 @@ bool save_texture_tga(float4 * buffer, std::string filename, const int width, co
 	int res = stbi_write_tga(filename.c_str(), width, height, 4, data);
 	delete[] data;
 
-	if (res) return true;
+	if (res) {
+		log("Saved tga file " + filename, LOG);
+		return true;
+	}
 	return false;
 }
 
@@ -254,10 +273,11 @@ bool save_texture_exr(float3 *buffer, std::string filename, const int width, con
 	const char* err = NULL; // or nullptr in C++11 or later.
 	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
 	if (ret != TINYEXR_SUCCESS) {
-		fprintf(stderr, "Save EXR err: %s\n", err);
+		log("Save EXR err: " + *err, ERROR);
 		return false;
 	}
-	printf("Saved exr file. [ %s ] \n", filename.c_str());
+
+	log("Saved exr file " + filename, LOG);
 
 	free(header.channels);
 	free(header.pixel_types);
@@ -285,7 +305,7 @@ bool save_texture_exr(float4 *buffer, std::string filename, const int width, con
 			int idx = i * width + j;
 
 			// Flip image vertically
-			if(flip) i = height - i - 1;
+			if (flip) i = height - i - 1;
 			int idx2 = i * width + j;
 
 			images[0][idx] = buffer[idx2].x;
@@ -325,10 +345,10 @@ bool save_texture_exr(float4 *buffer, std::string filename, const int width, con
 	const char* err = NULL; // or nullptr in C++11 or later.
 	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
 	if (ret != TINYEXR_SUCCESS) {
-		fprintf(stderr, "Save EXR err: %s\n", err);
+		log("Save EXR err: " + *err, ERROR);
 		return false;
 	}
-	printf("Saved exr file. [ %s ] \n", filename.c_str());
+	log("Saved exr file " + filename, LOG);
 
 	free(header.channels);
 	free(header.pixel_types);
@@ -342,12 +362,12 @@ bool load_texture_exr(float3 **buffer, std::string filename, int &width, int &he
 
 	float *rgba;
 	const char *err;
-	
+
 	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-	printf("loaded file %s, width: %i, height: %i \n", filename.c_str(), width, height);
+	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
 
 	if (ret != 0) {
-		printf("err: %s\n", err);
+		log("Save EXR err: " + *err, ERROR);
 		return false;
 	}
 
@@ -378,10 +398,10 @@ bool load_texture_exr(float4 **buffer, std::string filename, int &width, int &he
 	const char *err;
 
 	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-	printf("loaded file %s, width: %i, height: %i \n", filename.c_str(), width, height);
+	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
 
 	if (ret != 0) {
-		printf("err: %s\n", err);
+		log("Save EXR err: " + *err, ERROR);
 		return false;
 	}
 
@@ -411,9 +431,9 @@ bool load_texture_exr_gpu(float3 ** buffer, std::string filename, int & width, i
 	float *rgba;
 	const char *err;
 	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-	printf("loaded file %s, width: %i, height: %i \n", filename.c_str(), width, height);
+	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
 	if (ret != 0) {
-		printf("err: %s\n", err);
+		log("Save EXR err: " + *err, ERROR);
 		return false;
 	}
 
@@ -445,9 +465,9 @@ bool load_texture_exr_gpu(float4 ** buffer, std::string filename, int & width, i
 	float *rgba;
 	const char *err;
 	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-	printf("loaded file %s, width: %i, height: %i \n", filename.c_str(), width, height);
+	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
 	if (ret != 0) {
-		printf("err: %s\n", err);
+		log("Save EXR err: " + *err, ERROR);
 		return false;
 	}
 
