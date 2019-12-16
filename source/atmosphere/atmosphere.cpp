@@ -933,7 +933,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 		checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
 
-		save_texture_exr(host_transmittance_buffer, "./atmosphere_textures/transmittance.exr", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT, false);
+		save_texture_png(host_transmittance_buffer, "./atmosphere_textures/transmittance.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
 
 		delete[] host_transmittance_buffer;
 
@@ -956,7 +956,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		float4 *host_irradiance_buffer = new float4[IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT];
 
 		checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
-		save_texture_exr(host_irradiance_buffer, "./atmosphere_textures/irradiance.exr", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT, true);
+		save_texture_png(host_irradiance_buffer, "./atmosphere_textures/irradiance.png", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
 
 #endif
 
@@ -988,13 +988,13 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		float4 *host_scattering_buffer = new float4[SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH];
 
 		checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-		save_texture_exr(host_scattering_buffer, "./atmosphere_textures/scattering.exr", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
+		save_texture_png(host_scattering_buffer, "./atmosphere_textures/scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 		checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_rayleigh_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-		save_texture_exr(host_scattering_buffer, "./atmosphere_textures/delta_rayleigh_scattering.exr", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
+		save_texture_png(host_scattering_buffer, "./atmosphere_textures/delta_rayleigh_scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 		checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_mie_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-		save_texture_exr(host_scattering_buffer, "./atmosphere_textures/delta_mie_scattering.exr", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
+		save_texture_png(host_scattering_buffer, "./atmosphere_textures/delta_mie_scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 #endif
 
@@ -1026,9 +1026,9 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 			checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_scattering_density_buffer, scattering_size, cudaMemcpyDeviceToHost));
 			std::string name("./atmosphere_textures/scattering_density_");
 			name.append(std::to_string(scattering_order));
-			name.append(".exr");
+			name.append(".png");
 
-			save_texture_exr(host_scattering_buffer, name, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
+			save_texture_png(host_scattering_buffer, name, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 #endif
 
@@ -1050,8 +1050,8 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 			checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
 			std::string name_indirect("./atmosphere_textures/delta_irradiance_");
 			name_indirect.append(std::to_string(scattering_order));
-			name_indirect.append(".exr");
-			save_texture_exr(host_irradiance_buffer, name_indirect, IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT, true);
+			name_indirect.append(".png");
+			save_texture_png(host_irradiance_buffer, name_indirect, IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
 
 #endif
 
@@ -1072,8 +1072,8 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 			checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
 			std::string name_multi("./atmosphere_textures/multiple_scattering_");
 			name_multi.append(std::to_string(scattering_order));
-			name_multi.append(".exr");
-			save_texture_exr(host_scattering_buffer, name_multi, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
+			name_multi.append(".png");
+			save_texture_png(host_scattering_buffer, name_multi, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 #endif
 
@@ -1137,9 +1137,9 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 
 #ifdef DEBUG_TEXTURES // Print transmittance values
 		float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
-
 		checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
-		save_texture_exr(host_transmittance_buffer, "./atmosphere_textures/transmittance.exr", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT, true);
+		
+		save_texture_png(host_transmittance_buffer, "./atmosphere_textures/transmittance.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
 		delete[] host_transmittance_buffer;
 #endif
 

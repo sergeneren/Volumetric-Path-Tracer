@@ -41,7 +41,7 @@
 #ifndef  __ATMOSPHERE_H__
 #define __ATMOSPHERE_H__
 
-//#define DEBUG_TEXTURES
+#define DEBUG_TEXTURES
 
 #include <cuda.h>
 #include "texture_types.h"

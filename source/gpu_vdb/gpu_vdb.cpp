@@ -41,6 +41,7 @@
 #include "driver_types.h"
 #include <helper_cuda.h>
 #include <helper_math.h>
+#include "logger.h"
 
 #include <filesystem>
 
@@ -96,20 +97,20 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 
 	if (!std::experimental::filesystem::exists(filename)) {
 
-		printf("!File doesn't exists '%s'\n", filename.c_str());
+		log("File doesn't exists " + filename , ERROR);
 		return false;
 
 	}
 
 	if (filename.empty())
 	{
-		printf("Error finding file '%s'\n", filename.c_str());
+		log("File name is empty " + filename, ERROR);
 		return false;
 	}
 
 	if (density_channel.empty()) {
 
-		printf("Density channel can't be empty!!!");
+		log("Density channel can't be empty!!!", ERROR);
 		return false;
 
 	}
@@ -121,7 +122,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	// Print grid attributes
 	auto grids = file.readAllGridMetadata();
 	for (auto grid : *grids) {
-		std::cout << "Grid: " << grid->getName() << " " << grid->valueType() << "\n";
+		log("Grid " + grid->getName() + grid->valueType(), LOG);
 	}
 
 	// Read density and emission channel from the file 
@@ -138,7 +139,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 			emissionGridBase = file.readGrid(nameIter.gridName());
 		}
 		else {
-			std::cout << "skipping grid " << nameIter.gridName() << std::endl;
+			log("skipping grid " + nameIter.gridName(), WARNING);
 		}
 	}
 	openvdb::MetaMap::Ptr filemetadata = file.getMetadata();
@@ -157,9 +158,12 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		//Create dense volume
 		openvdb::tools::Dense<float, openvdb::tools::LayoutXYZ> dense(bbox);
 		openvdb::tools::copyToDense(tree, dense);
+		
+#ifdef LOG_LEVEL_LOG
 		dense.print();
+#endif
 
-		std::cout << "value count: " << dense.valueCount() << "\n";
+		log("value count: " + std::to_string(dense.valueCount()), LOG);
 
 		int dim_x = bbox.dim().x();
 		int dim_y = bbox.dim().y();
@@ -183,7 +187,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 				}
 			}
 		}
-		printf("max density: %f\n", vdb_info.max_density);
+		log("max density: " + std::to_string(vdb_info.max_density), LOG);
 
 		// create 3D array
 		cudaArray *d_volumeArray = 0;
@@ -235,9 +239,12 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		//Create dense volume
 		openvdb::tools::Dense<float, openvdb::tools::LayoutXYZ> dense(bbox);
 		openvdb::tools::copyToDense(tree, dense);
-		dense.print();
 
-		std::cout << "value count: " << dense.valueCount() << "\n";
+#ifdef LOG_LEVEL_LOG
+		dense.print();
+#endif
+
+		log("value count: " + std::to_string(dense.valueCount()), LOG);
 
 		int dim_x = bbox.dim().x();
 		int dim_y = bbox.dim().y();
@@ -347,7 +354,12 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 
 	openvdb::Mat4R ref_xform = grid->transform().baseMap()->getAffineMap()->getMat4();
 	mat4 xform_temp = convert_to_mat4(ref_xform);
+	
+#ifdef LOG_LEVEL_LOG
+	log("XForm:  ", LOG);
 	xform_temp.print();
+#endif
+		
 	set_xform(xform_temp);
 	return true;
 }
