@@ -75,13 +75,16 @@ bool load_texture_exr(float3 **buffer, std::string filename, int &width, int &he
 // Loads an exr to a float4 buffer
 bool load_texture_exr(float4 **buffer, std::string filename, int &width, int &height, bool flip);
 
-
 // Loads an exr to a float3 buffer and sends it to gpu
 bool load_texture_exr_gpu(float3 **buffer, std::string filename, int &width, int &height, bool flip);
 
 // Loads an exr to a float4 buffer and sends it to gpu
 bool load_texture_exr_gpu(float4 **buffer, std::string filename, int &width, int &height, bool flip);
 
+// Loads an bmp to a float3 buffer
+bool load_texture_bmp(float3 **buffer, std::string filename, int &width, int &height, bool flip);
 
+// Loads an bmp to a float3 buffer and sends it to gpu
+bool load_texture_bmp_gpu(float3 **buffer, std::string filename, int &width, int &height, bool flip);
 
 #endif // !_FILEIO_H_

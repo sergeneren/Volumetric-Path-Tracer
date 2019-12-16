@@ -69,7 +69,6 @@
 
 #include "hdr_loader.h"
 #include "kernel_params.h"
-#include "bitmap_image.h"
 
 // new classes
 #include "gpu_vdb/gpu_vdb.h"
@@ -931,39 +930,6 @@ static bool create_environment(
 	return true;
 }
 
-static bool load_blue_noise(float3 **buffer, std::string filename, int &width, int &height) {
-
-	// Load blue noise texture from assets directory and send to gpu 
-	bitmap_image image(filename.c_str());
-
-	if (!image)
-		return false;
-
-	width = image.width();
-	height = image.height();
-
-	float3 *values = new float3[height * width];
-
-	for (int y = 0; y < height; ++y) {
-		for (int x = 0; x < width; ++x) {
-
-			rgb_t color;
-
-			image.get_pixel(x, y, color);
-			int idx = y * width + x;
-			values[idx].x = float(color.red) / 255.0f;
-			values[idx].y = float(color.blue) / 255.0f;
-			values[idx].z = float(color.green) / 255.0f;
-
-		}
-	}
-
-	check_success(cudaMalloc(buffer, width * height * sizeof(float3)) == cudaSuccess);
-	check_success(cudaMemcpy(*buffer, values, width * height * sizeof(float3), cudaMemcpyHostToDevice) == cudaSuccess);
-
-	return true;
-}
-
 static void read_instance_file(std::string file_name) {
 	
 	assert(!file_name.empty());
@@ -1319,7 +1285,7 @@ int main(const int argc, const char* argv[])
 	bn_path.append("BN0.bmp");
 	float3 *bn_buffer = NULL;
 	int bn_width, bn_height;
-	load_blue_noise(&bn_buffer, bn_path, bn_width, bn_height);
+	load_texture_bmp_gpu(&bn_buffer, bn_path, bn_width, bn_height, false);
 	kernel_params.blue_noise_buffer = bn_buffer;
 	
 	log("Setting up debug buffer...", LOG);

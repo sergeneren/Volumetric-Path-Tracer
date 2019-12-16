@@ -46,6 +46,8 @@
 #define TINYEXR_IMPLEMENTATION
 #include "tinyexr.h"
 
+#include "bitmap_image.h"
+
 #include "helper_math.h"
 #include "helper_cuda.h"
 
@@ -493,3 +495,73 @@ bool load_texture_exr_gpu(float4 ** buffer, std::string filename, int & width, i
 
 	return true;
 }
+
+bool load_texture_bmp(float3 ** buffer, std::string filename, int & width, int & height, bool flip)
+{
+	// Load blue noise texture from assets directory and send to gpu 
+	bitmap_image image(filename.c_str());
+
+	if (!image) {
+		log("Unable to load file " + filename, ERROR);
+		return false;
+	}
+	width = image.width();
+	height = image.height();
+
+	*buffer = new float3[width*height];
+
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+
+			rgb_t color;
+
+			image.get_pixel(x, y, color);
+			int idx = y * width + x;
+			if (flip) idx = (width*height) - idx - 1;
+			(*buffer)[idx].x = float(color.red) / 255.0f;
+			(*buffer)[idx].y = float(color.blue) / 255.0f;
+			(*buffer)[idx].z = float(color.green) / 255.0f;
+		}
+	}
+
+	return true;
+}
+
+bool load_texture_bmp_gpu(float3 ** buffer, std::string filename, int & width, int & height, bool flip)
+{
+	// Load blue noise texture from assets directory and send to gpu 
+	bitmap_image image(filename.c_str());
+
+	if (!image) {
+		log("Unable to load file " + filename, ERROR);
+		return false;
+	}
+
+	width = image.width();
+	height = image.height();
+
+	float3 *values = new float3[height * width];
+
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+
+			rgb_t color;
+
+			image.get_pixel(x, y, color);
+			int idx = y * width + x;
+			if (flip) idx = (width*height) - idx - 1;
+			values[idx].x = float(color.red) / 255.0f;
+			values[idx].y = float(color.blue) / 255.0f;
+			values[idx].z = float(color.green) / 255.0f;
+
+		}
+	}
+
+	checkCudaErrors(cudaMalloc(buffer, width * height * sizeof(float3)));
+	checkCudaErrors(cudaMemcpy(*buffer, values, width * height * sizeof(float3), cudaMemcpyHostToDevice));
+
+	delete[] values;
+
+	return true;
+}
+
