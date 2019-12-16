@@ -524,6 +524,8 @@ bool load_texture_bmp(float3 ** buffer, std::string filename, int & width, int &
 		}
 	}
 
+	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
+
 	return true;
 }
 
@@ -561,6 +563,8 @@ bool load_texture_bmp_gpu(float3 ** buffer, std::string filename, int & width, i
 	checkCudaErrors(cudaMemcpy(*buffer, values, width * height * sizeof(float3), cudaMemcpyHostToDevice));
 
 	delete[] values;
+
+	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
 
 	return true;
 }
