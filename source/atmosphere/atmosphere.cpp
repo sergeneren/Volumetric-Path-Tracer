@@ -256,13 +256,85 @@ atmosphere_error_t atmosphere::load_textures()
 
 atmosphere_error_t atmosphere::save_textures()
 {
+	std::string file_path;
 
-	float *buffer;
-	int width, height;
+	// Save transmittance buffer to exr file 
+	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);
+	float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
+	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
+	file_path = texture_folder.append("/transmittance.exr");
+	save_texture_exr(host_transmittance_buffer, file_path, TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT, false);
+	delete[] host_transmittance_buffer;
 
-	const char *filename = "atmosphere_textures/scattering.exr", *err;
+	// Save irradiance buffer to exr file 
 
-	//LoadEXR(&buffer, &width, &height, filename, &err);
+	int irradiance_size = IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT * sizeof(float4);
+	float4 *host_irradiance_buffer = new float4[IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT];
+	checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
+	file_path = texture_folder.append("/irradiance.exr");
+	save_texture_exr(host_irradiance_buffer, file_path, IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT, true);
+	delete[] host_irradiance_buffer;
+
+	// Save scattering textures
+
+	// Save multiple scattering textures 
+	int scattering_size = SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH * sizeof(float4);
+	float4 *host_scattering_buffer = new float4[SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH];
+	float4 *host_scattering_buffer_2D = new float4[SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT];
+
+	checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
+
+	for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
+
+		file_path = texture_folder.append("/scattering_");
+		file_path.append(std::to_string(i));
+		file_path.append(".exr");
+
+		// Copy by z with x is fast moving 
+		for (int y = 0; y < SCATTERING_TEXTURE_HEIGHT; ++y) {
+			for (int x = 0; x < SCATTERING_TEXTURE_WIDTH; ++x) {
+
+				int idx_2D = y * SCATTERING_TEXTURE_WIDTH + x;
+				int idx_3D = i * SCATTERING_TEXTURE_WIDTH*SCATTERING_TEXTURE_HEIGHT + y * SCATTERING_TEXTURE_WIDTH + x;
+
+				host_scattering_buffer_2D[idx_2D] = host_scattering_buffer[idx_3D];
+
+			}
+		}
+
+		save_texture_exr(host_scattering_buffer_2D, file_path, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
+
+	}
+
+	// Save optional single scattering textures
+
+	checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.optional_mie_single_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
+	
+	for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
+
+		file_path = texture_folder.append("/single_scattering_");
+		file_path.append(std::to_string(i));
+		file_path.append(".exr");
+
+		// Copy by z with x is fast moving 
+		for (int y = 0; y < SCATTERING_TEXTURE_HEIGHT; ++y) {
+			for (int x = 0; x < SCATTERING_TEXTURE_WIDTH; ++x) {
+
+				int idx_2D = y * SCATTERING_TEXTURE_WIDTH + x;
+				int idx_3D = i * SCATTERING_TEXTURE_WIDTH*SCATTERING_TEXTURE_HEIGHT + y * SCATTERING_TEXTURE_WIDTH + x;
+
+				host_scattering_buffer_2D[idx_2D] = host_scattering_buffer[idx_3D];
+
+			}
+		}
+
+		save_texture_exr(host_scattering_buffer_2D, file_path, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
+
+	}
+
+	delete[] host_scattering_buffer;
+	delete[] host_scattering_buffer_2D;
+
 
 	return ATMO_NO_ERR;
 }
@@ -486,7 +558,6 @@ void atmosphere::copy_single_scattering_texture() {
 }
 
 // Update atmosphere parameters that doesn't need a recomputation
-
 void atmosphere::update_model() {
 
 	double white_point_r = 1.0;
@@ -1049,6 +1120,8 @@ atmosphere_error_t atmosphere::init()
 			}
 		}
 
+		// Save all textures to files after computation 
+		save_textures();
 	}
 
 	// copy textures and clear buffers
@@ -1088,6 +1161,8 @@ atmosphere::~atmosphere() {
 }
 
 atmosphere::atmosphere() {
+
+	texture_folder = "";
 
 	// Allocate device memory for atmosphere_parameters buffers 
 	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);

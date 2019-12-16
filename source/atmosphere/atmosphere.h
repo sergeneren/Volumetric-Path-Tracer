@@ -57,6 +57,8 @@ enum atmosphere_error_t {
 	ATMO_RECOMPUTE_ERR,
 	ATMO_FILL_TEX_ERR,
 	ATMO_LAUNCH_ERR,
+	ATMO_LOAD_FILE_ERR,
+	ATMO_SAVE_FILE_ERR,
 	ATMO_NO_ERR
 
 };
@@ -182,7 +184,7 @@ public:
 	bool m_use_ozone = true;
 	LUMINANCE m_use_luminance;
 	AtmosphereParameters atmosphere_parameters;
-
+	std::string texture_folder;
 	bool debug_textures = false;
 
 private:

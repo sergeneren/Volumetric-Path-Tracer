@@ -1370,6 +1370,7 @@ int main(const int argc, const char* argv[])
 		exit(-1);
 	};
 
+	earth_atmosphere.texture_folder = "./atmosphere_textures";
 	earth_atmosphere.init();
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
 
