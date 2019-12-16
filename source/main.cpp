@@ -80,6 +80,7 @@
 #include "shadow_box.h"
 #include "sphere.h"
 #include "fileIO.h"
+#include "logger.h"
 
 // Instance file parser
 #include "instancer_hda/volume_instance.h"
@@ -284,14 +285,14 @@ static GLFWwindow *init_opengl()
 
 	GLFWwindow *window = glfwCreateWindow(1800, 640, "volume path tracer", NULL, NULL);
 	if (!window) {
-		fprintf(stderr, "Error creating OpenGL window.\n");;
+		log("Error creating OpenGL window.", ERROR);
 		glfwTerminate();
 	}
 	glfwMakeContextCurrent(window);
 
 	const GLenum res = glewInit();
 	if (res != GLEW_OK) {
-		fprintf(stderr, "GLEW error: %s.\n", glewGetErrorString(res));
+		log((char *)glewGetErrorString(res), ERROR);
 		glfwTerminate();
 	}
 
@@ -308,7 +309,7 @@ static void init_cuda()
 	unsigned int num_cuda_devices;
 	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
 	if (num_cuda_devices == 0) {
-		fprintf(stderr, "Could not determine CUDA device for current OpenGL context\n.");
+		log("Could not determine CUDA device for current OpenGL context", ERROR);
 		exit(EXIT_FAILURE);
 	}
 
@@ -361,7 +362,7 @@ static GLuint create_shader_program()
 	glLinkProgram(program);
 	glGetProgramiv(program, GL_LINK_STATUS, &success);
 	if (!success) {
-		fprintf(stderr, "Error linking shadering program\n");
+		log("Error linking shadering program", ERROR);
 		glfwTerminate();
 	}
 
@@ -592,7 +593,7 @@ static bool create_cdf(
 	cudaArray_t *env_marginal_cdf_data)
 {
 	if (kernel_params.debug) {
-		printf("\ncreating cdf and function textures for environment...");
+		log("creating cdf and function textures for environment...", LOG);
 	}
 
 	// Fill the value, function, marginal and cdf values
@@ -903,7 +904,7 @@ static bool create_environment(
 	unsigned int rx, ry;
 	float *pixels;
 	if (!load_hdr_float4(&pixels, &rx, &ry, envmap_name)) {
-		fprintf(stderr, "error loading environment map file %s\n", envmap_name);
+		log("error loading environment map file", ERROR);
 		return false;
 	}
 
@@ -976,7 +977,7 @@ static void read_instance_file(std::string file_name) {
 
 	int num_volumes;
 	iss >> num_volumes;
-	std::cout << "number of vdbs: " << num_volumes << "\n";
+	log("number of vdbs: " + num_volumes, LOG);
 	volume_files.resize(num_volumes);
 
 	for (int i = 0; i < num_volumes; ++i) {
@@ -1095,9 +1096,8 @@ static void update_camera(double dx, double dy, double mx, double my, int zoom_d
 int main(const int argc, const char* argv[])
 {
 
-
 	if (argc < 2) {
-		printf("Please specify a vdb file!");
+		log("Please specify a vdb file!", ERROR);
 		return 0;
 	}
 
@@ -1116,6 +1116,8 @@ int main(const int argc, const char* argv[])
 	window_context.save_image = false;
 	window_context.save_cost_image = false;
 
+	log("Initializing opengl...", LOG);
+
 	// Init OpenGL window and callbacks.
 	window = init_opengl();
 	glfwSetWindowUserPointer(window, &window_context);
@@ -1131,10 +1133,13 @@ int main(const int argc, const char* argv[])
 	program = create_shader_program();
 	quad_vao = create_quad(program, &quad_vertex_buffer);
 
+
+	log("Initializing cuda...", LOG);
 	init_cuda();
 
 
 	// SETUP IMGUI PARAMETERS
+	log("Setting up Imgui parameters...", LOG);
 	const char* glsl_version = "#version 330";
 
 	IMGUI_CHECKVERSION();
@@ -1147,7 +1152,7 @@ int main(const int argc, const char* argv[])
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
 	// Setup gpu_vdb
-
+	log("Setting up gpu_vdb instances...", LOG);
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
 
@@ -1171,7 +1176,7 @@ int main(const int argc, const char* argv[])
 		read_instance_file(fname);
 	}
 	else {
-		printf("Unknown file format! Please provide a valid vdb file or an instance file");
+		log("Unknown file format! Please provide a valid vdb file or an instance file", ERROR);
 	}
 	
 
@@ -1186,21 +1191,22 @@ int main(const int argc, const char* argv[])
 	unsigned int num_cuda_devices;
 	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
 	if (num_cuda_devices == 0) {
-		fprintf(stderr, "Could not determine CUDA device for context\n.");
+		log( "Could not determine CUDA device for context" , ERROR);
 		exit(EXIT_FAILURE);
 	}
 
-	CUresult error;
 
+	log("Loading Cuda kernel modules and functions...", LOG);
+	CUresult error;
 	error = cuModuleLoad(&cuRenderModule, render_module_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, ERROR);
 	error = cuModuleGetFunction(&cuRaycastKernel, cuRenderModule, render_kernel_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
 
 	error = cuModuleLoad(&cuTextureModule, texture_module_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, ERROR);
 	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleGetFunction, %i\n", error);
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
 
 
 	// Send volume instances to gpu
@@ -1211,11 +1217,17 @@ int main(const int argc, const char* argv[])
 
 
 	// Create BVH from vdb vector 
+	log("Creating BVH and Octree structures...", LOG);
 	AABB scene_bounds(make_float3(.0f), make_float3(.0f));
-	bvh_builder.m_debug_bvh = false;
+	
+#ifdef LOG_LEVEL_LOG
+	bvh_builder.m_debug_bvh = true;
+#endif
+
 	bvh_builder.build_bvh(instances, (int)instances.size(), scene_bounds);
 
 	// Setup initial camera 
+	log("Setting up camera...", LOG);
 	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
 	lookat = make_float3(-10.0f, 72.0f, -43.0f);
 	vup = make_float3(.0f, 1.0f, .0f);
@@ -1233,6 +1245,7 @@ int main(const int argc, const char* argv[])
 
 
 	// Setup point Lights
+	log("Setting up point lights...", LOG);
 #if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
 #undef rand // undefine the rand coming from camera.h and light.h
 
@@ -1266,7 +1279,7 @@ int main(const int argc, const char* argv[])
 	// Setup initial render kernel parameters.
 
 	// Kernel param buffers
-
+	log("Setting kernel paramaters...", LOG);
 	float3 *accum_buffer = NULL;
 	float4 *raw_buffer = NULL;
 	cudaGraphicsResource_t display_buffer_cuda = NULL;
@@ -1301,35 +1314,32 @@ int main(const int argc, const char* argv[])
 	kernel_params.emission_scale = 0.0f;
 	kernel_params.emission_pivot = 1.0f;
 
+	log("Loading blue noise buffer...", LOG);
 	std::string bn_path = ASSET_PATH;
 	bn_path.append("BN0.bmp");
-
 	float3 *bn_buffer = NULL;
 	int bn_width, bn_height;
 	load_blue_noise(&bn_buffer, bn_path, bn_width, bn_height);
 	kernel_params.blue_noise_buffer = bn_buffer;
 	
+	log("Setting up debug buffer...", LOG);
 	update_debug_buffer(&debug_buffer, kernel_params);
 	kernel_params.debug_buffer = debug_buffer;
 	
-	
-	printf("Loading color lookup textures");
-	
-		
+	log("Loading emission lookup texture...", LOG);		
 	std::string emm_path = ASSET_PATH;
 	emm_path.append("blackbody_texture.exr");
 	float3 *emmission_buffer = NULL;
 	int file_width, file_height;
-	load_texture_exr(emmission_buffer, emm_path, file_width, file_height, false);
-	check_success(cudaMalloc(&kernel_params.emission_texture, file_width * file_height * sizeof(float3)) == cudaSuccess);
-	check_success(cudaMemcpy(kernel_params.emission_texture, &emmission_buffer, file_width * file_height * sizeof(float3), cudaMemcpyHostToDevice) == cudaSuccess);
+	load_texture_exr_gpu(&emmission_buffer, emm_path, file_width, file_height, false);
+	kernel_params.emission_texture = emmission_buffer;
 
+	log("Loading density color lookup texture...", LOG);
 	std::string color_path = ASSET_PATH;
 	color_path.append("density_color_texture2.exr");
 	float3 *density_color_buffer = NULL;
-	load_texture_exr(density_color_buffer, color_path, file_width, file_height, false);
-	check_success(cudaMalloc(&kernel_params.density_color_texture, file_width * file_height * sizeof(float3)) == cudaSuccess);
-	check_success(cudaMemcpy(kernel_params.density_color_texture, &density_color_buffer, file_width * file_height * sizeof(float3), cudaMemcpyHostToDevice) == cudaSuccess);
+	load_texture_exr_gpu(&density_color_buffer, color_path, file_width, file_height, false);
+	kernel_params.density_color_texture = density_color_buffer;
 
 	//kernel parameters env data
 	cudaArray_t env_val_data = 0;
@@ -1381,18 +1391,17 @@ int main(const int argc, const char* argv[])
 	}
 
 	// Create env map sampling textures
+	log("Creating env texture CDF...", LOG);
 	create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
 
 	// Init atmosphere 
 	
 #ifdef DEBUG_TEXTURES
-
+	log("Creating atmosphere...", LOG);
 	if (CreateDirectory("./atmosphere_textures", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
 	else {
-
-		printf("\nError: unable to create directory for atmosphere textures\n");
+		log("unable to create directory for atmosphere textures", ERROR);
 		exit(-1);
-
 	};
 
 	earth_atmosphere.init();
@@ -1400,7 +1409,7 @@ int main(const int argc, const char* argv[])
 
 #endif // DEBUG_TEXTURES
 
-
+	log("Setting up geometry and device pointers...", LOG);
 	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
 	float3 center = make_float3(100, 320, 0);
 	float radius = 100;
@@ -1414,7 +1423,7 @@ int main(const int argc, const char* argv[])
 
 	
 	// Create shadow box
-
+	log("Setting up shadow box planes...", LOG);
 	root_shadow_box.build_planes(azimuth, elevation, bvh_builder.octree.root_node->bbox, earth_atmosphere.atmosphere_parameters.bottom_radius, earth_atmosphere.atmosphere_parameters.top_radius);
 
 	// Create OIDN devices 
@@ -1423,7 +1432,7 @@ int main(const int argc, const char* argv[])
 	oidn::FilterRef filter = oidn_device.newFilter("RT");
 
 	// Main loop
-
+	log("Entering main loop...", LOG);
 	while (!glfwWindowShouldClose(window)) {
 
 		// Process events.
@@ -1666,7 +1675,7 @@ int main(const int argc, const char* argv[])
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
 			bool success = save_texture_exr(c, file_name, width, height, true);
-			if (!success) printf("!Unable to save exr file.\n");
+			if (!success) log("Unable to save exr file", ERROR);
 
 #endif
 
@@ -1691,7 +1700,7 @@ int main(const int argc, const char* argv[])
 			check_success(cudaMemcpy(c, cost_buffer, sizeof(float3) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
 			bool success = save_texture_exr(c, file_name, width, height, true);
-			if (!success) printf("!Unable to save exr file.\n");
+			if (!success) log("Unable to save exr file", ERROR);
 
 #endif
 			frame++;
@@ -1775,7 +1784,7 @@ int main(const int argc, const char* argv[])
 				strcat_s(file_name, frame_string);
 
 				bool success = save_texture_exr(temp_out_buffer, file_name, width, height, true);
-				if (!success) printf("!Unable to save exr file.\n");
+				if (!success) log("Unable to save exr file", ERROR);
 
 				frame++;
 

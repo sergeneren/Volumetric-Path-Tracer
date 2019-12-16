@@ -47,6 +47,10 @@ file ( GLOB COMMON
 	"${CMAKE_CURRENT_SOURCE_DIR}/common/*.h"
 	"${CMAKE_CURRENT_SOURCE_DIR}/common/*.cpp"	)
 
+file ( GLOB UTIL 
+	"${CMAKE_CURRENT_SOURCE_DIR}/util/*.h"
+	"${CMAKE_CURRENT_SOURCE_DIR}/util/*.cpp"	)
+
 file ( GLOB GEOMETRY 
 	"${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.h"	
 	"${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.cpp"	)
@@ -77,12 +81,13 @@ set(SOURCE_FILES
 	${IMGUI_IMPL_SOURCES}
 	${COMMON}
 	${ATMOSPHERE}
-	${GEOMETRY})
+	${GEOMETRY}
+	${UTIL})
 
 source_group(Cuda FILES ${CUDA_SOURCES})
 source_group(bvh FILES ${BVH})
 source_group(Imgui FILES ${IMGUI_IMPL_SOURCES})
-source_group(Helpers FILES ${COMMON})
+source_group(Helpers FILES ${COMMON} ${UTIL})
 source_group(Atmosphere FILES ${ATMOSPHERE})
 source_group(Geometry FILES ${GEOMETRY})
 
@@ -108,6 +113,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/atmosphere)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/util)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/bvh)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/geometry)

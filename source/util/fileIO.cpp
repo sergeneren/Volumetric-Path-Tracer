@@ -263,10 +263,6 @@ bool save_texture_exr(float3 *buffer, std::string filename, const int width, con
 	free(header.pixel_types);
 	free(header.requested_pixel_types);
 
-	for (int i = 0; i < image.num_channels; i++) images[i].clear();
-	images->clear();
-	delete[] images;
-
 	return true;
 }
 
@@ -338,13 +334,10 @@ bool save_texture_exr(float4 *buffer, std::string filename, const int width, con
 	free(header.pixel_types);
 	free(header.requested_pixel_types);
 
-	for (int i = 0; i < image.num_channels; i++) images[i].clear();
-	images->clear();
-	delete[] images;
 	return true;
 }
 
-bool load_texture_exr(float3 *buffer, std::string filename, int &width, int &height, bool flip)
+bool load_texture_exr(float3 **buffer, std::string filename, int &width, int &height, bool flip)
 {
 
 	float *rgba;
@@ -358,7 +351,7 @@ bool load_texture_exr(float3 *buffer, std::string filename, int &width, int &hei
 		return false;
 	}
 
-	buffer = new float3[width*height];
+	*buffer = new float3[width*height];
 
 	int float_idx = 0;
 	for (int y = 0; y < height; ++y) {
@@ -367,9 +360,9 @@ bool load_texture_exr(float3 *buffer, std::string filename, int &width, int &hei
 
 			if (flip) idx = (width*height) - idx - 1;
 
-			buffer[idx].x = rgba[float_idx++]; // r
-			buffer[idx].y = rgba[float_idx++]; // g
-			buffer[idx].z = rgba[float_idx++]; // b
+			(*buffer)[idx].x = rgba[float_idx++]; // r
+			(*buffer)[idx].y = rgba[float_idx++]; // g
+			(*buffer)[idx].z = rgba[float_idx++]; // b
 			float_idx++; // alpha
 		}
 	}
@@ -379,7 +372,7 @@ bool load_texture_exr(float3 *buffer, std::string filename, int &width, int &hei
 	return true;
 }
 
-bool load_texture_exr(float4 *buffer, std::string filename, int &width, int &height, bool flip)
+bool load_texture_exr(float4 **buffer, std::string filename, int &width, int &height, bool flip)
 {
 	float *rgba;
 	const char *err;
@@ -392,7 +385,7 @@ bool load_texture_exr(float4 *buffer, std::string filename, int &width, int &hei
 		return false;
 	}
 
-	buffer = new float4[width*height];
+	*buffer = new float4[width*height];
 
 	int float_idx = 0;
 	for (int y = 0; y < height; ++y) {
@@ -401,14 +394,82 @@ bool load_texture_exr(float4 *buffer, std::string filename, int &width, int &hei
 
 			if (flip) idx = (width*height) - idx - 1;
 
-			buffer[idx].x = rgba[float_idx++]; // r
-			buffer[idx].y = rgba[float_idx++]; // g
-			buffer[idx].z = rgba[float_idx++]; // b
-			buffer[idx].w = rgba[float_idx++]; // b
+			(*buffer)[idx].x = rgba[float_idx++]; // r
+			(*buffer)[idx].y = rgba[float_idx++]; // g
+			(*buffer)[idx].z = rgba[float_idx++]; // b
+			(*buffer)[idx].w = rgba[float_idx++]; // b
 		}
 	}
 
 	delete[] rgba;
+
+	return true;
+}
+
+bool load_texture_exr_gpu(float3 ** buffer, std::string filename, int & width, int & height, bool flip)
+{
+	float *rgba;
+	const char *err;
+	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
+	printf("loaded file %s, width: %i, height: %i \n", filename.c_str(), width, height);
+	if (ret != 0) {
+		printf("err: %s\n", err);
+		return false;
+	}
+
+	float3 *values = new float3[height * width];
+
+	int float_idx = 0;
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			int idx = y * width + x;
+			if (flip) idx = (width*height) - idx - 1;
+			values[idx].x = rgba[float_idx++]; // r
+			values[idx].y = rgba[float_idx++]; // g
+			values[idx].z = rgba[float_idx++]; // b
+			float_idx++; // alpha
+		}
+	}
+
+	checkCudaErrors(cudaMalloc(buffer, width * height * sizeof(float3)));
+	checkCudaErrors(cudaMemcpy(*buffer, values, width * height * sizeof(float3), cudaMemcpyHostToDevice));
+
+	delete[] rgba;
+	delete[] values;
+
+	return true;
+}
+
+bool load_texture_exr_gpu(float4 ** buffer, std::string filename, int & width, int & height, bool flip)
+{
+	float *rgba;
+	const char *err;
+	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
+	printf("loaded file %s, width: %i, height: %i \n", filename.c_str(), width, height);
+	if (ret != 0) {
+		printf("err: %s\n", err);
+		return false;
+	}
+
+	float4 *values = new float4[height * width];
+
+	int float_idx = 0;
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			int idx = y * width + x;
+			if (flip) idx = (width*height) - idx - 1;
+			values[idx].x = rgba[float_idx++]; // r
+			values[idx].y = rgba[float_idx++]; // g
+			values[idx].z = rgba[float_idx++]; // b
+			values[idx].w = rgba[float_idx++]; // b
+		}
+	}
+
+	checkCudaErrors(cudaMalloc(buffer, width * height * sizeof(float4)));
+	checkCudaErrors(cudaMemcpy(*buffer, values, width * height * sizeof(float4), cudaMemcpyHostToDevice));
+
+	delete[] rgba;
+	delete[] values;
 
 	return true;
 }

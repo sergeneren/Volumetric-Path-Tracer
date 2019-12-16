@@ -463,7 +463,7 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 	float elapsed;
 	cudaEvent_t start, stop;
 
-	std::cout << "Number of volumes: " << numVolumes << std::endl;
+	if (debug_bvh) printf("Number of volumes: %i\n", numVolumes);
 
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
@@ -475,7 +475,7 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 
 	// Compute bounding boxes
 	
-	std::cout << "Computing volume bounding boxes...";
+	if (debug_bvh) printf("Computing volume bounding boxes...");
 	cudaEventRecord(start, 0);
 	thrust::device_vector<AABB> boundingBoxes(numVolumes);
 	ComputeBoundingBoxes <<<gridSize, blockSize>>> (volumes, numVolumes, boundingBoxes.data().get());
@@ -484,32 +484,33 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&elapsed, start, stop);
-	std::cout << " done! Computation took " << elapsed << " ms." << std::endl;
+	if (debug_bvh) printf(" done! Computation took %f ms. \n", elapsed);
 	total += elapsed;
 
 	thrust::host_vector<AABB> bounding_boxes_h = boundingBoxes;
 
 	// Compute scene bounding box
-	std::cout << "Computing scene bounding box...";
+	if (debug_bvh) printf("Computing scene bounding box...");
 	cudaEventRecord(start, 0);
 	sceneBounds = thrust::reduce(boundingBoxes.begin(), boundingBoxes.end(), AABB(), AABBUnion());
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&elapsed, start, stop);
-	std::cout << " done! Computation took " << elapsed << " ms." << std::endl;
+	if (debug_bvh) printf(" done! Computation took %f ms. \n", elapsed);
 	total += elapsed;
-	std::cout << "Total pre-computation time for scene was " << total << " ms.\n" << std::endl;
+	if (debug_bvh) printf("Total pre-computation time for scene was %f ms. \n", total);
 	total = 0;
 
-	std::cout << "Scene boundingbox:\n";
-	std::cout << "pmin: " << sceneBounds.pmin.x << ", " << sceneBounds.pmin.y << ", " << sceneBounds.pmin.z << std::endl;
-	std::cout << "pmax: " << sceneBounds.pmax.x << ", " << sceneBounds.pmax.y << ", " << sceneBounds.pmax.z << std::endl;
-
+	if (debug_bvh) {
+		printf("Scene boundingbox:\n");
+		printf("pmin: %f, %f, %f\n", sceneBounds.pmin.x, sceneBounds.pmin.y, sceneBounds.pmin.z);
+		printf("pmax: %f, %f, %f\n", sceneBounds.pmax.x, sceneBounds.pmax.y, sceneBounds.pmax.z);
+	}
 	// Pre-process done, start building BVH
 
 	// Compute Morton codes
 	thrust::device_vector<MortonCode> mortonCodes(numVolumes);
-	std::cout << "Computing Morton codes...";
+	if (debug_bvh) printf("Computing Morton codes...");
 	cudaEventRecord(start, 0);
 	ComputeMortonCodes <<<gridSize, blockSize>>> (volumes, numVolumes, sceneBounds, mortonCodes.data().get());
 	CudaCheckError();
@@ -517,30 +518,30 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&elapsed, start, stop);
-	std::cout << " done! Computation took " << elapsed << " ms." << std::endl;
+	if (debug_bvh) printf(" done! Computation took %f ms. \n", elapsed);
 	total += elapsed;
 
 	// Sort triangle indices with Morton code as key
 	thrust::device_vector<int> triangleIDs(numVolumes);
 	thrust::sequence(triangleIDs.begin(), triangleIDs.end());
-	std::cout << "Sort volumes...";
+	if (debug_bvh) printf("Sort volumes..."); 
 	cudaEventRecord(start, 0);
 	try {
 		thrust::sort_by_key(mortonCodes.begin(), mortonCodes.end(), triangleIDs.begin());
 	}
 	catch (thrust::system_error e) {
-		std::cout << "Error inside sort: " << e.what() << std::endl;
+		printf("Error inside sort: %s\n", e.what());
 	}
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&elapsed, start, stop);
-	std::cout << " done! Sorting took " << elapsed << " ms." << std::endl;
+	if (debug_bvh) printf(" done! Sorting took %f ms. \n", elapsed);
 	total += elapsed;
 
 	// Build radix tree of BVH nodes
 	checkCudaErrors(cudaMalloc((void**)&bvh.BVHNodes, (numVolumes - 1) * sizeof(BVHNode)));
 	checkCudaErrors(cudaMalloc((void**)&bvh.BVHLeaves, numVolumes * sizeof(BVHNode)));
-	std::cout << "Building radix tree...";
+	if (debug_bvh) printf("Building radix tree...");
 	cudaEventRecord(start, 0);
 	BuildRadixTree <<<gridSize, blockSize>>> (bvh.BVHNodes, bvh.BVHLeaves, mortonCodes.data().get(), triangleIDs.data().get(), numVolumes);
 	CudaCheckError();
@@ -548,26 +549,27 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&elapsed, start, stop);
-	std::cout << " done! Took " << elapsed << " ms." << std::endl;
+	if (debug_bvh) printf(" done! Computation took %f ms. \n", elapsed);
 	total += elapsed;
 
 	// Build BVH
 	thrust::device_vector<int> nodeCounters(numVolumes);
-	std::cout << "Building BVH...";
+	if (debug_bvh) printf("Building BVH...");
 	cudaEventRecord(start, 0);
 	ConstructBVH <<<gridSize, blockSize >>> (bvh.BVHNodes, bvh.BVHLeaves,	nodeCounters.data().get(), volumes,	triangleIDs.data().get(), numVolumes);
 	CudaCheckError();
 	checkCudaErrors(cudaDeviceSynchronize());
 	
-	if(debug_bvh) DebugBVH << <gridSize, blockSize >> >(bvh.BVHLeaves, bvh.BVHNodes, numVolumes);
+
+	//DebugBVH << <gridSize, blockSize >> >(bvh.BVHLeaves, bvh.BVHNodes, numVolumes);
 	checkCudaErrors(cudaGetLastError());
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&elapsed, start, stop);
-	std::cout << " done! Took " << elapsed << " ms." << std::endl;
+	if (debug_bvh) printf(" done! Computation took %f ms. \n", elapsed);
 	total += elapsed;
 
-	std::cout << "Total BVH construction time was " << total << " ms.\n" << std::endl;
+	if (debug_bvh) printf("Total BVH construction time was %f ms. \n", total);
 
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
@@ -575,6 +577,24 @@ extern "C" void BuildBVH(BVH& bvh, GPU_VDB* volumes, int numVolumes, AABB &scene
 
 extern "C" void build_octree(OCTNode *root, GPU_VDB *volumes, int num_volumes, int depth, bool m_debug) {
 
-	pass_octree << <1, 1 >> > (volumes, num_volumes, root, depth, m_debug);
+	float elapsed;
+	cudaEvent_t start, stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
 
+	if (m_debug) printf("Building Octree...");
+	cudaEventRecord(start, 0);
+	pass_octree << <1, 1 >> > (volumes, num_volumes, root, depth, false); 
+	CudaCheckError();
+	checkCudaErrors(cudaGetLastError());
+	cudaEventRecord(stop, 0);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&elapsed, start, stop);
+
+	checkCudaErrors(cudaDeviceSynchronize());
+
+	if(m_debug) printf("done! Computation took %f ms. \n", elapsed);
+
+	cudaEventDestroy(start);
+	cudaEventDestroy(stop);
 }

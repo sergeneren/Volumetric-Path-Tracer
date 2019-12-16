@@ -31,11 +31,11 @@ set_property(CACHE DebugLevel PROPERTY STRINGS Error Warning Log)
 
 message(STATUS "Debug Level is ${DebugLevel}")
 if(${DebugLevel} STREQUAL "Error")
-	add_definitions(-DDEBUG_LEVEL_ERROR)
+	add_definitions(-DLOG_LEVEL_ERROR)
 elseif(${DebugLevel} STREQUAL "Warning")
-	add_definitions(-DDEBUG_LEVEL_WARNING)
+	add_definitions(-DLOG_LEVEL_WARNING)
 elseif(${DebugLevel} STREQUAL "Log")
-	add_definitions(-DDEBUG_LEVEL_LOG)
+	add_definitions(-DLOG_LEVEL_LOG)
 endif()
 
 

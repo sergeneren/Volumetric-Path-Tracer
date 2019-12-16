@@ -874,7 +874,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
 		std::string name_multi("./atmosphere_textures/multiple_scattering_");
 		name_multi.append(std::to_string(scattering_order));
-		name_multi.append(".png");
+		name_multi.append(".exr");
 		save_texture_exr(host_scattering_buffer, name_multi, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT, true);
 
 #endif

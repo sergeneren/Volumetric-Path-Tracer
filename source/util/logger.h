@@ -29,52 +29,29 @@
 // All rights reserved.
 //----------------------------------------------------------------------------------
 // 
-//	Version 1.0: Sergen Eren, 15/12/2019
+//	Version 1.0: Sergen Eren, 16/12/2019
 //
-// File: This is the header file for fileIO operations.
-//		 these functions load and save several types of files with cuda buffers.
+// File: Log file writer for VPT
 //
 //-----------------------------------------------
 
 
-#ifndef _FILEIO_H_
-#define _FILEIO_H_
+#ifndef _LOGGER_H_
+#define _LOGGER_H_
 
-#include <cuda.h>
-#include "texture_types.h"
-#include <vector>
 #include <string>
 
-// Saves a jpg with given float3 buffer 
-bool save_texture_jpg(float3 *buffer, std::string filename, const int width, const int height);
+enum {
 
-// Saves a jpg with given float4 buffer ignores w component 
-bool save_texture_jpg(float4 *buffer, std::string filename, const int width, const int height);
+	ERROR = 0,
+	WARNING = 1,
+	LOG = 2
+};
 
-// Saves a png with given float3 buffer ignores alpha
-bool save_texture_png(float3 *buffer, std::string filename, const int width, const int height);
 
-// Saves a png with given float4 buffer
-bool save_texture_png(float4 *buffer, std::string filename, const int width, const int height);
-
-// Saves a tga with given float3 buffer ignores alpha
-bool save_texture_tga(float3 *buffer, std::string filename, const int width, const int height);
-
-// Saves a tga with given float4 buffer
-bool save_texture_tga(float4 *buffer, std::string filename, const int width, const int height);
-
-// Saves a exr with given float3 buffer
-bool save_texture_exr(float3 *buffer, std::string filename, const int width, const int height, bool flip);
-
-// Saves a exr with given float4 buffer
-bool save_texture_exr(float4 *buffer, std::string filename, const int width, const int height, bool flip);
-
-// Loads an exr to a float3 buffer
-bool load_texture_exr(float3 *buffer, std::string filename, int &width, int &height, bool flip);
-
-// Loads an exr to a float4 buffer
-bool load_texture_exr(float4 *buffer, std::string filename, int &width, int &height, bool flip);
+void log(const char* message, unsigned int level);
+void log(std::string message, unsigned int level);
 
 
 
-#endif // !_FILEIO_H_
+#endif // !_LOGGER_H_
