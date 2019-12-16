@@ -94,6 +94,9 @@
 #define OIDN_STATIC_LIB
 #include <OpenImageDenoise/oidn.hpp>
 
+
+namespace fs = boost::filesystem;
+
 // Atmosphere
 
 CUmodule cuRenderModule;
@@ -1066,11 +1069,13 @@ int main(const int argc, const char* argv[])
 		log("Please specify a vdb file!", ERROR);
 		return 0;
 	}
+	
 
 	// Create necessary folders 
-	if (!CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) log("Unable to create folder ""render"" ", WARNING);
-	if (!CreateDirectory("./atmosphere_textures", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) log("Unable to create folder ""atmosphere_textures"" ", WARNING);
-	if (!CreateDirectory("./atmosphere_textures_debug", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) log("Unable to create folder ""atmosphere_textures_debug"" ", WARNING);
+	fs::path render_dir("./render");
+	fs::path atmosphere_dir("./atmosphere_textures");
+	if (!fs::exists(fs::status(render_dir))) fs::create_directory(render_dir);
+	if (!fs::exists(fs::status(atmosphere_dir))) fs::create_directory(atmosphere_dir);
 
 	Window_context window_context;
 	memset(&window_context, 0, sizeof(Window_context));

@@ -43,11 +43,12 @@
 #include <helper_math.h>
 #include "logger.h"
 
-#include <filesystem>
-
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/Dense.h>
 #include <openvdb/Metadata.h>
+
+#include "boost/filesystem.hpp"
+namespace fs = boost::filesystem;
 
 GPU_VDB::GPU_VDB() {}
 
@@ -95,8 +96,8 @@ GPU_VDB * GPU_VDB::clone() {
 
 bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::string emission_channel) {
 
-	if (!std::experimental::filesystem::exists(filename)) {
-
+	if (!fs::exists(fs::path(filename))) {
+		
 		log("File doesn't exists " + filename , ERROR);
 		return false;
 

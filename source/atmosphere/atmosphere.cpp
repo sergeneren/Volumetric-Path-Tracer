@@ -39,7 +39,6 @@
 #include <vector>
 #include <string>
 #include <fstream>
-#include <filesystem>
 
 #include "atmosphere/atmosphere.h"
 #include "atmosphere/constants.h"
@@ -50,6 +49,9 @@
 #include <driver_types.h>
 #include <helper_cuda.h>
 #include <helper_math.h>
+
+#include "boost/filesystem.hpp"
+namespace fs = boost::filesystem;
 
 // TODO convert all device pointers to thrust device pointers 
 //#include "thrust/device_ptr.h"
@@ -254,7 +256,8 @@ atmosphere_error_t atmosphere::load_textures()
 
 	file_path = texture_folder;
 	file_path.append("/transmittance.exr");
-	if (!std::experimental::filesystem::exists(file_path)) {
+	
+	if (!fs::exists(fs::path(file_path))) {
 		log("File doesn't exists" + file_path, ERROR);
 		return ATMO_LOAD_FILE_ERR;
 	}
@@ -267,7 +270,7 @@ atmosphere_error_t atmosphere::load_textures()
 	file_path.clear();
 	file_path = texture_folder;
 	file_path.append("/irradiance.exr");
-	if (!std::experimental::filesystem::exists(file_path)) {
+	if (!fs::exists(fs::path(file_path))) {
 		log("File doesn't exists" + file_path, ERROR);
 		return ATMO_LOAD_FILE_ERR;
 	}
@@ -290,7 +293,7 @@ atmosphere_error_t atmosphere::load_textures()
 		file_path.append(std::to_string(i));
 		file_path.append(".exr");
 
-		if (!std::experimental::filesystem::exists(file_path)) {
+		if (!fs::exists(fs::path(file_path))) {
 			log("File doesn't exists" + file_path, ERROR);
 			return ATMO_LOAD_FILE_ERR;
 		}
@@ -328,7 +331,7 @@ atmosphere_error_t atmosphere::load_textures()
 		file_path.append(std::to_string(i));
 		file_path.append(".exr");
 
-		if (!std::experimental::filesystem::exists(file_path)) {
+		if (!fs::exists(fs::path(file_path))) {
 			log("File doesn't exists" + file_path, ERROR);
 			return ATMO_LOAD_FILE_ERR;
 		}
