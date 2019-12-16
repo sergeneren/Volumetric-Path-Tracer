@@ -36,8 +36,6 @@
 //
 //-----------------------------------------------
 
-
-
 #include <vector>
 #include <string>
 #include <fstream>
@@ -51,7 +49,7 @@
 #include <helper_cuda.h>
 #include <helper_math.h>
 
-// TO-DO convert all device pointers to thrust device pointers 
+// TODO convert all device pointers to thrust device pointers 
 //#include "thrust/device_ptr.h"
 
 
@@ -244,7 +242,7 @@ DensityProfile atmosphere::adjust_units(DensityProfile density) {
 
 bool atmosphere::load_textures()
 {
-	
+
 	float *buffer;
 	int width, height;
 
@@ -264,7 +262,7 @@ atmosphere_error_t atmosphere::clear_buffers() {
 	dim3 block(8, 8, 1);
 	dim3 grid_transmittance(int(TRANSMITTANCE_TEXTURE_WIDTH / block.x) + 1, int(TRANSMITTANCE_TEXTURE_HEIGHT / block.y) + 1, 1);
 
-	void *transmittance_params[] = {&atmosphere_parameters};
+	void *transmittance_params[] = { &atmosphere_parameters };
 	result = cuLaunchKernel(clear_transmittance_buffers_function, grid_transmittance.x, grid_transmittance.y, 1, block.x, block.y, 1, 0, NULL, transmittance_params, NULL);
 	checkCudaErrors(cudaDeviceSynchronize());
 	if (result != CUDA_SUCCESS) {
@@ -274,7 +272,7 @@ atmosphere_error_t atmosphere::clear_buffers() {
 
 	// Clear irradiance buffers 
 	dim3 grid_irradiance(int(IRRADIANCE_TEXTURE_WIDTH / block.x) + 1, int(IRRADIANCE_TEXTURE_HEIGHT / block.y) + 1, 1);
-	void *irradiance_params[] = {&atmosphere_parameters};
+	void *irradiance_params[] = { &atmosphere_parameters };
 
 	result = cuLaunchKernel(clear_irradiance_buffers_function, grid_irradiance.x, grid_irradiance.y, 1, block.x, block.y, 1, 0, NULL, irradiance_params, NULL);
 	checkCudaErrors(cudaDeviceSynchronize());
@@ -286,8 +284,8 @@ atmosphere_error_t atmosphere::clear_buffers() {
 	// Clear scattering buffers 
 	dim3 block_sct(8, 8, 8);
 	dim3 grid_scattering(int(SCATTERING_TEXTURE_WIDTH / block_sct.x) + 1, int(SCATTERING_TEXTURE_HEIGHT / block_sct.y) + 1, int(SCATTERING_TEXTURE_DEPTH / block_sct.z) + 1);
-	
-	void *single_scattering_params[] = { &atmosphere_parameters};
+
+	void *single_scattering_params[] = { &atmosphere_parameters };
 
 	result = cuLaunchKernel(clear_scattering_buffers_function, grid_scattering.x, grid_scattering.y, grid_scattering.z, block_sct.x, block_sct.y, block_sct.z, 0, NULL, single_scattering_params, NULL);
 	checkCudaErrors(cudaDeviceSynchronize());
@@ -304,7 +302,7 @@ void atmosphere::copy_transmittance_texture() {
 
 	// Destroy texture if it's been created before 
 	if (atmosphere_parameters.transmittance_texture) checkCudaErrors(cudaDestroyTextureObject(atmosphere_parameters.transmittance_texture));
-	
+
 	cudaArray_t data_array = 0;
 
 	const int rx = TRANSMITTANCE_TEXTURE_WIDTH;
@@ -312,11 +310,11 @@ void atmosphere::copy_transmittance_texture() {
 
 	float4 *host_transmittance_buffer = new float4[rx*ry];
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, rx*ry * sizeof(float4), cudaMemcpyDeviceToHost));
-	
+
 	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float4>();
 	checkCudaErrors(cudaMallocArray(&data_array, &channel_desc, rx, ry));
 	checkCudaErrors(cudaMemcpy2DToArray(data_array, 0, 0, host_transmittance_buffer, rx * sizeof(float4), rx * sizeof(float4), ry, cudaMemcpyHostToDevice));
-	
+
 	cudaResourceDesc res_desc;
 	memset(&res_desc, 0, sizeof(res_desc));
 	res_desc.resType = cudaResourceTypeArray;
@@ -340,7 +338,7 @@ void atmosphere::copy_irradiance_texture() {
 
 	// Destroy texture if it's been created before 
 	if (atmosphere_parameters.irradiance_texture)  checkCudaErrors(cudaDestroyTextureObject(atmosphere_parameters.irradiance_texture));
-	
+
 	cudaArray_t data_array = 0;
 
 	const int rx = IRRADIANCE_TEXTURE_WIDTH;
@@ -348,7 +346,7 @@ void atmosphere::copy_irradiance_texture() {
 
 	float4 *host_buffer = new float4[rx*ry];
 	checkCudaErrors(cudaMemcpy(host_buffer, atmosphere_parameters.irradiance_buffer, rx*ry * sizeof(float4), cudaMemcpyDeviceToHost));
-	
+
 	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float4>();
 	checkCudaErrors(cudaMallocArray(&data_array, &channel_desc, rx, ry));
 
@@ -587,7 +585,7 @@ void atmosphere::update_model(const float3 lambdas) {
 atmosphere_error_t atmosphere::recompute() {
 
 	// clear vectors 
-	
+
 	m_wave_lengths.clear();
 	m_solar_irradiance.clear();
 	m_rayleigh_density = nullptr;
@@ -652,7 +650,7 @@ atmosphere_error_t atmosphere::recompute() {
 					coeff(lambdas[0], 1) * dlambda, coeff(lambdas[1], 1) * dlambda, coeff(lambdas[2], 1) * dlambda,
 					coeff(lambdas[0], 2) * dlambda, coeff(lambdas[1], 2) * dlambda, coeff(lambdas[2], 2) * dlambda
 			};
-			
+
 			bool blend = i > 0;
 			atmosphere_error_t error = precompute(lambdas, luminance_from_radiance, blend, num_scattering_orders);
 			if (error != ATMO_NO_ERR) {
@@ -671,7 +669,7 @@ atmosphere_error_t atmosphere::recompute() {
 			return ATMO_INIT_ERR;
 		}
 	}
-	
+
 	// copy textures and free buffers
 
 	copy_transmittance_texture();
@@ -734,7 +732,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
 
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
-	
+
 	save_texture_exr(host_transmittance_buffer, "./atmosphere_textures/transmittance.exr", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT, false);
 
 	delete[] host_transmittance_buffer;
@@ -759,7 +757,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 	checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
 	save_texture_exr(host_irradiance_buffer, "./atmosphere_textures/irradiance.exr", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT, true);
-	
+
 #endif
 
 	//***************************************************************************************************************************
@@ -768,7 +766,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 	//***************************************************************************************************************************
 	dim3 block_sct(8, 8, 8);
 	dim3 grid_scattering(int(SCATTERING_TEXTURE_WIDTH / block_sct.x) + 1, int(SCATTERING_TEXTURE_HEIGHT / block_sct.y) + 1, int(SCATTERING_TEXTURE_DEPTH / block_sct.z) + 1);
-	
+
 
 	float4 blend_vec = make_float4(.0f, .0f, BLEND, BLEND);
 
@@ -811,7 +809,7 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 		blend_vec = make_float4(.0f);
 		for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
-		
+
 			void *scattering_density_params[] = { &atmosphere_parameters, &blend_vec, &scattering_order, &i };
 			result = cuLaunchKernel(scattering_density_function, grid_scattering.x, grid_scattering.y, 1, block_sct.x, block_sct.y, 1, 0, NULL, scattering_density_params, NULL);
 			checkCudaErrors(cudaDeviceSynchronize());
@@ -819,9 +817,9 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 				printf("Unable to launch direct scattering density function! \n");
 				return ATMO_LAUNCH_ERR;
 			}
-	
+
 		}
-		
+
 
 #ifdef DEBUG_TEXTURES // Print single scattering values
 
@@ -986,54 +984,57 @@ atmosphere_error_t atmosphere::init()
 	m_max_sun_zenith_angle = 120.0 / 180.0 * M_PI;
 	m_length_unit_in_meters = 1.0f;
 
-	int num_scattering_orders = 4;
-	// Start precomputation
+	if (m_need_compute) {
+		// Start precomputation
+		int num_scattering_orders = 4;
 
-	if (num_precomputed_wavelengths() <= 3) {
-		atmosphere_error_t error = precompute(nullptr, nullptr, false, num_scattering_orders);
-		if (error != ATMO_NO_ERR) {
-			printf("Unable to precompute!");
-			return ATMO_INIT_ERR;
+		if (num_precomputed_wavelengths() <= 3) {
+			atmosphere_error_t error = precompute(nullptr, nullptr, false, num_scattering_orders);
+			if (error != ATMO_NO_ERR) {
+				printf("Unable to precompute!");
+				return ATMO_INIT_ERR;
+			}
 		}
-	}
-	else {
+		else {
 
-		int num_iterations = (num_precomputed_wavelengths() + 2) / 3;
-		double dlambda = (kLambdaMax - kLambdaMin) / (3.0 * num_iterations);
+			int num_iterations = (num_precomputed_wavelengths() + 2) / 3;
+			double dlambda = (kLambdaMax - kLambdaMin) / (3.0 * num_iterations);
 
-		for (int i = 0; i < num_iterations; ++i)
-		{
-			double lambdas[] =
+			for (int i = 0; i < num_iterations; ++i)
 			{
-					kLambdaMin + (3 * i + 0.5) * dlambda,
-					kLambdaMin + (3 * i + 1.5) * dlambda,
-					kLambdaMin + (3 * i + 2.5) * dlambda
-			};
+				double lambdas[] =
+				{
+						kLambdaMin + (3 * i + 0.5) * dlambda,
+						kLambdaMin + (3 * i + 1.5) * dlambda,
+						kLambdaMin + (3 * i + 2.5) * dlambda
+				};
 
-			double luminance_from_radiance[] =
-			{
-					coeff(lambdas[0], 0) * dlambda, coeff(lambdas[1], 0) * dlambda, coeff(lambdas[2], 0) * dlambda,
-					coeff(lambdas[0], 1) * dlambda, coeff(lambdas[1], 1) * dlambda, coeff(lambdas[2], 1) * dlambda,
-					coeff(lambdas[0], 2) * dlambda, coeff(lambdas[1], 2) * dlambda, coeff(lambdas[2], 2) * dlambda
-			};
+				double luminance_from_radiance[] =
+				{
+						coeff(lambdas[0], 0) * dlambda, coeff(lambdas[1], 0) * dlambda, coeff(lambdas[2], 0) * dlambda,
+						coeff(lambdas[0], 1) * dlambda, coeff(lambdas[1], 1) * dlambda, coeff(lambdas[2], 1) * dlambda,
+						coeff(lambdas[0], 2) * dlambda, coeff(lambdas[1], 2) * dlambda, coeff(lambdas[2], 2) * dlambda
+				};
 
-			bool blend = i > 0;
-			atmosphere_error_t error = precompute(lambdas, luminance_from_radiance, blend, num_scattering_orders);
+				bool blend = i > 0;
+				atmosphere_error_t error = precompute(lambdas, luminance_from_radiance, blend, num_scattering_orders);
+				if (error != ATMO_NO_ERR) {
+					printf("Unable to precompute!");
+					return ATMO_INIT_ERR;
+				}
+			}
+
+			// After the above iterations, the transmittance texture contains the
+			// transmittance for the 3 wavelengths used at the last iteration. But we
+			// want the transmittance at kLambdaR, kLambdaG, kLambdaB instead, so we
+			// must recompute it here for these 3 wavelengths:
+			atmosphere_error_t error = compute_transmittance(nullptr, nullptr, false, num_scattering_orders);
 			if (error != ATMO_NO_ERR) {
 				printf("Unable to precompute!");
 				return ATMO_INIT_ERR;
 			}
 		}
 
-		// After the above iterations, the transmittance texture contains the
-		// transmittance for the 3 wavelengths used at the last iteration. But we
-		// want the transmittance at kLambdaR, kLambdaG, kLambdaB instead, so we
-		// must recompute it here for these 3 wavelengths:
-		atmosphere_error_t error = compute_transmittance(nullptr, nullptr, false, num_scattering_orders);
-		if (error != ATMO_NO_ERR) {
-			printf("Unable to precompute!");
-			return ATMO_INIT_ERR;
-		}
 	}
 
 	// copy textures and clear buffers

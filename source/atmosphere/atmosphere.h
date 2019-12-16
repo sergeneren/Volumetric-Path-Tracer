@@ -171,7 +171,8 @@ private:
 	inline int num_precomputed_wavelengths() { return m_use_luminance == LUMINANCE::PRECOMPUTED ? 15 : 3; }
 	bool m_combine_scattering_textures;
 	bool m_half_precision = false;
-	
+	bool m_need_compute = true;
+
 public:
 
 	float m_exposure;
