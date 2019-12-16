@@ -84,8 +84,8 @@
 // Instance file parser
 #include "instancer_hda/volume_instance.h"
 
-//#define SAVE_TGA
-#define SAVE_OPENEXR
+#define SAVE_TGA
+//#define SAVE_OPENEXR
 
 #include <Windows.h>
 
@@ -1364,7 +1364,7 @@ int main(const int argc, const char* argv[])
 	
 
 	log("Creating atmosphere...", LOG);
-	if (CreateDirectory("./atmosphere_textures", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+	if (CreateDirectory("./atmosphere_textures", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) NULL;
 	else {
 		log("unable to create directory for atmosphere textures", ERROR);
 		exit(-1);
@@ -1618,7 +1618,7 @@ int main(const int argc, const char* argv[])
 
 		if (ctx->save_image) {
 
-			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) NULL;
 
 			char frame_string[100];
 			sprintf_s(frame_string, "%d", frame);
@@ -1631,8 +1631,8 @@ int main(const int argc, const char* argv[])
 			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			bool success = save_tga(c, width, height, file_name);
-			if (!success) printf("!Unable to save exr file.\n");
+			bool success = save_texture_tga(c, file_name, width, height);
+			if (!success) log("Unable to save exr file", ERROR);
 
 #endif
 
@@ -1654,7 +1654,7 @@ int main(const int argc, const char* argv[])
 
 		if (ctx->save_cost_image) {
 
-			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+			if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) NULL;
 
 			char frame_string[100];
 			sprintf_s(frame_string, "%d", frame);
@@ -1743,7 +1743,7 @@ int main(const int argc, const char* argv[])
 				}
 				*/
 
-				if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
+				if (CreateDirectory("./render", NULL) || ERROR_ALREADY_EXISTS == GetLastError()) NULL;
 
 				char frame_string[100];
 				sprintf_s(frame_string, "%d", frame);
