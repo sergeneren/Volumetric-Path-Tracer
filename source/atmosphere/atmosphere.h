@@ -123,7 +123,8 @@ private:
 	atmosphere_error_t clear_buffers();
 	void update_model(const float3 lambdas);
 
-	bool load_textures();
+	atmosphere_error_t load_textures();
+	atmosphere_error_t save_textures();
 
 	void copy_transmittance_texture();
 	void copy_scattering_texture();

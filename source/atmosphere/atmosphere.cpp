@@ -240,7 +240,7 @@ DensityProfile atmosphere::adjust_units(DensityProfile density) {
 	return density;
 }
 
-bool atmosphere::load_textures()
+atmosphere_error_t atmosphere::load_textures()
 {
 
 	float *buffer;
@@ -250,7 +250,21 @@ bool atmosphere::load_textures()
 
 	//LoadEXR(&buffer, &width, &height, filename, &err);
 
-	return true;
+	return ATMO_NO_ERR;
+}
+
+
+atmosphere_error_t atmosphere::save_textures()
+{
+
+	float *buffer;
+	int width, height;
+
+	const char *filename = "atmosphere_textures/scattering.exr", *err;
+
+	//LoadEXR(&buffer, &width, &height, filename, &err);
+
+	return ATMO_NO_ERR;
 }
 
 // Clear buffers for next round of precomputation
