@@ -1245,7 +1245,7 @@ __device__ inline float3 estimate_emission(
 		}
 		else break;
 
-		float inv_max_density = 1 / root->max_extinction;
+		float inv_max_density = 1 / root->max_emission;
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		ray_pos += ray_dir * t;

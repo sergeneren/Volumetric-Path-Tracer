@@ -1074,8 +1074,10 @@ int main(const int argc, const char* argv[])
 	// Create necessary folders 
 	fs::path render_dir("./render");
 	fs::path atmosphere_dir("./atmosphere_textures");
+	fs::path atmosphere_debug_dir("./atmosphere_textures_debug");
 	if (!fs::exists(fs::status(render_dir))) fs::create_directory(render_dir);
 	if (!fs::exists(fs::status(atmosphere_dir))) fs::create_directory(atmosphere_dir);
+	if (!fs::exists(fs::status(atmosphere_debug_dir))) fs::create_directory(atmosphere_debug_dir);
 
 	Window_context window_context;
 	memset(&window_context, 0, sizeof(Window_context));
@@ -1143,8 +1145,8 @@ int main(const int argc, const char* argv[])
 		instances.at(0).loadVDB(file_path, "density", "heat");
 
 		mat4 xform = instances.at(0).get_xform();
-		//xform.scale(make_float3(20.0f));
-		xform.translate(make_float3(0, 200, 0));
+		xform.scale(make_float3(20.0f));
+		//xform.translate(make_float3(0, 200, 0));
 		instances.at(0).set_xform(xform);
 
 	}
@@ -1375,6 +1377,7 @@ int main(const int argc, const char* argv[])
 
 	log("Creating atmosphere...", LOG);
 	earth_atmosphere.texture_folder = "./atmosphere_textures";
+	earth_atmosphere.texture_folder_debug = "./atmosphere_textures_debug";
 	earth_atmosphere.init();
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
 

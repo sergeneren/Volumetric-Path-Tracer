@@ -913,6 +913,8 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 	if (m_need_compute) {
 
+		std::string file_path;
+
 		// Precompute transmittance 
 		//***************************************************************************************************************************
 
@@ -936,7 +938,10 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 
 		checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
 
-		save_texture_png(host_transmittance_buffer, "./atmosphere_textures/transmittance.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
+		file_path = texture_folder_debug;
+		file_path.append("/transmittance.png");
+
+		save_texture_png(host_transmittance_buffer, file_path, TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
 
 		delete[] host_transmittance_buffer;
 
@@ -959,7 +964,11 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		float4 *host_irradiance_buffer = new float4[IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT];
 
 		checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
-		save_texture_png(host_irradiance_buffer, "./atmosphere_textures/irradiance.png", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
+		
+		file_path.clear();
+		file_path = texture_folder_debug;
+		file_path.append("/irradiance.png");
+		save_texture_png(host_irradiance_buffer, file_path, IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
 
 #endif
 
@@ -991,13 +1000,22 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 		float4 *host_scattering_buffer = new float4[SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH];
 
 		checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-		save_texture_png(host_scattering_buffer, "./atmosphere_textures/scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+		file_path.clear();
+		file_path = texture_folder_debug;
+		file_path.append("/scattering.png");
+		save_texture_png(host_scattering_buffer, file_path, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 		checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_rayleigh_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-		save_texture_png(host_scattering_buffer, "./atmosphere_textures/delta_rayleigh_scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+		file_path.clear();
+		file_path = texture_folder_debug;
+		file_path.append("/delta_rayleigh_scattering.png");
+		save_texture_png(host_scattering_buffer, file_path, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 		checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_mie_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-		save_texture_png(host_scattering_buffer, "./atmosphere_textures/delta_mie_scattering.png", SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+		file_path.clear();
+		file_path = texture_folder_debug;
+		file_path.append("/delta_mie_scattering.png");
+		save_texture_png(host_scattering_buffer, file_path, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 #endif
 
@@ -1027,11 +1045,14 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 #ifdef DEBUG_TEXTURES // Print single scattering values
 
 			checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_scattering_density_buffer, scattering_size, cudaMemcpyDeviceToHost));
-			std::string name("./atmosphere_textures/scattering_density_");
-			name.append(std::to_string(scattering_order));
-			name.append(".png");
 
-			save_texture_png(host_scattering_buffer, name, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+			file_path.clear();
+			file_path = texture_folder_debug;
+			file_path.append("/scattering_density_");
+			file_path.append(std::to_string(scattering_order));
+			file_path.append(".png");
+
+			save_texture_png(host_scattering_buffer, file_path, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 #endif
 
@@ -1051,10 +1072,12 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 #ifdef DEBUG_TEXTURES // Print indirect irradiance values
 
 			checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
-			std::string name_indirect("./atmosphere_textures/delta_irradiance_");
-			name_indirect.append(std::to_string(scattering_order));
-			name_indirect.append(".png");
-			save_texture_png(host_irradiance_buffer, name_indirect, IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
+			file_path.clear();
+			file_path = texture_folder_debug;
+			file_path.append("/delta_irradiance_");
+			file_path.append(std::to_string(scattering_order));
+			file_path.append(".png");
+			save_texture_png(host_irradiance_buffer, file_path, IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT);
 
 #endif
 
@@ -1073,10 +1096,13 @@ atmosphere_error_t atmosphere::precompute(double* lambda_ptr, double* luminance_
 #ifdef DEBUG_TEXTURES // Print multiple scattering values
 
 			checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.delta_multiple_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
-			std::string name_multi("./atmosphere_textures/multiple_scattering_");
-			name_multi.append(std::to_string(scattering_order));
-			name_multi.append(".png");
-			save_texture_png(host_scattering_buffer, name_multi, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
+			file_path.clear();
+			file_path = texture_folder_debug;
+			file_path.append("/multiple_scattering_");
+			file_path.append(std::to_string(scattering_order));
+			file_path.append(".png");
+
+			save_texture_png(host_scattering_buffer, file_path, SCATTERING_TEXTURE_WIDTH, SCATTERING_TEXTURE_HEIGHT);
 
 #endif
 
@@ -1142,7 +1168,9 @@ atmosphere_error_t atmosphere::compute_transmittance(double* lambda_ptr, double*
 		float4 *host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
 		checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
 		
-		save_texture_png(host_transmittance_buffer, "./atmosphere_textures/transmittance.png", TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
+		std::string file_path = texture_folder_debug;
+		file_path.append("/transmittance.png");
+		save_texture_png(host_transmittance_buffer, file_path, TRANSMITTANCE_TEXTURE_WIDTH, TRANSMITTANCE_TEXTURE_HEIGHT);
 		delete[] host_transmittance_buffer;
 #endif
 
@@ -1294,6 +1322,7 @@ atmosphere::~atmosphere() {
 atmosphere::atmosphere() {
 
 	texture_folder = "";
+	texture_folder_debug = "";
 
 	// Allocate device memory for atmosphere_parameters buffers 
 	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);

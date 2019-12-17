@@ -185,6 +185,7 @@ public:
 	LUMINANCE m_use_luminance;
 	AtmosphereParameters atmosphere_parameters;
 	std::string texture_folder;
+	std::string texture_folder_debug;
 	bool debug_textures = false;
 
 private:
