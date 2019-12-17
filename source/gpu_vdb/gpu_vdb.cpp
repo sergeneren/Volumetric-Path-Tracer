@@ -177,13 +177,18 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 
 		float *volume_data_host = (float *)malloc(dim_x * dim_y * dim_z * sizeof(float));
 		vdb_info.max_density = .0f;
+		vdb_info.min_density = FLT_MAX;
+
 		// Copy vdb values
 		for (int z = 0; z < dim_z; z++) {
 			for (int y = 0; y < dim_y; y++) {
 				for (int x = 0; x < dim_x; x++) {
 					int idx = z * dim_x*dim_y + y * dim_x + x;
 					float val = dense.getValue(idx);
+					
 					vdb_info.max_density = fmaxf(vdb_info.max_density, val);
+					vdb_info.min_density = fminf(vdb_info.min_density, fmaxf(FLT_EPSILON, val)); // Get the minimum density that is not zero 
+
 					volume_data_host[idx] = val;
 				}
 			}
@@ -255,6 +260,8 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		vol_size.width = dim_x;
 		vol_size.height = dim_y;
 		vol_size.depth = dim_z;
+		vdb_info.max_emission = .0f;
+		vdb_info.min_emission = FLT_MAX;
 
 		float *volume_data_host = (float *)malloc(dim_x * dim_y * dim_z * sizeof(float));
 		// Copy vdb values
@@ -263,6 +270,10 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 				for (int x = 0; x < dim_x; x++) {
 					int idx = z * dim_x*dim_y + y * dim_x + x;
 					float val = dense.getValue(idx);
+
+					vdb_info.max_emission = fmaxf(vdb_info.max_emission, val);
+					vdb_info.min_emission = fminf(vdb_info.min_emission, fmaxf( FLT_EPSILON , val));
+
 					volume_data_host[idx] = val;
 				}
 			}
@@ -350,7 +361,6 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	set_vec3s(vdb_info.bmax, bbox.max().asVec3s());
 	set_vec3i(vdb_info.dim, bbox.dim().asVec3i());
 
-	vdb_info.epsilon = FLT_EPSILON;
 	vdb_info.voxelsize = float(grid->voxelSize()[0]);
 
 	openvdb::Mat4R ref_xform = grid->transform().baseMap()->getAffineMap()->getMat4();
