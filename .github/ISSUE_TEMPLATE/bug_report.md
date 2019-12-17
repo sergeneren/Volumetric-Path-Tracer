@@ -1,21 +1,26 @@
 ---
 name: Bug report
 about: Create a report to help VPT
-title: ''
-labels: ''
-assignees: ''
+title: "[BUG]"
+labels: bug
+assignees: sergeneren
 
 ---
+
+**Pre Report**
+Please make sure you have completed below checklist before submitting a report  
+
+- [ ] Build VPT with DebugLevel "Log"
+- [ ] Run VPT to a log file [e.g "*.\vpt.exe fireball.ins >log.txt*" ]  
+- [ ] Attach the log file here with a link 
 
 **Describe the bug**
 A clear and concise description of what the bug is.
 
 **To Reproduce**
 Steps to reproduce the behavior:
-1. Build VPT with DebugLevel "Log"
-2. Run VPT  
-3. Save the log to a txt file 
-4. Attach the log here
+1. ...
+2. ... 
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
