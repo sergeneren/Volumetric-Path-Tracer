@@ -59,10 +59,13 @@ struct ALIGN(16) VDB_INFO {
 
 	float	voxelsize;
 	int3	dim;
-	float	epsilon;
 	float3	bmin;
 	float3	bmax;
 	float	max_density;
+	float	min_density;
+	float	max_emission;
+	float	min_emission;
+
 	cudaTextureObject_t density_texture; 
 	cudaTextureObject_t emission_texture;
 
