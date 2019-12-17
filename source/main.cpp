@@ -1385,11 +1385,11 @@ int main(const int argc, const char* argv[])
 
 	log("Setting up geometry and device pointers...", LOG);
 	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
-	float3 center = make_float3(100, 320, 0);
+	float3 center = make_float3(100, 320, -200);
 	float radius = 100;
 	sphere ref_sphere(center, radius);
-	ref_sphere.roughness = 1.0f;
-	ref_sphere.color = make_float3(0.18f);
+	ref_sphere.roughness = 0.0f;
+	ref_sphere.color = make_float3(0.0f);
 
 	CUdeviceptr d_geo_ptr;
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);

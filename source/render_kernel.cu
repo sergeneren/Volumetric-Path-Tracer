@@ -1111,7 +1111,7 @@ __device__ inline float3 Tr(
 	}
 
 	root->bbox.Intersect(ray_pos, ray_dir, t_min, distance);
-	if (ref_sphere.intersect(ray_pos, ray_dir, t_min, geo_dist)) distance = geo_dist;
+	if (ref_sphere.intersect(ray_pos, ray_dir, geo_dist, t_max)) distance = geo_dist;
 
 	// Control variate  
 	float sigma_c = root->min_extinction;
@@ -1537,10 +1537,10 @@ __device__ inline float3 sample(
 	// Run delta tracking with octree traversal
 	// We assume that the ray_pos is inside the root bbox at the beginning 
 
-	float t = .0f;
-	float t_min = .0f, t_max = .0f;
-	float distance = M_INF;
+	float t_min, t_max, geo_dist = .0f, distance = .0f, t = 0.0f;
+	bool geo;
 
+	
 
 
 #ifndef DDA_STEP_TRUE
@@ -1613,11 +1613,15 @@ __device__ inline float3 sample(
 
 		float inv_max_density = 1.0f / root->max_extinction;
 		float inv_density_mult = 1.0f / kernel_params.density_mult;
-		bool geo = ref_sphere.intersect(ray_pos, ray_dir, distance, t_max);
+		root->bbox.Intersect(ray_pos, ray_dir, t_min, distance);
+		if (ref_sphere.intersect(ray_pos, ray_dir, geo_dist, t_max)) {
+			distance = geo_dist;
+			geo = true;
+		}
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 
-		if (geo && t >= distance) {
-			obj = 2;
+		if (t >= distance) {
+			if(geo) obj = 2;
 			break;
 		}
 
@@ -1778,15 +1782,15 @@ __device__ inline float3 direct_integrator(
 			float3 v = cross(w, u);
 
 			float3 hemisphere_dir = normalize(u*cosf(phi)*r2s + v * sinf(phi)*r2s + w * sqrtf(1 - r2));
-			float3 ref = reflect(ray_dir, normal);
+			float3 ref = reflect(ray_dir, nl);
 			ray_dir = lerp(ref, hemisphere_dir, ref_sphere.roughness);
 
 			float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
 			ray_pos += normal * EPS;
-
-			L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f) * beta;
-
+			float3 v_tr = Tr(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, ref_sphere, root);
+			L += kernel_params.sun_color * kernel_params.sun_mult * v_tr * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f) * beta;
+			if (kernel_params.emission_scale > .0f) L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			env_pos = ray_pos;
 
 		}
