@@ -116,6 +116,11 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 
 	}
 
+	vdb_info.max_density = .0f;
+	vdb_info.min_density = FLT_MAX;
+	vdb_info.max_emission = .0f;
+	vdb_info.min_emission = FLT_MAX;
+
 	openvdb::initialize();
 	openvdb::io::File file(filename);
 	file.open();
@@ -176,8 +181,6 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		vol_size.depth = dim_z;
 
 		float *volume_data_host = (float *)malloc(dim_x * dim_y * dim_z * sizeof(float));
-		vdb_info.max_density = .0f;
-		vdb_info.min_density = FLT_MAX;
 
 		// Copy vdb values
 		for (int z = 0; z < dim_z; z++) {
@@ -260,8 +263,6 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		vol_size.width = dim_x;
 		vol_size.height = dim_y;
 		vol_size.depth = dim_z;
-		vdb_info.max_emission = .0f;
-		vdb_info.min_emission = FLT_MAX;
 
 		float *volume_data_host = (float *)malloc(dim_x * dim_y * dim_z * sizeof(float));
 		// Copy vdb values

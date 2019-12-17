@@ -220,8 +220,14 @@ struct OCTNode {
 
 	int num_volumes = 0;
 	int vol_indices[600];
+	
 	float max_extinction = .0f;
-	float min_extinction = .0f;
+	float min_extinction = FLT_MAX;
+
+	float max_emission = .0f;
+	float min_emission = FLT_MAX;
+
+
 	float voxel_size = M_INF;
 	int depth = -1;
 	bool has_children = false;

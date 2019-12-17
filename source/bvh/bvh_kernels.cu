@@ -219,6 +219,12 @@ __device__ void build_octree_recursive(GPU_VDB *vdbs, int num_volumes, OCTNode *
 						root->children[i]->num_volumes++;
 						root->children[i]->vol_indices[idx] = y;
 						root->children[i]->max_extinction = fmaxf(root->children[i]->max_extinction, vdbs[y].vdb_info.max_density);
+						root->children[i]->min_extinction = fminf(root->children[i]->min_extinction, vdbs[y].vdb_info.min_density);
+
+						root->children[i]->max_emission = fmaxf(root->children[i]->max_emission, vdbs[y].vdb_info.max_emission);
+						root->children[i]->min_emission = fminf(root->children[i]->min_emission, vdbs[y].vdb_info.min_emission);
+
+
 						root->children[i]->voxel_size = fminf(root->children[i]->voxel_size, vdbs[y].vdb_info.voxelsize);
 						idx++;
 					}
@@ -233,6 +239,9 @@ __device__ void build_octree_recursive(GPU_VDB *vdbs, int num_volumes, OCTNode *
 						}
 					}
 					printf(" max extinction: %f\n", root->children[i]->max_extinction);
+					printf(" min extinction: %f\n", root->children[i]->min_extinction);
+					printf(" max emission: %f\n", root->children[i]->max_emission);
+					printf(" min emission: %f\n", root->children[i]->min_emission);
 				}
 				
 				build_octree_recursive(vdbs, num_volumes, root->children[i], depth - 1, m_debug);
