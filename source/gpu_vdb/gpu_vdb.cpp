@@ -372,7 +372,6 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 #endif
 	
 	log("max density: " + std::to_string(vdb_info.max_density), LOG);
-	printf("min density %f\n", vdb_info.min_density);
 	log("min density: " + std::to_string(vdb_info.min_density), LOG);
 	log("max emission: " + std::to_string(vdb_info.max_emission), LOG);
 	log("min emission: " + std::to_string(vdb_info.min_emission), LOG);

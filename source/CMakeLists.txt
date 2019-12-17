@@ -34,6 +34,20 @@ get_filename_component(ASSET_DIR ${CMAKE_SOURCE_DIR}/assets ABSOLUTE)
 add_definitions(-DASSET_PATH="${ASSET_DIR}/")
 ###################################################################
 
+
+## Create example instance file 
+
+file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+file(WRITE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fireball.ins" 
+	"1\n"
+	"${ASSET_DIR}/fireball.vdb\n"
+	"3\n"
+	"0 200 0 0 0 0 1 20\n"
+	"200 200 0 0 0 0 1 20\n"
+	"-200 200 0 0 0 0 1 20")
+
+
+
 file( GLOB ATMOSPHERE
 		"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.h"
 		"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.cpp")

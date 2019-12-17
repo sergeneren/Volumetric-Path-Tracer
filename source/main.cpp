@@ -985,7 +985,7 @@ static void read_instance_file(std::string file_name) {
 	for (int i = 0; i < volume_files.size(); ++i) {
 
 		unique_vdb_files.push_back(GPU_VDB());
-		unique_vdb_files.at(i).loadVDB(volume_files.at(i).vdb_file, "density");
+		unique_vdb_files.at(i).loadVDB(volume_files.at(i).vdb_file, "density", "heat");
 
 		for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
 			
