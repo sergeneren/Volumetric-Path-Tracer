@@ -222,10 +222,10 @@ struct OCTNode {
 	int vol_indices[600];
 	
 	float max_extinction = .0f;
-	float min_extinction = FLT_MAX;
+	float min_extinction = M_INF;
 
 	float max_emission = .0f;
-	float min_emission = FLT_MAX;
+	float min_emission = M_INF;
 
 
 	float voxel_size = M_INF;
