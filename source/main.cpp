@@ -84,8 +84,8 @@
 // Instance file parser
 #include "instancer_hda/volume_instance.h"
 
-#define SAVE_TGA
-//#define SAVE_OPENEXR
+//#define SAVE_TGA
+#define SAVE_OPENEXR
 
 #include <Windows.h>
 
@@ -1145,8 +1145,8 @@ int main(const int argc, const char* argv[])
 		instances.at(0).loadVDB(file_path, "density", "heat");
 
 		mat4 xform = instances.at(0).get_xform();
-		xform.scale(make_float3(20.0f));
-		//xform.translate(make_float3(0, 200, 0));
+		//xform.scale(make_float3(20.0f));
+		xform.translate(make_float3(0, 200, 0));
 		instances.at(0).set_xform(xform);
 
 	}
@@ -1533,7 +1533,7 @@ int main(const int argc, const char* argv[])
 
 		}
 
-		//if (kernel_params.iteration == kernel_params.max_interactions) ctx->save_image = true;
+		if (kernel_params.iteration == kernel_params.max_interactions-1) ctx->save_image = true;
 
 		// Test rotation
 #if 0 
@@ -1625,29 +1625,31 @@ int main(const int argc, const char* argv[])
 
 		if (ctx->save_image) {
 
-			char frame_string[100];
-			sprintf_s(frame_string, "%d", frame);
-			char file_name[100] = "./render/pathtrace.";
-			strcat_s(file_name, frame_string);
+			std::string file_path = "./render/pathtrace.";
+			file_path.append(std::to_string(frame));
+			
 
 #ifdef SAVE_TGA   
+
+			file_path.append(".tga");
 
 			int res = width * height;
 			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
 			bool success = save_texture_tga(c, file_name, width, height);
-			if (!success) log("Unable to save exr file", ERROR);
 
 #endif
 
 #ifdef SAVE_OPENEXR
+			
+			file_path.append(".exr");
+
 			int res = width * height;
 			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			bool success = save_texture_exr(c, file_name, width, height, true);
-			if (!success) log("Unable to save exr file", ERROR);
+			bool success = save_texture_exr(c, file_path, width, height, true);
 
 #endif
 
@@ -1659,18 +1661,16 @@ int main(const int argc, const char* argv[])
 
 		if (ctx->save_cost_image) {
 
-			char frame_string[100];
-			sprintf_s(frame_string, "%d", frame);
-			char file_name[100] = "./render/cost.";
-			strcat_s(file_name, frame_string);
+			std::string file_path = "./render/cost.";
+			file_path.append(std::to_string(frame));
+			file_path.append(".exr");
 
 #ifdef SAVE_OPENEXR
 			int res = width * height;
 			float3 *c = (float3*)malloc(res * sizeof(float3));
 			check_success(cudaMemcpy(c, cost_buffer, sizeof(float3) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			bool success = save_texture_exr(c, file_name, width, height, true);
-			if (!success) log("Unable to save exr file", ERROR);
+			bool success = save_texture_exr(c, file_path, width, height, true);
 
 #endif
 			frame++;
@@ -1746,13 +1746,12 @@ int main(const int argc, const char* argv[])
 				}
 				*/
 
-				char frame_string[100];
-				sprintf_s(frame_string, "%d", frame);
-				char file_name[100] = "./render/pathtrace.";
-				strcat_s(file_name, frame_string);
+				std::string file_path = "./render/pathtrace_denoised.";
+				file_path.append(std::to_string(frame));
+				file_path.append(".exr");
+				
 
-				bool success = save_texture_exr(temp_out_buffer, file_name, width, height, true);
-				if (!success) log("Unable to save exr file", ERROR);
+				bool success = save_texture_exr(temp_out_buffer, file_path, width, height, true);
 
 				frame++;
 

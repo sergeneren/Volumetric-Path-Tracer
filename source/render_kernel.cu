@@ -1089,6 +1089,7 @@ __device__ inline int get_closest_object(float3 ray_pos, float3 ray_dir, OCTNode
 
 }
 
+
 __device__ inline float3 Tr(
 	Rand_state &rand_state,
 	float3 ray_pos,
@@ -1100,19 +1101,22 @@ __device__ inline float3 Tr(
 {
 
 
-
-
-
-	// Run ratio tracking to estimate transmittance
+	// Run residual ratio tracking to estimate transmittance
 	float3 tr = WHITE;
-	float t_min, t_max, t = 0.0f;
-
-	if (ref_sphere.intersect(ray_pos, ray_dir, t_min, t_max)) return BLACK;
+	float t_min, t_max, geo_dist = .0f, distance = .0f, t = 0.0f;
 
 	if (!Contains(root->bbox, ray_pos)) { // position is out of root bbox
-		if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) ray_pos += ray_dir * (t_min + EPS); // The direction is towards volume bbox 
-		else return tr;
+		if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) ray_pos += ray_dir * (t_min + EPS); // push the position to volume box
+		else return tr; // We are missing volume box. No need to sample density tr
 	}
+
+	root->bbox.Intersect(ray_pos, ray_dir, t_min, distance);
+	if (ref_sphere.intersect(ray_pos, ray_dir, t_min, geo_dist)) distance = geo_dist;
+
+	// Control variate  
+	float sigma_c = root->min_extinction;
+	float sigma_r_inv = 1.0f / (root->max_extinction - sigma_c);
+	float T_c = expf(-sigma_c * distance);
 
 	// Code path 1:
 	// This is the old transmittance estimate algorithm that is agnostic of octree structure 
@@ -1173,22 +1177,25 @@ __device__ inline float3 Tr(
 		}
 		else break;
 
-		float inv_max_density = 1 / root->max_extinction;
 
-		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
+		t -= logf(1 - rand(&rand_state)) * sigma_r_inv * kernel_params.tr_depth;
+		if (t >= distance) break;
+
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 
-		tr *= (1 - fmaxf(.0f, density*inv_max_density));
-		tr = fmaxf(tr, make_float3(.0f));
+		tr *= 1 - ((density - sigma_c) * sigma_r_inv);
 		if (length(tr) < EPS) break;
 	}
 
 #endif
 
-	return tr;
+
+	return clamp(tr * T_c, .0f, 1.0f);
+
+
 }
 
 __device__ inline float3 estimate_emission(
@@ -1245,7 +1252,7 @@ __device__ inline float3 estimate_emission(
 		}
 		else break;
 
-		float inv_max_density = 1 / root->max_emission;
+		float inv_max_density = 1 / root->max_extinction;
 
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth / kernel_params.extinction.x;
 		ray_pos += ray_dir * t;
@@ -1534,18 +1541,18 @@ __device__ inline float3 sample(
 	float t_min = .0f, t_max = .0f;
 	float distance = M_INF;
 
-	
-	
+
+
 #ifndef DDA_STEP_TRUE
 
 	float inv_max_density = 1.0f;
 	float inv_density_mult = 1.0f / kernel_params.density_mult;
-	
-	
+
+
 	while (true) {
 		bool geo = ref_sphere.intersect(ray_pos, ray_dir, distance, t_max);
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
-		
+
 
 		if (geo && t >= distance) {
 			obj = 2;
@@ -1576,8 +1583,8 @@ __device__ inline float3 sample(
 				t_max = fmaxf(t_max, 0.1f);
 				ray_pos += ray_dir * t_max;
 				continue;
-			}
-		}
+	}
+}
 		else break;
 
 		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
@@ -1608,16 +1615,16 @@ __device__ inline float3 sample(
 		float inv_density_mult = 1.0f / kernel_params.density_mult;
 		bool geo = ref_sphere.intersect(ray_pos, ray_dir, distance, t_max);
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
-		
+
 		if (geo && t >= distance) {
 			obj = 2;
 			break;
 		}
-		
+
 		ray_pos += ray_dir * t;
 
 		if (!Contains(root->bbox, ray_pos))	break;
-		
+
 
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 
@@ -1684,7 +1691,7 @@ __device__ inline float3 vol_integrator(
 	float3 env_pos = ray_pos;
 	bool mi;
 	float t, tmax;
-	int obj; 
+	int obj;
 
 	if (root->bbox.Intersect(ray_pos, ray_dir, t, tmax)) { // found an intersection
 		ray_pos += ray_dir * (t + EPS);
@@ -1735,21 +1742,21 @@ __device__ inline float3 direct_integrator(
 	// TODO use bvh to determine if we intersect volume or geometry
 
 	for (int ray_depth = 1; ray_depth <= kernel_params.ray_depth; ray_depth++) {
-		
+
 		obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
 
 		if (obj == 1) {
 			ray_pos += ray_dir * (t_min + EPS);
 			for (int volume_depth = 1; volume_depth <= kernel_params.volume_depth; volume_depth++) {
 				mi = false;
-				
+
 				beta *= sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, ref_sphere, root);
 				if (isBlack(beta) || obj == 2) break;
 
 				if (mi) { // medium interaction 
 					sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 				}
-				
+
 			}
 			if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * beta;
 			if (kernel_params.emission_scale > 0 && mi) {
@@ -1758,7 +1765,7 @@ __device__ inline float3 direct_integrator(
 		}
 		obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
 		if (obj == 2) {
-			ray_pos += ray_dir * t_min ;
+			ray_pos += ray_dir * t_min;
 			float3 normal = normalize((ray_pos - ref_sphere.center) / ref_sphere.radius);
 			float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
 
@@ -1787,7 +1794,7 @@ __device__ inline float3 direct_integrator(
 	}
 
 	if (kernel_params.environment_type == 0) {
-		
+
 		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta * kernel_params.sky_mult * kernel_params.sky_color;
 
 	}
@@ -1800,7 +1807,7 @@ __device__ inline float3 direct_integrator(
 		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
 	}
 
-	
+
 
 	tr = fminf(tr, 1.0f);
 	return L;
@@ -1847,7 +1854,7 @@ __device__ inline float3 sample_cost(
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
 			return COST;
-}
+		}
 	}
 #endif
 
@@ -1868,8 +1875,8 @@ __device__ inline float3 sample_cost(
 				continue;
 
 
-			}
-		}
+	}
+}
 		else break;
 
 		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);

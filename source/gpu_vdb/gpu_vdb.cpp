@@ -190,13 +190,12 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 					float val = dense.getValue(idx);
 					
 					vdb_info.max_density = fmaxf(vdb_info.max_density, val);
-					vdb_info.min_density = fminf(vdb_info.min_density, fmaxf(FLT_EPSILON, val)); // Get the minimum density that is not zero 
+					vdb_info.min_density = fminf(fmaxf(FLT_EPSILON, val), vdb_info.min_density); // Get the minimum density that is not zero 
 
 					volume_data_host[idx] = val;
 				}
 			}
 		}
-		log("max density: " + std::to_string(vdb_info.max_density), LOG);
 
 		// create 3D array
 		cudaArray *d_volumeArray = 0;
@@ -373,6 +372,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 #endif
 	
 	log("max density: " + std::to_string(vdb_info.max_density), LOG);
+	printf("min density %f\n", vdb_info.min_density);
 	log("min density: " + std::to_string(vdb_info.min_density), LOG);
 	log("max emission: " + std::to_string(vdb_info.max_emission), LOG);
 	log("min emission: " + std::to_string(vdb_info.min_emission), LOG);
