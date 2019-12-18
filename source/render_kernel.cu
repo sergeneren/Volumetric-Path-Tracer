@@ -64,7 +64,6 @@ typedef unsigned long long	uint64;
 #include "camera.h"
 #include "light.h"
 #include "bvh/bvh.h"
-#include "geometry/plane.h"
 #include "geometry/sphere.h"
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
@@ -1265,50 +1264,6 @@ __device__ inline float3 estimate_emission(
 }
 
 
-//determines if ray intersects volume pyramid projected by octree bbox and returns the calculated transmission
-__device__ inline bool get_shadow_box(
-	Rand_state &randstate,
-	float3 ray_pos,
-	float3 ray_dir,
-	const GPU_VDB *volumes,
-	const sphere ref_sphere,
-	const plane *shadow_planes,
-	OCTNode *root,
-	Kernel_params kernel_params,
-	float3 &tr) {
-
-	float t = FLT_MAX;
-	bool hit = false;
-	for (int i = 0; i < 12; ++i) {
-
-		if (shadow_planes[i].intersect(ray_pos, ray_dir, t)) {
-			hit = true;
-			//tr = make_float3(t);
-			ray_pos += ray_dir * (t + EPS);
-			break;
-
-		}
-	}
-
-	if (!hit) return false;
-
-	float3 l_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
-
-	for (int k = 0; k < 100; ++k) {
-
-		float t_min, t_max;
-		if (root->bbox.Intersect(ray_pos, l_dir, t_min, t_max)) {
-
-			float3 p = ray_pos + (l_dir * (t_min + EPS));
-			tr *= Tr(randstate, p, l_dir, kernel_params, volumes, ref_sphere, root);
-		}
-		ray_pos += ray_dir;
-	}
-
-	return false;
-}
-
-
 __device__ inline float pdf_li(
 	Kernel_params kernel_params,
 	float3 wi)
@@ -1734,8 +1689,7 @@ __device__ inline float3 direct_integrator(
 	const GPU_VDB *gpu_vdb,
 	const sphere &ref_sphere,
 	OCTNode *root,
-	const AtmosphereParameters atmosphere,
-	const plane *shadow_planes)
+	const AtmosphereParameters atmosphere)
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
@@ -1938,8 +1892,7 @@ __device__ inline float3 cost_calculator(
 	const Kernel_params kernel_params,
 	const GPU_VDB *gpu_vdb,
 	OCTNode *root,
-	const AtmosphereParameters atmosphere,
-	const plane *shadow_planes)
+	const AtmosphereParameters atmosphere)
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
@@ -1967,24 +1920,6 @@ __device__ inline float3 cost_calculator(
 
 }
 
-
-__device__ inline float3 shadow_box_test(float3 ray_pos, float3 ray_dir, const plane *planes, const OCTNode *root, Kernel_params kernel_params) {
-
-	float3 L = BLACK;
-
-	float tmin, tmax;
-
-	float3 l_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
-
-	if (root->bbox.Intersect(ray_pos, ray_dir, tmin, tmax)) {
-		float d = tmax - tmin;
-
-		L = make_float3(d / 100.0f);
-
-	}
-
-	return L;
-}
 
 __device__ inline float3 octree_integrator(
 	Rand_state rand_state,
@@ -2141,8 +2076,7 @@ extern "C" __global__ void volume_rt_kernel(
 	BVHNode *root_node,
 	OCTNode *oct_root,
 	const AtmosphereParameters atmosphere,
-	const Kernel_params kernel_params,
-	const plane *root_bbox_planes) {
+	const Kernel_params kernel_params) {
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -2172,9 +2106,9 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		//cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere, root_bbox_planes);
+		//cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
 		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere, root_bbox_planes);
+		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
 	}
 
 

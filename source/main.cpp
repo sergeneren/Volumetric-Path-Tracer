@@ -76,7 +76,6 @@
 #include "light.h"
 #include "atmosphere.h"
 #include "bvh/bvh_builder.h"
-#include "shadow_box.h"
 #include "sphere.h"
 #include "fileIO.h"
 #include "logger.h"
@@ -110,7 +109,6 @@ std::vector<vdb_instance> volume_files;
 
 static int num_volumes = 3; // TODO: read number of instances from json file 
 BVH_Builder bvh_builder;
-shadow_box root_shadow_box;
 
 // Cam parameters 
 camera	cam;
@@ -1395,11 +1393,6 @@ int main(const int argc, const char* argv[])
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_geo_ptr, &ref_sphere, sizeof(sphere) * 1) == cudaSuccess);
 
-	
-	// Create shadow box
-	log("Setting up shadow box planes...", LOG);
-	root_shadow_box.build_planes(azimuth, elevation, bvh_builder.octree.root_node->bbox, earth_atmosphere.atmosphere_parameters.bottom_radius, earth_atmosphere.atmosphere_parameters.top_radius);
-
 	// Create OIDN devices 
 	oidn::DeviceRef oidn_device = oidn::newDevice();
 	oidn_device.commit();
@@ -1550,7 +1543,6 @@ int main(const int argc, const char* argv[])
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
 			create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
-			root_shadow_box.build_planes(azimuth, elevation, bvh_builder.octree.root_node->bbox, atmos_params->bottom_radius, atmos_params->top_radius);
 			kernel_params.iteration = 0;
 		}
 
@@ -1695,7 +1687,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params, &root_shadow_box.cuda_planes };
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
