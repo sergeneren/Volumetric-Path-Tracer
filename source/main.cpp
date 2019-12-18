@@ -1390,10 +1390,19 @@ int main(const int argc, const char* argv[])
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 0.0f;
 	ref_sphere.color = make_float3(0.0f);
-
+	   	  
 	CUdeviceptr d_geo_ptr;
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_geo_ptr, &ref_sphere, sizeof(sphere) * 1) == cudaSuccess);
+
+
+	geometry_list geo_list;
+	geo_list.list[0] = (geometry *)&d_geo_ptr;
+	geo_list.list_size = 1;
+
+	CUdeviceptr d_list_ptr;
+	check_success(cuMemAlloc(&d_list_ptr, sizeof(geometry_list)) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_list_ptr, &geo_list, sizeof(geometry_list)) == cudaSuccess);
 
 	// Create OIDN devices 
 	oidn::DeviceRef oidn_device = oidn::newDevice();
