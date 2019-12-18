@@ -1688,7 +1688,7 @@ int main(const int argc, const char* argv[])
 		++kernel_params.iteration;
 
 		if (kernel_params.iteration == kernel_params.max_interactions-1) {
-			float treshold = 0.9f;
+			float treshold = 0.09f;
 			void *texture_params[] = { &kernel_params, &treshold, &width, &height };
 			cuLaunchKernel(cuTextureKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, texture_params, NULL);
 		}
