@@ -58,8 +58,6 @@
 extern "C" __global__ void glow(const Kernel_params kernel_params, float treshold , const int width, const int height) {
 
 
-	__shared__ int smem[BLOCK_W * BLOCK_H];
-
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x >= width || y >= height) return;
