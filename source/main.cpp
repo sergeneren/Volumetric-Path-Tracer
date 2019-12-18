@@ -1161,7 +1161,7 @@ int main(const int argc, const char* argv[])
 	const char *render_module_name = "render_kernel.ptx";
 	const char *texture_module_name = "texture_kernels.ptx";
 	const char *render_kernel_name = "volume_rt_kernel";
-	const char *texture_kernel_name = "calculate_textures";
+	const char *texture_kernel_name = "glow";
 
 	int cuda_devices[1];
 	unsigned int num_cuda_devices;
@@ -1669,10 +1669,6 @@ int main(const int argc, const char* argv[])
 			ctx->save_cost_image = false;
 		}
 
-
-
-
-
 		// Map GL buffer for access with CUDA.
 		check_success(cudaGraphicsMapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 		void *p;
@@ -1691,6 +1687,11 @@ int main(const int argc, const char* argv[])
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
+		if (kernel_params.iteration == kernel_params.max_interactions-1) {
+			float treshold = 0.9f;
+			void *texture_params[] = { &kernel_params, &treshold, &width, &height };
+			cuLaunchKernel(cuTextureKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, texture_params, NULL);
+		}
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
 
