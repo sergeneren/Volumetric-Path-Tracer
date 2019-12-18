@@ -1209,6 +1209,7 @@ int main(const int argc, const char* argv[])
 #endif
 
 	bvh_builder.build_bvh(instances, (int)instances.size(), scene_bounds);
+	checkCudaErrors(cudaDeviceSynchronize());
 
 	// Setup initial camera 
 	log("Setting up camera...", LOG);
@@ -1377,7 +1378,7 @@ int main(const int argc, const char* argv[])
 	// Create env map sampling textures
 	log("Creating env texture CDF...", LOG);
 	create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
-
+	checkCudaErrors(cudaDeviceSynchronize());
 	// Init atmosphere 
 	
 
@@ -1410,7 +1411,7 @@ int main(const int argc, const char* argv[])
 	checkCudaErrors(cudaMalloc((void **)&d_geo_list, sizeof(geometry_list)));
 	void *geo_params[] = { (void **)&d_list , (void **)&d_geo_list };
 	cuLaunchKernel(cuGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, geo_params, NULL);
-
+	checkCudaErrors(cudaDeviceSynchronize());
 
 	// Create OIDN devices 
 	oidn::DeviceRef oidn_device = oidn::newDevice();
@@ -1705,7 +1706,7 @@ int main(const int argc, const char* argv[])
 		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void *)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
-
+		checkCudaErrors(cudaDeviceSynchronize());
 		if (0) { // TODO will do post effects after they are implemented in texture_kernels 
 			float treshold = 0.09f;
 			void *texture_params[] = { &kernel_params, &treshold, &width, &height };
