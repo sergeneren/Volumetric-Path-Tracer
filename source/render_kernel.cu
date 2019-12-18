@@ -64,7 +64,8 @@ typedef unsigned long long	uint64;
 #include "camera.h"
 #include "light.h"
 #include "bvh/bvh.h"
-#include "geometry/sphere.h"
+//#include "geometry/sphere.h"
+#include "geometry/geometry.h"
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)
@@ -2150,7 +2151,6 @@ extern "C" __global__ void volume_rt_kernel(
 	const unsigned int b = (unsigned int)(255.0f * fminf(powf(fmaxf(val.z, 0.0f), (float)(1.0 / 2.2)), 1.0f));
 
 	kernel_params.display_buffer[idx] = 0xff000000 | (r << 16) | (g << 8) | b;
-
 
 	// fill in raw buffer
 	float4 raw = make_float4(val.x, val.y, val.z, tr);

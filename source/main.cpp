@@ -76,7 +76,8 @@
 #include "light.h"
 #include "atmosphere.h"
 #include "bvh/bvh_builder.h"
-#include "sphere.h"
+//#include "sphere.h"
+#include "geometry.h"
 #include "fileIO.h"
 #include "logger.h"
 
@@ -1381,8 +1382,9 @@ int main(const int argc, const char* argv[])
 
 
 
-	log("Setting up geometry and device pointers...", LOG);
+	
 	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
+	log("Setting up geometry and device pointers...", LOG);
 	float3 center = make_float3(100, 320, -200);
 	float radius = 100;
 	sphere ref_sphere(center, radius);
@@ -1687,7 +1689,7 @@ int main(const int argc, const char* argv[])
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 
-		if (kernel_params.iteration == kernel_params.max_interactions-1) {
+		if (0) { // TODO will do post effects after they are implemented in texture_kernels 
 			float treshold = 0.09f;
 			void *texture_params[] = { &kernel_params, &treshold, &width, &height };
 			cuLaunchKernel(cuTextureKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, texture_params, NULL);
