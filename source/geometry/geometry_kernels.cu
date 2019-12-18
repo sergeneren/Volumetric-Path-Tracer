@@ -43,7 +43,7 @@
 
 #include "geometry/geometry.h"
 
-extern "C" __global__ void create_geometry_list(geometry **d_list, geometry **d_geo_list){
+extern "C" __global__ void create_geometry_list(geometry **d_list, geometry &d_geo_list){
 
 	if (threadIdx.x == 0 && blockIdx.x == 0) {
 		
@@ -51,7 +51,6 @@ extern "C" __global__ void create_geometry_list(geometry **d_list, geometry **d_
 		float radius = 100;
 
 		d_list[0] = new sphere(center , radius, make_float3(0.18f), .001f);
-		*d_geo_list = new geometry_list(d_list, 1);
-
+		d_geo_list = geometry_list(d_list, 1);
 	}
 }

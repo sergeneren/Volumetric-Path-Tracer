@@ -1406,8 +1406,8 @@ int main(const int argc, const char* argv[])
 	geometry **d_list;
 	int num_geo = 1;
 	checkCudaErrors(cudaMalloc((void **)&d_list, num_geo * sizeof(geometry *)));
-	geometry **d_geo_list;
-	checkCudaErrors(cudaMalloc((void **)&d_geo_list, sizeof(geometry *)));
+	geometry_list d_geo_list;
+	checkCudaErrors(cudaMalloc((void **)&d_geo_list, sizeof(geometry_list)));
 	void *geo_params[] = { (void **)&d_list , (void **)&d_geo_list };
 	cuLaunchKernel(cuGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, geo_params, NULL);
 
@@ -1702,10 +1702,9 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void **)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void *)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
-		checkCudaErrors(cudaDeviceSynchronize());
 
 		if (0) { // TODO will do post effects after they are implemented in texture_kernels 
 			float treshold = 0.09f;
