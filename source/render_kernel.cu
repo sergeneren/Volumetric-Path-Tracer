@@ -1778,6 +1778,15 @@ __device__ inline float3 direct_integrator(
 // Test Kernels 
 //////////////////////////////////////////////////////////////////////////
 
+__device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, const geometry **geo_list) {
+
+	float t_min, t_max;
+
+	if ((*geo_list)->intersect(ray_pos, ray_dir, t_min, t_max)) return RED;
+	return BLACK;
+
+}
+
 
 __device__ inline float3 sample_cost(
 	Rand_state &rand_state,
@@ -2074,6 +2083,7 @@ extern "C" __global__ void volume_rt_kernel(
 	const light_list lights,
 	const GPU_VDB *gpu_vdb,
 	const sphere &sphere,
+	const geometry **geo_list,
 	BVHNode *root_node,
 	OCTNode *oct_root,
 	const AtmosphereParameters atmosphere,

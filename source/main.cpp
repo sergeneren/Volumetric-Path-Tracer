@@ -101,8 +101,10 @@ namespace fs = boost::filesystem;
 
 CUmodule cuRenderModule;
 CUmodule cuTextureModule;
+CUmodule cuGeometryModule;
 CUfunction cuRaycastKernel;
 CUfunction cuTextureKernel;
+CUfunction cuGeometryKernel;
 
 std::vector<GPU_VDB> unique_vdb_files;
 std::vector<GPU_VDB> instances;
@@ -1185,6 +1187,11 @@ int main(const int argc, const char* argv[])
 	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
 	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
 
+	error = cuModuleLoad(&cuGeometryModule, "geometry_kernels.ptx");
+	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, ERROR);
+	error = cuModuleGetFunction(&cuGeometryKernel, cuGeometryModule, "create_geometry_list");
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+
 
 	// Send volume instances to gpu
 
@@ -1394,6 +1401,16 @@ int main(const int argc, const char* argv[])
 	CUdeviceptr d_geo_ptr;
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_geo_ptr, &ref_sphere, sizeof(sphere) * 1) == cudaSuccess);
+
+	// create geometry_list on gpu
+	geometry **d_list;
+	int num_geo = 1;
+	checkCudaErrors(cudaMalloc((void **)&d_list, num_geo * sizeof(geometry *)));
+	geometry **d_geo_list;
+	checkCudaErrors(cudaMalloc((void **)&d_geo_list, sizeof(geometry *)));
+	void *geo_params[] = { (void **)&d_list , (void **)&d_geo_list };
+	cuLaunchKernel(cuGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, geo_params, NULL);
+
 
 	// Create OIDN devices 
 	oidn::DeviceRef oidn_device = oidn::newDevice();
@@ -1685,9 +1702,10 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void **)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
+		checkCudaErrors(cudaDeviceSynchronize());
 
 		if (0) { // TODO will do post effects after they are implemented in texture_kernels 
 			float treshold = 0.09f;
