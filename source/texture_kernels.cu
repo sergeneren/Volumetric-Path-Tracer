@@ -63,32 +63,7 @@ extern "C" __global__ void glow(const Kernel_params kernel_params, float treshol
 	if (x >= width || y >= height) return;
 	const unsigned int idx = y * width + x;
 
-	// Do gaussian blur and add glow effect to display buffer 
+	// TODO gaussian blur and add glow effect to display buffer 
 
-	float sigma = 1.0f;
-	float rho, s = 2.0f * sigma * sigma;
-	float sum;
-	float3 val = make_float3(.0f); 
-
-	int filter_width = 25;
-
-	for (int i = -filter_width; i <= filter_width; ++i) {
-		for (int j = -filter_width; j <= filter_width; ++j) {
-			rho = sqrtf(i*i + j*j);
-			float weight = (expf(-(rho * rho) / s)) / (M_PI * s);
-			int kernel_idx = clamp(((y + j) * width) + (x + i), 0, width*height);
-			val += make_float3(kernel_params.raw_buffer[kernel_idx]) * weight;
-			sum += weight;
-		}
-	}
-
-	val /= sum;
-
-	if (val.x < treshold) val.x = .0f;
-	if (val.y < treshold) val.y = .0f;
-	if (val.z < treshold) val.z = .0f;
-
-
-	kernel_params.raw_buffer[idx] = make_float4(val);
 
 }
