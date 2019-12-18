@@ -97,6 +97,20 @@ public:
 		color = make_float3(1.0f);
 		roughness = .0f;
 	}
+	
+	__device__ __host__ sphere(float3 c, float rad, float3 col) {
+		center = c;
+		radius = rad;
+		color = col;
+		roughness = 1.0f;
+	}
+
+	__device__ __host__ sphere(float3 c, float rad, float3 col, float r) {
+		center = c;
+		radius = rad;
+		color = col;
+		roughness = r;
+	}
 
 	__device__ virtual bool intersect(float3 ray_pos, float3 ray_dir, float&t_min, float &t_max) const {
 	
@@ -134,6 +148,9 @@ public:
 class geometry_list : public geometry{
 
 public:
+
+	__device__ geometry_list() {};
+	__device__ geometry_list(geometry **l, int n) { list = l; list_size = n; };
 
 	__device__ virtual bool intersect(float3 ray_pos, float3 ray_dir, float&t_min, float &t_max) const {
 

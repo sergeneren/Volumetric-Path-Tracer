@@ -35,6 +35,23 @@
 //
 //-----------------------------------------------
 
+#include <device_launch_parameters.h>
+#include <cuda_runtime.h> 
+#include <curand_kernel.h>
 
+#include <stdio.h>
 
+#include "geometry/geometry.h"
 
+extern "C" __global__ void create_geometry_list(geometry **d_list, geometry **d_geo_list){
+
+	if (threadIdx.x == 0 && blockIdx.x == 0) {
+		
+		float3 center = make_float3(100, 320, -200);
+		float radius = 100;
+
+		d_list[0] = new sphere(center , radius, make_float3(0.18f), .001f);
+		*d_geo_list = new geometry_list(d_list, 1);
+
+	}
+}

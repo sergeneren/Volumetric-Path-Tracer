@@ -77,7 +77,8 @@ file ( GLOB BVH
 
 file( GLOB CUDA_SOURCES 
 	"*.cu"
-	"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.cu")
+	"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.cu"
+	"${CMAKE_CURRENT_SOURCE_DIR}/geometry/*.cu")
 	
 file( GLOB SOURCE_CPP
 	"*.cpp"
