@@ -84,8 +84,8 @@ extern "C" __global__ void create_geometry_list(geometry **d_list, geometry_list
 		float3 center = make_float3(100, 320, -200);
 		float radius = 100;
 
-		d_list[0] = new sphere(center , radius, make_float3(0.18f), .001f);
-		d_list[1] = new sphere(center+make_float3(0, 150 , 0) , radius, make_float3(0.18f), .001f);
+		d_list[0] = new sphere(center , radius, make_float3(1.0f, 0.7, 0.7), 1.0f);
+		d_list[1] = new sphere(center+make_float3(0, 150 , 0) , radius, make_float3(0.7, 0.7, 1.0f), 1.0f);
 
 		*d_geo_list = new geometry_list(d_list, 2);
 		
@@ -103,6 +103,7 @@ extern "C" __global__ void test_geometry_list(
 	OCTNode * oct_root,
 	const AtmosphereParameters atmosphere,
 	const Kernel_params kernel_params) {
+
 
 	if (threadIdx.x == 0 && blockIdx.x == 0) {
 		float t_min, t_max;

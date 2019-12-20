@@ -78,7 +78,7 @@ typedef unsigned long long	uint64;
 #define INV_4_PI		1.0f / (4.0f * M_PI) 
 #define INV_PI			1.0f / M_PI 
 
-
+#if(0)
 // Helper functions
 
 __device__ inline void coordinate_system(
@@ -1778,15 +1778,6 @@ __device__ inline float3 direct_integrator(
 // Test Kernels 
 //////////////////////////////////////////////////////////////////////////
 
-__device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, const geometry_list **geo_list) {
-
-	float t_min, t_max;
-	if ((*geo_list)->intersect(ray_pos, ray_dir, t_min, t_max)) return RED;
-	return BLACK;
-
-}
-
-
 __device__ inline float3 sample_cost(
 	Rand_state &rand_state,
 	float3 &ray_pos,
@@ -2062,6 +2053,24 @@ __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kern
 
 }
 
+#endif
+
+__device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, const geometry_list** geo_list, Rand_state rand_state) {
+
+	float t_min, t_max;
+	float3 atten = WHITE;
+
+	for(int i= 0; i < 20; ++i){
+
+		if ((*geo_list)->intersect(ray_pos, ray_dir, t_min, t_max) > -1) {
+		
+			(*geo_list)->scatter(ray_pos, ray_dir, t_min, atten, rand_state);
+		
+		}
+	}
+	
+	return atten;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Main kernel accessors
@@ -2113,13 +2122,12 @@ extern "C" __global__ void volume_rt_kernel(
 	float3 cost = BLACK;
 	float tr = .0f;
 
-
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		//value = test_geometry_list(ray_pos, ray_dir, &(*geo_list));
+		value = test_geometry_list(ray_pos, ray_dir, geo_list, rand_state);
 		//cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
-		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
+		//if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
+		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
 	}
 
 

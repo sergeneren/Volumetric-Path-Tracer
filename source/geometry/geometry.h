@@ -75,8 +75,8 @@ class geometry {
 
 public:
 
-	__device__ virtual bool intersect(float3 ray_pos, float3 ray_dir, float&t_min, float &t_max) const = 0;
-
+	__device__ virtual int intersect(float3 ray_pos, float3 ray_dir, float&t_min, float &t_max) const = 0;
+	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3 &atten, Rand_state rand_state) const = 0;
 };
 
 
@@ -112,7 +112,7 @@ public:
 		roughness = r;
 	}
 
-	__device__ virtual bool intersect(float3 ray_pos, float3 ray_dir, float&t_min, float &t_max) const {
+	__device__ virtual int intersect(float3 ray_pos, float3 ray_dir, float&t_min, float &t_max) const {
 	
 		float3 orig = ray_pos - center;
 
@@ -120,7 +120,7 @@ public:
 		float B = 2 * (ray_dir.x * orig.x + ray_dir.y * orig.y + ray_dir.z * orig.z);
 		float C = orig.x * orig.x + orig.y * orig.y + orig.z * orig.z - radius * radius;
 
-		if (!find_discr(A, B, C, t_min, t_max)) return false;
+		if (!find_discr(A, B, C, t_min, t_max)) return 0;
 
 		if (t_min > t_max) {
 			float tempt = t_max;
@@ -130,12 +130,39 @@ public:
 
 		if (t_min < 0) {
 			t_min = t_max;
-			if (t_min < 0) return false;
+			if (t_min < 0) return 0;
 		}
 
-		return true;
+		return 1;
 		
 	};
+
+
+	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3 &atten, Rand_state rand_state) const {
+
+		ray_pos += ray_dir * t_min;
+		float3 normal = normalize((ray_pos - center) / radius);
+		float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
+
+		float phi = 2 * M_PI * rand(&rand_state);
+		float r2 = rand(&rand_state);
+		float r2s = sqrtf(r2);
+
+		float3 w = normalize(nl);
+		float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
+		float3 v = cross(w, u);
+
+		float3 hemisphere_dir = normalize(u * cosf(phi) * r2s + v * sinf(phi) * r2s + w * sqrtf(1 - r2));
+		float3 ref = reflect(ray_dir, nl);
+		ray_dir = lerp(ref, hemisphere_dir, roughness);
+
+		ray_pos += -nl * 0.1f;
+		
+		atten *= color;
+
+		return true;
+	}
+
 
 	float3 center;
 	float radius;
@@ -152,17 +179,46 @@ public:
 	__device__ geometry_list() {};
 	__device__ geometry_list(geometry **l, int n) { list = l; list_size = n; };
 
-	__device__ virtual bool intersect(float3 ray_pos, float3 ray_dir, float&t_min, float &t_max) const {
+	__device__ virtual int intersect(float3 ray_pos, float3 ray_dir, float&t_min, float &t_max) const {
 
+		int idx = -1;
+		float temp_tmin = FLT_MAX;
 		for (int i = 0; i < list_size; i++) {
 			
-			if(list[i]->intersect(ray_pos, ray_dir, t_min, t_max)) return true;
+			if (list[i]->intersect(ray_pos, ray_dir, t_min, t_max)) {
+			
+				if (t_min < temp_tmin) {
+					temp_tmin = t_min;
+					idx = i;
+				}
+			
+			}
 		
+		}
+
+		t_min = temp_tmin;
+
+		return idx;
+
+	}
+
+	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3 &atten, Rand_state rand_state) const {
+
+		float t_max;
+		int idx = this->intersect(ray_pos, ray_dir, t_min, t_max);
+
+		if (idx > -1) {
+
+			list[idx]->scatter(ray_pos, ray_dir, t_min, atten, rand_state);
+			return true;
+
 		}
 
 		return false;
 
 	}
+
+
 
 	geometry **list = NULL;
 	int list_size = 0;
