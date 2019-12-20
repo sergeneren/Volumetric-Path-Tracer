@@ -164,8 +164,8 @@ public:
 
 	}
 
-	geometry **list;
-	int list_size;
+	geometry **list = NULL;
+	int list_size = 0;
 	   
 };
 

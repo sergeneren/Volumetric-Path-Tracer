@@ -99,12 +99,12 @@ namespace fs = boost::filesystem;
 
 // Atmosphere
 
-CUmodule cuRenderModule;
-CUmodule cuTextureModule;
-CUmodule cuGeometryModule;
+CUmodule Module;
+
 CUfunction cuRaycastKernel;
 CUfunction cuTextureKernel;
-CUfunction cuGeometryKernel;
+CUfunction cuCreateGeometryKernel;
+CUfunction cuTestGeometryKernel;
 
 std::vector<GPU_VDB> unique_vdb_files;
 std::vector<GPU_VDB> instances;
@@ -1174,25 +1174,39 @@ int main(const int argc, const char* argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	CUcontext cuctx;
+	cuCtxGetCurrent(&cuctx);
 
 	log("Loading Cuda kernel modules and functions...", LOG);
 	CUresult error;
-	error = cuModuleLoad(&cuRenderModule, render_module_name);
+
+	CUlinkState state;
+	cuLinkCreate_v2(0, 0, 0, &state);
+	cuLinkAddFile_v2(state, CU_JIT_INPUT_PTX, "render_kernel.ptx" , 0, 0, 0);
+	cuLinkAddFile_v2(state, CU_JIT_INPUT_PTX, "geometry_kernels.ptx" , 0, 0, 0);
+	cuLinkAddFile_v2(state, CU_JIT_INPUT_PTX, "texture_kernels.ptx" , 0, 0, 0);
+	
+	size_t sz;
+	char* image;
+	cuLinkComplete(state, (void**)&image, &sz);
+	
+	error = cuModuleLoadData(&Module, image);
 	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, ERROR);
-	error = cuModuleGetFunction(&cuRaycastKernel, cuRenderModule, render_kernel_name);
+	cuLinkDestroy(state);
+
+	error = cuModuleGetFunction(&cuRaycastKernel, Module, render_kernel_name);
 	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
 
-	error = cuModuleLoad(&cuTextureModule, texture_module_name);
-	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, ERROR);
-	error = cuModuleGetFunction(&cuTextureKernel, cuTextureModule, texture_kernel_name);
-	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
-
-	error = cuModuleLoad(&cuGeometryModule, "geometry_kernels.ptx");
-	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, ERROR);
-	error = cuModuleGetFunction(&cuGeometryKernel, cuGeometryModule, "create_geometry_list");
+	error = cuModuleGetFunction(&cuTextureKernel, Module, texture_kernel_name);
 	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
 
 
+	error = cuModuleGetFunction(&cuCreateGeometryKernel, Module, "create_geometry_list");
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+	error = cuModuleGetFunction(&cuTestGeometryKernel, Module, "test_geometry_list");
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+
+	
 	// Send volume instances to gpu
 
 	CUdeviceptr d_volume_ptr;
@@ -1209,7 +1223,6 @@ int main(const int argc, const char* argv[])
 #endif
 
 	bvh_builder.build_bvh(instances, (int)instances.size(), scene_bounds);
-	checkCudaErrors(cudaDeviceSynchronize());
 
 	// Setup initial camera 
 	log("Setting up camera...", LOG);
@@ -1378,7 +1391,6 @@ int main(const int argc, const char* argv[])
 	// Create env map sampling textures
 	log("Creating env texture CDF...", LOG);
 	create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
-	checkCudaErrors(cudaDeviceSynchronize());
 	// Init atmosphere 
 	
 
@@ -1387,9 +1399,6 @@ int main(const int argc, const char* argv[])
 	earth_atmosphere.texture_folder_debug = "./atmosphere_textures_debug";
 	earth_atmosphere.init();
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
-
-
-
 	
 	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
 	log("Setting up geometry and device pointers...", LOG);
@@ -1403,15 +1412,23 @@ int main(const int argc, const char* argv[])
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_geo_ptr, &ref_sphere, sizeof(sphere) * 1) == cudaSuccess);
 
+	
 	// create geometry_list on gpu
 	geometry **d_list;
-	int num_geo = 1;
+	int num_geo = 2;
 	checkCudaErrors(cudaMalloc((void **)&d_list, num_geo * sizeof(geometry *)));
-	geometry_list d_geo_list;
-	checkCudaErrors(cudaMalloc((void **)&d_geo_list, sizeof(geometry_list)));
+	
+	geometry_list **d_geo_list;
+	checkCudaErrors(cudaMalloc((void **)&d_geo_list, sizeof(geometry_list *)));
+	
 	void *geo_params[] = { (void **)&d_list , (void **)&d_geo_list };
-	cuLaunchKernel(cuGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, geo_params, NULL);
-	checkCudaErrors(cudaDeviceSynchronize());
+	error = cuLaunchKernel(cuCreateGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, geo_params, NULL);
+	if (error != cudaSuccess) printf("function create list launch error %i\n", error);
+	
+	void* test_geo_params[] = { &cam, (void*)&l_list , (void*)&d_volume_ptr, (void*)&d_geo_ptr, (void**)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void*)atmos_params, &kernel_params };
+	error = cuLaunchKernel(cuTestGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, test_geo_params, NULL);
+	if (error != cudaSuccess) printf("function test list launch error %i\n", error);
+	cudaDeviceSynchronize();
 
 	// Create OIDN devices 
 	oidn::DeviceRef oidn_device = oidn::newDevice();
@@ -1703,10 +1720,11 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void *)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void **)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
-		checkCudaErrors(cudaDeviceSynchronize());
+		cudaDeviceSynchronize();
+
 		if (0) { // TODO will do post effects after they are implemented in texture_kernels 
 			float treshold = 0.09f;
 			void *texture_params[] = { &kernel_params, &treshold, &width, &height };

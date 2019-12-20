@@ -35,22 +35,78 @@
 //
 //-----------------------------------------------
 
-#include <device_launch_parameters.h>
-#include <cuda_runtime.h> 
-#include <curand_kernel.h>
+#define DDA_STEP_TRUE
+
+#define _USE_MATH_DEFINES
+#include <cmath>
 
 #include <stdio.h>
+#include <float.h>
 
+// Cuda includes
+#include <cuda_runtime.h> 
+#include <curand_kernel.h>
+#include <device_launch_parameters.h>
+#include "helper_math.h"
+
+typedef unsigned char		uchar;
+typedef unsigned int		uint;
+typedef unsigned short		ushort;
+typedef unsigned long		ulong;
+typedef unsigned long long	uint64;
+
+// Internal includes
+#include "kernel_params.h"
+#include "atmosphere/definitions.h"
+#include "atmosphere/constants.h"
+#include "gpu_vdb.h"
+#include "camera.h"
+#include "light.h"
+#include "bvh/bvh.h"
+//#include "geometry/sphere.h"
 #include "geometry/geometry.h"
 
-extern "C" __global__ void create_geometry_list(geometry **d_list, geometry &d_geo_list){
+#define BLACK			make_float3(0.0f, 0.0f, 0.0f)
+#define WHITE			make_float3(1.0f, 1.0f, 1.0f)
+#define RED				make_float3(1.0f, 0.0f, 0.0f)
+#define GREEN			make_float3(0.0f, 1.0f, 0.0f)
+#define BLUE			make_float3(0.0f, 0.0f, 1.0f)
+#define EPS				0.001f
+
+#define INV_2_PI		1.0f / (2.0f * M_PI) 
+#define INV_4_PI		1.0f / (4.0f * M_PI) 
+#define INV_PI			1.0f / M_PI 
+
+
+extern "C" __global__ void create_geometry_list(geometry **d_list, geometry_list **d_geo_list){
 
 	if (threadIdx.x == 0 && blockIdx.x == 0) {
-		
 		float3 center = make_float3(100, 320, -200);
 		float radius = 100;
 
 		d_list[0] = new sphere(center , radius, make_float3(0.18f), .001f);
-		d_geo_list = geometry_list(d_list, 1);
+		d_list[1] = new sphere(center+make_float3(0, 150 , 0) , radius, make_float3(0.18f), .001f);
+
+		*d_geo_list = new geometry_list(d_list, 2);
+		
+	}
+}
+
+// Test to see if geo_list is filled right 
+extern "C" __global__ void test_geometry_list(
+	const camera cam,
+	const light_list lights,
+	const GPU_VDB * gpu_vdb,
+	const sphere & sphere,
+	const geometry_list * *geo_list,
+	BVHNode * root_node,
+	OCTNode * oct_root,
+	const AtmosphereParameters atmosphere,
+	const Kernel_params kernel_params) {
+
+	if (threadIdx.x == 0 && blockIdx.x == 0) {
+		float t_min, t_max;
+		if ((*geo_list)->intersect(make_float3(0, 320, -200), make_float3(1, 0, 0), t_min, t_max)) printf("geometry test OK...\n");
+		else printf("Error! geometry didn't create properly. \n");
 	}
 }
