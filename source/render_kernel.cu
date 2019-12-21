@@ -64,8 +64,8 @@ typedef unsigned long long	uint64;
 #include "camera.h"
 #include "light.h"
 #include "bvh/bvh.h"
-#include "geometry/sphere.h"
-//#include "geometry/geometry.h"
+//#include "geometry/sphere.h"
+#include "geometry/geometry.h"
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)
@@ -1745,8 +1745,11 @@ __device__ inline float3 direct_integrator(
 			float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
 			ray_pos += normal * EPS;
+
+			beta *= ref_sphere.color;
+
 			float3 v_tr = Tr(rand_state, ray_pos, light_dir, kernel_params, gpu_vdb, ref_sphere, root);
-			L += kernel_params.sun_color * kernel_params.sun_mult * v_tr * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f) * beta;
+			L += kernel_params.sun_color * kernel_params.sun_mult * v_tr * fmaxf(dot(light_dir, normal), .0f) * beta;
 			env_pos = ray_pos;
 		}
 
@@ -2063,6 +2066,25 @@ __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kern
 
 }
 
+__device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, const geometry_list geo_list, Rand_state rand_state) {
+
+	float t_min, t_max;
+	float3 atten = WHITE;
+
+	
+	for (int i = 0; i < 20; ++i) {
+		int idx = geo_list.list[0].intersect(ray_pos, ray_dir, t_min, t_max);
+		
+		/*
+		if (idx > -1) {
+			float3 normal;
+			if(!geo_list.list[idx].scatter(ray_pos, ray_dir, t_min, normal, atten, rand_state)) break;
+		}
+		*/
+	}
+	
+	return atten;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Main kernel accessors
@@ -2083,6 +2105,7 @@ extern "C" __global__ void volume_rt_kernel(
 	const light_list lights,
 	const GPU_VDB *gpu_vdb,
 	const sphere &sphere,
+	const geometry_list &geo_list,
 	BVHNode *root_node,
 	OCTNode *oct_root,
 	const AtmosphereParameters atmosphere,
@@ -2116,7 +2139,7 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		//value = test_geometry_list(ray_pos, ray_dir, &(*geo_list));
+		//value = test_geometry_list(ray_pos, ray_dir, geo_list, rand_state);
 		//cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
 		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);

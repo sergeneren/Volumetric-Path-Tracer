@@ -78,7 +78,7 @@ typedef unsigned long long	uint64;
 #define INV_PI			1.0f / M_PI 
 
 
-extern "C" __global__ void create_geometry_list(geometry **d_list, geometry_list **d_geo_list){
+extern "C" __global__ void create_geometry_list(sphere **d_list, geometry_list **d_geo_list){
 
 	if (threadIdx.x == 0 && blockIdx.x == 0) {
 		float3 center = make_float3(100, 320, -200);
@@ -87,7 +87,7 @@ extern "C" __global__ void create_geometry_list(geometry **d_list, geometry_list
 		d_list[0] = new sphere(center , radius, make_float3(0.18f), .001f);
 		d_list[1] = new sphere(center+make_float3(0, 150 , 0) , radius, make_float3(0.18f), .001f);
 
-		*d_geo_list = new geometry_list(d_list, 2);
+		*d_geo_list = new geometry_list(*d_list, 2);
 		
 	}
 }

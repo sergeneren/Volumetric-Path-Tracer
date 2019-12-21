@@ -79,7 +79,6 @@ public:
 	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3& normal, float3& atten, Rand_state rand_state) const = 0;
 };
 
-
 class sphere : public geometry {
 
 public:
@@ -172,21 +171,83 @@ public:
 
 };
 
+class sphere_light : public geometry {
 
-class geometry_list : public geometry {
+public:
+
+	__device__ __host__ sphere_light() {
+		center = make_float3(.0f);
+		radius = 1.0f;
+		color = make_float3(1.0f);
+	}
+
+	__device__ __host__ sphere_light(float3 c, float rad) {
+		center = c;
+		radius = rad;
+		color = make_float3(1.0f);
+	}
+
+	__device__ __host__ sphere_light(float3 c, float rad, float3 col) {
+		center = c;
+		radius = rad;
+		color = col;
+	}
+
+
+	__device__ virtual int intersect(float3 ray_pos, float3 ray_dir, float& t_min, float& t_max) const {
+
+		float3 orig = ray_pos - center;
+
+		float A = ray_dir.x * ray_dir.x + ray_dir.y * ray_dir.y + ray_dir.z * ray_dir.z;
+		float B = 2 * (ray_dir.x * orig.x + ray_dir.y * orig.y + ray_dir.z * orig.z);
+		float C = orig.x * orig.x + orig.y * orig.y + orig.z * orig.z - radius * radius;
+
+		if (!find_discr(A, B, C, t_min, t_max)) return 0;
+
+		if (t_min > t_max) {
+			float tempt = t_max;
+			t_max = t_min;
+			t_min = tempt;
+		}
+
+		if (t_min < 0) {
+			t_min = t_max;
+			if (t_min < 0) return 0;
+		}
+
+		return 1;
+
+	};
+
+
+	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3& normal, float3& atten, Rand_state rand_state) const {
+
+		atten = color;
+
+		return false;
+	}
+
+
+	float3 center;
+	float radius;
+	float3 color;
+
+};
+
+class geometry_list {
 
 public:
 
 	__device__ geometry_list() {};
-	__device__ geometry_list(geometry** l, int n) { list = l; list_size = n; };
+	__device__ geometry_list(sphere* l, int n) { list = l; list_size = n; };
 
-	__device__ virtual int intersect(float3 ray_pos, float3 ray_dir, float& t_min, float& t_max) const {
+	__device__ int intersect(float3 ray_pos, float3 ray_dir, float& t_min, float& t_max) const {
 
 		int idx = -1;
 		float temp_tmin = FLT_MAX;
 		for (int i = 0; i < list_size; i++) {
 
-			if (list[i]->intersect(ray_pos, ray_dir, t_min, t_max)) {
+			if (list[i].intersect(ray_pos, ray_dir, t_min, t_max)) {
 
 				if (t_min < temp_tmin) {
 					temp_tmin = t_min;
@@ -203,14 +264,14 @@ public:
 
 	}
 
-	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3& normal, float3& atten, Rand_state rand_state) const {
+	__device__ bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3& normal, float3& atten, Rand_state rand_state) const {
 
 		float t_max;
 		int idx = this->intersect(ray_pos, ray_dir, t_min, t_max);
 
 		if (idx > -1) {
 
-			list[idx]->scatter(ray_pos, ray_dir, t_min, normal, atten, rand_state);
+			list[idx].scatter(ray_pos, ray_dir, t_min, normal, atten, rand_state);
 			return true;
 
 		}
@@ -219,9 +280,7 @@ public:
 
 	}
 
-
-
-	geometry** list = NULL;
+	sphere *list = NULL;
 	int list_size = 0;
 
 };

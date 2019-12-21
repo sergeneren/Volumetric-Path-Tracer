@@ -76,8 +76,8 @@
 #include "light.h"
 #include "atmosphere.h"
 #include "bvh/bvh_builder.h"
-#include "sphere.h"
-//#include "geometry.h"
+//#include "sphere.h"
+#include "geometry.h"
 #include "fileIO.h"
 #include "logger.h"
 
@@ -1072,7 +1072,12 @@ int main(const int argc, const char* argv[])
 	}
 	
 
-	// Create necessary folders 
+	
+	//***********************************************************************************************************************************
+	// Create necessary folders
+	//
+	//***********************************************************************************************************************************
+
 	fs::path render_dir("./render");
 	fs::path atmosphere_dir("./atmosphere_textures");
 	fs::path atmosphere_debug_dir("./atmosphere_textures_debug");
@@ -1097,7 +1102,12 @@ int main(const int argc, const char* argv[])
 
 	log("Initializing opengl...", LOG);
 
+	
+	//***********************************************************************************************************************************
 	// Init OpenGL window and callbacks.
+	//
+	//***********************************************************************************************************************************
+
 	window = init_opengl();
 	glfwSetWindowUserPointer(window, &window_context);
 	glfwSetKeyCallback(window, handle_key);
@@ -1130,7 +1140,12 @@ int main(const int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
+	
+	//***********************************************************************************************************************************
 	// Setup gpu_vdb
+	//
+	//***********************************************************************************************************************************
+
 	log("Setting up gpu_vdb instances...", LOG);
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
@@ -1159,8 +1174,12 @@ int main(const int argc, const char* argv[])
 	}
 	
 
+	
+	//***********************************************************************************************************************************
 	// Setup modules and contexes 
-
+	//
+	//***********************************************************************************************************************************
+	
 	const char *render_module_name = "render_kernel.ptx";
 	const char *texture_module_name = "texture_kernels.ptx";
 	const char *render_kernel_name = "volume_rt_kernel";
@@ -1224,7 +1243,14 @@ int main(const int argc, const char* argv[])
 
 	bvh_builder.build_bvh(instances, (int)instances.size(), scene_bounds);
 
+
+
+	
+	//***********************************************************************************************************************************
 	// Setup initial camera 
+	//
+	//***********************************************************************************************************************************
+	
 	log("Setting up camera...", LOG);
 	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
 	lookat = make_float3(-10.0f, 72.0f, -43.0f);
@@ -1242,7 +1268,16 @@ int main(const int argc, const char* argv[])
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
 
-	// Setup point Lights
+
+
+
+
+	
+	//***********************************************************************************************************************************
+	// Setup Lights
+	//
+	//***********************************************************************************************************************************
+
 	log("Setting up point lights...", LOG);
 #if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
 #undef rand // undefine the rand coming from camera.h and light.h
@@ -1274,7 +1309,15 @@ int main(const int argc, const char* argv[])
 	check_success(cuMemcpyHtoD(d_lights, &l_list, sizeof(light_list)) == cudaSuccess);
 #endif 
 
+
+
+
+	
+	//***********************************************************************************************************************************
 	// Setup initial render kernel parameters.
+	//
+	//***********************************************************************************************************************************
+
 
 	// Kernel param buffers
 	log("Setting kernel paramaters...", LOG);
@@ -1376,7 +1419,11 @@ int main(const int argc, const char* argv[])
 	float emission_pivot = 1.0f;
 	// End ImGui parameters
 
-	//Create env texture 
+	
+	//***********************************************************************************************************************************
+	// Create env texture 
+	//
+	//***********************************************************************************************************************************
 	if (argc >= 3) {
 
 		std::string env_tex_name = ASSET_PATH;
@@ -1391,8 +1438,16 @@ int main(const int argc, const char* argv[])
 	// Create env map sampling textures
 	log("Creating env texture CDF...", LOG);
 	create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
-	// Init atmosphere 
 	
+
+
+
+
+
+	//***********************************************************************************************************************************
+	// Init atmosphere 
+	//
+	//***********************************************************************************************************************************
 
 	log("Creating atmosphere...", LOG);
 	earth_atmosphere.texture_folder = "./atmosphere_textures";
@@ -1400,46 +1455,64 @@ int main(const int argc, const char* argv[])
 	earth_atmosphere.init();
 	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
 	
-	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry  
+
+
+
+
+
+	  
+	//***********************************************************************************************************************************
+	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry
+	//
+	//***********************************************************************************************************************************
+
 	log("Setting up geometry and device pointers...", LOG);
-	float3 center = make_float3(100, 320, -200);
-	float radius = 100;
+	float3 center = make_float3(400, 320, -200);
+	float radius = 10;
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 1.0f;
-	ref_sphere.color = make_float3(10.0f, 0 , 0);
+	ref_sphere.color = make_float3(1.0f, 0 , 0);
 	   	  
 	CUdeviceptr d_geo_ptr;
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_geo_ptr, &ref_sphere, sizeof(sphere) * 1) == cudaSuccess);
 
-	
-	// create geometry_list on gpu
-	/*
-	geometry **d_list;
-	int num_geo = 2;
-	checkCudaErrors(cudaMalloc((void **)&d_list, num_geo * sizeof(geometry *)));
-	
-	geometry_list **d_geo_list;
-	checkCudaErrors(cudaMalloc((void **)&d_geo_list, sizeof(geometry_list *)));
-	
-	void *geo_params[] = { (void **)&d_list , (void **)&d_geo_list };
-	error = cuLaunchKernel(cuCreateGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, geo_params, NULL);
-	if (error != cudaSuccess) printf("function create list launch error %i\n", error);
-	
-	void* test_geo_params[] = { &cam, (void*)&l_list , (void*)&d_volume_ptr, (void*)&d_geo_ptr, (void**)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void*)atmos_params, &kernel_params };
-	error = cuLaunchKernel(cuTestGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, test_geo_params, NULL);
-	if (error != cudaSuccess) printf("function test list launch error %i\n", error);
-	cudaDeviceSynchronize();
-	*/
+	// create geometry_list
+	int num_spheres = 2;
+	geometry_list geo_list;
+	geo_list.list = (sphere*)malloc(num_spheres * sizeof(sphere));
+	cudaMallocManaged(&geo_list.list, num_spheres * sizeof(sphere));
+
+	geo_list.list_size = num_spheres;
+	geo_list.list[0] = sphere(make_float3(0,10,0), 10);
+	geo_list.list[1] = sphere(make_float3(20, 10, 0), 10);
+
+	CUdeviceptr d_geo_list_ptr;
+	check_success(cuMemAlloc(&d_geo_list_ptr, sizeof(geometry_list)) == cudaSuccess);
+	check_success(cuMemcpyHtoD(d_geo_list_ptr, &geo_list, sizeof(geometry_list)) == cudaSuccess);
+
+	 
 
 
 
+
+	//***********************************************************************************************************************************
 	// Create OIDN devices 
+	//
+	//***********************************************************************************************************************************
 	oidn::DeviceRef oidn_device = oidn::newDevice();
 	oidn_device.commit();
 	oidn::FilterRef filter = oidn_device.newFilter("RT");
 
+
+
+
+
+	
+	//***********************************************************************************************************************************
 	// Main loop
+	//
+	//***********************************************************************************************************************************
 	log("Entering main loop...", LOG);
 	while (!glfwWindowShouldClose(window)) {
 
@@ -1724,7 +1797,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void*)&d_geo_list_ptr ,&bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 		cudaDeviceSynchronize();
