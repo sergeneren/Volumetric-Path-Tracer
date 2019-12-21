@@ -76,8 +76,8 @@
 #include "light.h"
 #include "atmosphere.h"
 #include "bvh/bvh_builder.h"
-//#include "sphere.h"
-#include "geometry.h"
+#include "sphere.h"
+//#include "geometry.h"
 #include "fileIO.h"
 #include "logger.h"
 
@@ -1405,8 +1405,8 @@ int main(const int argc, const char* argv[])
 	float3 center = make_float3(100, 320, -200);
 	float radius = 100;
 	sphere ref_sphere(center, radius);
-	ref_sphere.roughness = 0.0f;
-	ref_sphere.color = make_float3(0.0f);
+	ref_sphere.roughness = 1.0f;
+	ref_sphere.color = make_float3(1.0f);
 	   	  
 	CUdeviceptr d_geo_ptr;
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
@@ -1414,6 +1414,7 @@ int main(const int argc, const char* argv[])
 
 	
 	// create geometry_list on gpu
+	/*
 	geometry **d_list;
 	int num_geo = 2;
 	checkCudaErrors(cudaMalloc((void **)&d_list, num_geo * sizeof(geometry *)));
@@ -1429,6 +1430,9 @@ int main(const int argc, const char* argv[])
 	error = cuLaunchKernel(cuTestGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, test_geo_params, NULL);
 	if (error != cudaSuccess) printf("function test list launch error %i\n", error);
 	cudaDeviceSynchronize();
+	*/
+
+
 
 	// Create OIDN devices 
 	oidn::DeviceRef oidn_device = oidn::newDevice();
@@ -1720,7 +1724,7 @@ int main(const int argc, const char* argv[])
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void **)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
+		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 		cudaDeviceSynchronize();

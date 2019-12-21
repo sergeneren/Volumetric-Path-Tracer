@@ -64,8 +64,8 @@ typedef unsigned long long	uint64;
 #include "camera.h"
 #include "light.h"
 #include "bvh/bvh.h"
-//#include "geometry/sphere.h"
-#include "geometry/geometry.h"
+#include "geometry/sphere.h"
+//#include "geometry/geometry.h"
 
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)
@@ -1778,6 +1778,7 @@ __device__ inline float3 direct_integrator(
 // Test Kernels 
 //////////////////////////////////////////////////////////////////////////
 
+/*
 __device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, const geometry_list **geo_list) {
 
 	float t_min, t_max;
@@ -1785,7 +1786,7 @@ __device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, cons
 	return BLACK;
 
 }
-
+*/
 
 __device__ inline float3 sample_cost(
 	Rand_state &rand_state,
@@ -2082,7 +2083,6 @@ extern "C" __global__ void volume_rt_kernel(
 	const light_list lights,
 	const GPU_VDB *gpu_vdb,
 	const sphere &sphere,
-	const geometry_list **geo_list,
 	BVHNode *root_node,
 	OCTNode *oct_root,
 	const AtmosphereParameters atmosphere,
