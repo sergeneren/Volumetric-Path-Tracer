@@ -1719,7 +1719,7 @@ int main(const int argc, const char* argv[])
 		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
 
 		// Launch volume rendering kernel.
-		dim3 block(8, 8, 1);
+		dim3 block(16, 16, 1);
 		dim3 grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);

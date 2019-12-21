@@ -1695,6 +1695,7 @@ __device__ inline float3 direct_integrator(
 {
 	float3 L = BLACK;
 	float3 beta = WHITE;
+	float3 attenuation = WHITE;
 	bool mi = false;
 	float3 env_pos = ray_pos;
 	float t_min;
@@ -1728,14 +1729,14 @@ __device__ inline float3 direct_integrator(
 		if (obj == 2) {
 			
 			float3 normal;
-			float3 attenuation = WHITE;
+			
 			(*geo_list)->list[idx]->scatter(ray_pos, ray_dir, t_min, normal, attenuation, rand_state);
 
 			float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
 			float3 v_tr = Tr(rand_state, ray_pos, light_dir, kernel_params, gpu_vdb, geo_list, root);
 			L += kernel_params.sun_color * kernel_params.sun_mult * v_tr * fmaxf(dot(light_dir, normal), .0f) * attenuation * beta;
-			if (kernel_params.emission_scale > .0f) L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
+			//if (kernel_params.emission_scale > .0f) L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			env_pos = ray_pos;
 
 		}

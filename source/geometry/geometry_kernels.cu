@@ -81,14 +81,14 @@ typedef unsigned long long	uint64;
 extern "C" __global__ void create_geometry_list(geometry **d_list, geometry_list **d_geo_list){
 
 	if (threadIdx.x == 0 && blockIdx.x == 0) {
-		float3 center = make_float3(0, 320, -200);
-		float radius = 100;
+		float3 center = make_float3(0, 50, 0);
+		float radius = 50;
 
 		d_list[0] = new sphere(center , radius, make_float3(0.18f, .0f, .0f), 1.0f); // R
-		d_list[1] = new sphere(center+make_float3(150, 0 , 0) , radius, make_float3(0.0f, .18f, .0f), 1.0f); // G
-		d_list[2] = new sphere(center+make_float3(300, 0 , 0) , radius, make_float3(0.0f, .0f, .18f), 1.0f); // B
-		d_list[3] = new sphere(center+make_float3(450, 0 , 0) , radius, make_float3(0.18f), 1.0f); // W
-		d_list[4] = new sphere(center+make_float3(600, 0 , 0) , radius, make_float3(0.0f), 0.0f); // S
+		d_list[1] = new sphere(center+make_float3(100, 0 , 0) , radius, make_float3(0.0f, .18f, .0f), 1.0f); // G
+		d_list[2] = new sphere(center+make_float3(200, 0 , 0) , radius, make_float3(0.0f, .0f, .18f), 1.0f); // B
+		d_list[3] = new sphere(center+make_float3(300, 0 , 0) , radius, make_float3(0.18f), 1.0f); // W
+		d_list[4] = new sphere(center+make_float3(400, 0 , 0) , radius, make_float3(0.0f), 0.0f); // S
 
 		*d_geo_list = new geometry_list(d_list, 5);
 		
