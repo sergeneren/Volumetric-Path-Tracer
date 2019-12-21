@@ -1406,7 +1406,7 @@ int main(const int argc, const char* argv[])
 	float radius = 100;
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 1.0f;
-	ref_sphere.color = make_float3(1.0f);
+	ref_sphere.color = make_float3(1.0f, 0 , 0);
 	   	  
 	CUdeviceptr d_geo_ptr;
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);

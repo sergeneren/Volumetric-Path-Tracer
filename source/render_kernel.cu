@@ -1111,7 +1111,8 @@ __device__ inline float3 Tr(
 	}
 
 	root->bbox.Intersect(ray_pos, ray_dir, t_min, distance);
-	if (ref_sphere.intersect(ray_pos, ray_dir, geo_dist, t_max)) distance = geo_dist;
+	//if (ref_sphere.intersect(ray_pos, ray_dir, geo_dist, t_max)) distance = geo_dist;
+	if (ref_sphere.intersect(ray_pos, ray_dir, geo_dist, t_max)) return BLACK;
 
 	// Control variate  
 	float sigma_c = root->min_extinction;
@@ -1184,7 +1185,7 @@ __device__ inline float3 Tr(
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 
-		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes) ;
 
 		tr *= 1 - ((density - sigma_c) * sigma_r_inv);
 		if (length(tr) < EPS) break;
@@ -1406,7 +1407,7 @@ __device__ inline float3 estimate_sun(
 	const float3 &ray_pos,
 	float3 &ray_dir,
 	const GPU_VDB *gpu_vdb,
-	const sphere ref_sphere,
+	const sphere &ref_sphere,
 	OCTNode *root,
 	const AtmosphereParameters atmosphere)
 {
@@ -1743,7 +1744,7 @@ __device__ inline float3 direct_integrator(
 			float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
 			ray_pos += normal * EPS;
-			float3 v_tr = Tr(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, ref_sphere, root);
+			float3 v_tr = Tr(rand_state, ray_pos, light_dir, kernel_params, gpu_vdb, ref_sphere, root);
 			L += kernel_params.sun_color * kernel_params.sun_mult * v_tr * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f) * beta;
 			if (kernel_params.emission_scale > .0f) L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			env_pos = ray_pos;
