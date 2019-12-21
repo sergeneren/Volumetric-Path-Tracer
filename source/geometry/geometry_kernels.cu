@@ -82,7 +82,7 @@ extern "C" __global__ void create_geometry_list(geometry **d_list, geometry_list
 
 	if (threadIdx.x == 0 && blockIdx.x == 0) {
 		float3 center = make_float3(0, 320, -200);
-		float radius = 50;
+		float radius = 100;
 
 		d_list[0] = new sphere(center , radius, make_float3(0.18f, .0f, .0f), 1.0f); // R
 		d_list[1] = new sphere(center+make_float3(150, 0 , 0) , radius, make_float3(0.0f, .18f, .0f), 1.0f); // G

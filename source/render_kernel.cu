@@ -1097,7 +1097,7 @@ __device__ inline float3 Tr(
 	float3 ray_dir,
 	const Kernel_params &kernel_params,
 	const GPU_VDB *volumes,
-	const sphere ref_sphere,
+	const geometry_list** geo_list,
 	OCTNode *root)
 {
 
@@ -1112,7 +1112,7 @@ __device__ inline float3 Tr(
 	}
 
 	root->bbox.Intersect(ray_pos, ray_dir, t_min, distance);
-	if (ref_sphere.intersect(ray_pos, ray_dir, geo_dist, t_max)) distance = geo_dist;
+	if ((*geo_list)->intersect(ray_pos, ray_dir, geo_dist, t_max)>-1) distance = geo_dist;
 
 	// Control variate  
 	float sigma_c = root->min_extinction;
@@ -1286,7 +1286,7 @@ __device__ inline float3 estimate_sky(
 	const float3 &ray_pos,
 	float3 &ray_dir,
 	const GPU_VDB *gpu_vdb,
-	const sphere ref_sphere,
+	const geometry_list** geo_list,
 	OCTNode *root,
 	const AtmosphereParameters atmosphere)
 {
@@ -1319,7 +1319,7 @@ __device__ inline float3 estimate_sky(
 			phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 
 			if (phase_pdf > .0f) {
-				float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb, ref_sphere, root);
+				float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb, geo_list, root);
 				Li *= tr;
 
 				if (!isBlack(Li)) {
@@ -1349,7 +1349,7 @@ __device__ inline float3 estimate_sky(
 			if (light_pdf == 0.0f) return Ld;
 			weight = power_heuristic(1, phase_pdf, 1, light_pdf);
 
-			float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb, ref_sphere, root);
+			float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb, geo_list, root);
 
 			if (kernel_params.environment_type == 0)
 			{
@@ -1376,7 +1376,7 @@ __device__ inline float3 estimate_point_light(
 	const float3 &ray_pos,
 	float3 &ray_dir,
 	const GPU_VDB *gpu_vdb,
-	const sphere ref_sphere,
+	const geometry_list** geo_list,
 	OCTNode *root)
 {
 
@@ -1390,7 +1390,7 @@ __device__ inline float3 estimate_point_light(
 
 		if (possible_tr > 0.01f) {
 			float3 dir = normalize(lights.light_ptr[i].pos - ray_pos);
-			float3 tr = Tr(randstate, ray_pos, dir, kernel_params, gpu_vdb, ref_sphere, root);
+			float3 tr = Tr(randstate, ray_pos, dir, kernel_params, gpu_vdb, geo_list, root);
 			Ld += lights.light_ptr[i].Le(randstate, ray_pos, ray_dir, kernel_params.phase_g1, tr, max_density, kernel_params.density_mult, kernel_params.tr_depth);
 		}
 
@@ -1407,7 +1407,7 @@ __device__ inline float3 estimate_sun(
 	const float3 &ray_pos,
 	float3 &ray_dir,
 	const GPU_VDB *gpu_vdb,
-	const sphere ref_sphere,
+	const geometry_list** geo_list,
 	OCTNode *root,
 	const AtmosphereParameters atmosphere)
 {
@@ -1425,7 +1425,7 @@ __device__ inline float3 estimate_sun(
 	phase_pdf = henyey_greenstein(cos_theta, kernel_params.phase_g1);
 
 	// Check visibility of light source 
-	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb, ref_sphere, root);
+	float3 tr = Tr(randstate, ray_pos, wi, kernel_params, gpu_vdb, geo_list, root);
 
 	float3 sky_irradiance;
 	float3 sun_irradiance = GetSunAndSkyIrradiance(atmosphere, ray_pos, ray_dir, wi, sky_irradiance);
@@ -1449,7 +1449,7 @@ __device__ inline float3 uniform_sample_one_light(
 	float3 &ray_dir,
 	Rand_state &randstate,
 	const GPU_VDB *gpu_vdb,
-	const sphere ref_sphere,
+	const geometry_list** geo_list,
 	OCTNode *root,
 	const AtmosphereParameters atmosphere)
 {
@@ -1462,17 +1462,17 @@ __device__ inline float3 uniform_sample_one_light(
 	if (light_num < 1) {
 
 		if (kernel_params.sun_mult > .0f)
-			L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere);
+			L += estimate_sun(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, geo_list, root, atmosphere);
 	}
 	else if (light_num >= 1 && light_num < 2) {
 
 		if (lights.num_lights > 0)
-			L += estimate_point_light(kernel_params, lights, randstate, ray_pos, ray_dir, gpu_vdb, ref_sphere, root);
+			L += estimate_point_light(kernel_params, lights, randstate, ray_pos, ray_dir, gpu_vdb, geo_list, root);
 
 	}
 	else {
 		if (kernel_params.sky_mult > .0f)
-			L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * kernel_params.sky_mult;
+			L += estimate_sky(kernel_params, randstate, ray_pos, ray_dir, gpu_vdb, geo_list, root, atmosphere) * kernel_params.sky_mult;
 	}
 
 	return L * (float)nLights;
@@ -1488,7 +1488,7 @@ __device__ inline float3 sample(
 	float &Alpha,
 	const Kernel_params &kernel_params,
 	const GPU_VDB *volumes,
-	const sphere ref_sphere,
+	const geometry_list** geo_list,
 	OCTNode *root)
 {
 	// Run delta tracking with octree traversal
@@ -1571,7 +1571,7 @@ __device__ inline float3 sample(
 		float inv_max_density = 1.0f / root->max_extinction;
 		float inv_density_mult = 1.0f / kernel_params.density_mult;
 		root->bbox.Intersect(ray_pos, ray_dir, t_min, distance);
-		if (ref_sphere.intersect(ray_pos, ray_dir, geo_dist, t_max)) {
+		if ((*geo_list)->intersect(ray_pos, ray_dir, geo_dist, t_max)>-1) {
 			distance = geo_dist;
 			geo = true;
 		}
@@ -1642,7 +1642,7 @@ __device__ inline float3 vol_integrator(
 	float &tr,
 	const Kernel_params kernel_params,
 	const GPU_VDB *gpu_vdb,
-	const sphere ref_sphere,
+	const geometry_list** geo_list,
 	OCTNode *root,
 	const AtmosphereParameters atmosphere)
 {
@@ -1659,11 +1659,11 @@ __device__ inline float3 vol_integrator(
 		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
 			mi = false;
 
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, ref_sphere, root);
+			beta *= sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, geo_list, root);
 			if (isBlack(beta)) break;
 
 			if (mi) { // medium interaction 
-				L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb, ref_sphere, root, atmosphere) + estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
+				L += beta * uniform_sample_one_light(kernel_params, lights, ray_pos, ray_dir, rand_state, gpu_vdb, geo_list, root, atmosphere) + estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
 			}
 
@@ -1689,7 +1689,6 @@ __device__ inline float3 direct_integrator(
 	float &tr,
 	const Kernel_params kernel_params,
 	const GPU_VDB *gpu_vdb,
-	const sphere &ref_sphere,
 	const geometry_list **geo_list,
 	OCTNode *root,
 	const AtmosphereParameters atmosphere)
@@ -1712,7 +1711,7 @@ __device__ inline float3 direct_integrator(
 			for (int volume_depth = 1; volume_depth <= kernel_params.volume_depth; volume_depth++) {
 				mi = false;
 
-				beta *= sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, ref_sphere, root);
+				beta *= sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, geo_list, root);
 				if (isBlack(beta) || obj == 2) break;
 
 				if (mi) { // medium interaction 
@@ -1720,7 +1719,7 @@ __device__ inline float3 direct_integrator(
 				}
 
 			}
-			if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * beta;
+			if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, geo_list, root, atmosphere) * beta;
 			if (kernel_params.emission_scale > 0 && mi) {
 				L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			}
@@ -1734,7 +1733,7 @@ __device__ inline float3 direct_integrator(
 
 			float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
-			float3 v_tr = Tr(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, ref_sphere, root);
+			float3 v_tr = Tr(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, geo_list, root);
 			L += kernel_params.sun_color * kernel_params.sun_mult * v_tr * fmaxf(dot(light_dir, normal), .0f) * attenuation * beta;
 			if (kernel_params.emission_scale > .0f) L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			env_pos = ray_pos;
@@ -1911,65 +1910,6 @@ __device__ inline float3 cost_calculator(
 
 }
 
-
-__device__ inline float3 octree_integrator(
-	Rand_state rand_state,
-	float3 ray_pos,
-	float3 ray_dir,
-	float &tr,
-	const Kernel_params kernel_params,
-	const GPU_VDB *gpu_vdb,
-	const sphere ref_sphere,
-	OCTNode *root_node,
-	const AtmosphereParameters atmosphere)
-{
-
-	float3 L = BLACK;
-	float3 beta = WHITE;
-	bool mi = false;
-	float3 env_pos = ray_pos;
-
-	int obj;
-	float t, tmax;
-
-	if (root_node->bbox.Intersect(ray_pos, ray_dir, t, tmax)) {
-		ray_pos += ray_dir * t;
-
-		for (int depth = 1; depth <= kernel_params.ray_depth; depth++) {
-			mi = false;
-
-			beta *= sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, ref_sphere, root_node);
-			if (isBlack(beta)) break;
-
-			if (mi) { // medium interaction 
-				sample_hg(ray_dir, rand_state, kernel_params.phase_g1);
-			}
-		}
-	}
-
-	ray_dir = normalize(ray_dir);
-
-	if (kernel_params.environment_type == 0) {
-
-		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root_node, atmosphere) * beta  * kernel_params.sun_color * kernel_params.sun_mult;
-		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta;
-
-	}
-	else {
-
-		const float4 texval = tex2D<float4>(
-			kernel_params.env_tex,
-			atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
-			acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-		L += make_float3(texval.x, texval.y, texval.z) * kernel_params.sky_color * beta * isotropic();
-	}
-
-
-	tr = fminf(tr, 1.0f);
-	return L;
-
-}
-
 __device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, BVHNode *root_node)
 {
 	float3 L = BLACK;
@@ -2044,8 +1984,6 @@ __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kern
 
 }
 
-
-
 __device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, const geometry_list** geo_list, Rand_state rand_state) {
 
 	float t_min, t_max;
@@ -2080,7 +2018,6 @@ extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
 	const light_list lights,
 	const GPU_VDB *gpu_vdb,
-	const sphere &sphere,
 	const geometry_list **geo_list,
 	BVHNode *root_node,
 	OCTNode *oct_root,
@@ -2116,8 +2053,8 @@ extern "C" __global__ void volume_rt_kernel(
 	{
 		//value = test_geometry_list(ray_pos, ray_dir, geo_list, rand_state);
 		//cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
-		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, geo_list, oct_root, atmosphere);
+		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, geo_list, oct_root, atmosphere);
+		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, geo_list, oct_root, atmosphere);
 	}
 
 
