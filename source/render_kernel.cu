@@ -78,7 +78,7 @@ typedef unsigned long long	uint64;
 #define INV_4_PI		1.0f / (4.0f * M_PI) 
 #define INV_PI			1.0f / M_PI 
 
-#if(0)
+
 // Helper functions
 
 __device__ inline void coordinate_system(
@@ -1070,13 +1070,14 @@ __device__ inline int get_quadrant(OCTNode *root, float3 pos) {
 }
 
 // Finds the closest geo and returns t_min TODO use bvh to determine closest interaction 
-__device__ inline int get_closest_object(float3 ray_pos, float3 ray_dir, OCTNode *root, const sphere ref_sphere, float &t_min) {
+__device__ inline int get_closest_object(float3 ray_pos, float3 ray_dir, OCTNode *root, const geometry_list **geo_list, float &t_min, int &idx) {
 
 
 	float tmin1 = M_INF, tmax1 = -M_INF, tmin2 = M_INF, tmax2 = -M_INF;
 
 	bool i1 = root->bbox.Intersect(ray_pos, ray_dir, tmin1, tmax1);
-	bool i2 = ref_sphere.intersect(ray_pos, ray_dir, tmin2, tmax2);
+	idx = (*geo_list)->intersect(ray_pos, ray_dir, tmin2, tmax2);
+	bool i2 = idx > -1;
 
 	if (i1 && !i2) { t_min = tmin1; return 1; }
 	if (!i1 && i2) { t_min = tmin2; return 2; }
@@ -1689,6 +1690,7 @@ __device__ inline float3 direct_integrator(
 	const Kernel_params kernel_params,
 	const GPU_VDB *gpu_vdb,
 	const sphere &ref_sphere,
+	const geometry_list **geo_list,
 	OCTNode *root,
 	const AtmosphereParameters atmosphere)
 {
@@ -1698,11 +1700,12 @@ __device__ inline float3 direct_integrator(
 	float3 env_pos = ray_pos;
 	float t_min;
 	int obj;
+	int idx;
 	// TODO use bvh to determine if we intersect volume or geometry
 
 	for (int ray_depth = 1; ray_depth <= kernel_params.ray_depth; ray_depth++) {
 
-		obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
+		obj = get_closest_object(ray_pos, ray_dir, root, geo_list, t_min, idx);
 
 		if (obj == 1) {
 			ray_pos += ray_dir * (t_min + EPS);
@@ -1722,29 +1725,17 @@ __device__ inline float3 direct_integrator(
 				L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			}
 		}
-		obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
+		obj = get_closest_object(ray_pos, ray_dir, root, geo_list, t_min, idx);
 		if (obj == 2) {
-			ray_pos += ray_dir * t_min;
-			float3 normal = normalize((ray_pos - ref_sphere.center) / ref_sphere.radius);
-			float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
-
-			float phi = 2 * M_PI * rand(&rand_state);
-			float r2 = rand(&rand_state);
-			float r2s = sqrtf(r2);
-
-			float3 w = normalize(nl);
-			float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
-			float3 v = cross(w, u);
-
-			float3 hemisphere_dir = normalize(u*cosf(phi)*r2s + v * sinf(phi)*r2s + w * sqrtf(1 - r2));
-			float3 ref = reflect(ray_dir, nl);
-			ray_dir = lerp(ref, hemisphere_dir, ref_sphere.roughness);
+			
+			float3 normal;
+			float3 attenuation = WHITE;
+			(*geo_list)->list[idx]->scatter(ray_pos, ray_dir, t_min, normal, attenuation, rand_state);
 
 			float3 light_dir = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
 
-			ray_pos += normal * EPS;
 			float3 v_tr = Tr(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, ref_sphere, root);
-			L += kernel_params.sun_color * kernel_params.sun_mult * v_tr * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f) * beta;
+			L += kernel_params.sun_color * kernel_params.sun_mult * v_tr * fmaxf(dot(light_dir, normal), .0f) * attenuation * beta;
 			if (kernel_params.emission_scale > .0f) L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			env_pos = ray_pos;
 
@@ -2053,7 +2044,7 @@ __device__ inline float3 render_earth(float3 ray_pos, float3 ray_dir, const Kern
 
 }
 
-#endif
+
 
 __device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, const geometry_list** geo_list, Rand_state rand_state) {
 
@@ -2061,11 +2052,10 @@ __device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, cons
 	float3 atten = WHITE;
 
 	for(int i= 0; i < 20; ++i){
-
-		if ((*geo_list)->intersect(ray_pos, ray_dir, t_min, t_max) > -1) {
-		
-			(*geo_list)->scatter(ray_pos, ray_dir, t_min, atten, rand_state);
-		
+		int idx = (*geo_list)->intersect(ray_pos, ray_dir, t_min, t_max);
+		if ( idx > -1) {
+			float3 normal;
+			(*geo_list)->list[idx]->scatter(ray_pos, ray_dir, t_min, normal, atten, rand_state);	
 		}
 	}
 	
@@ -2124,10 +2114,10 @@ extern "C" __global__ void volume_rt_kernel(
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
-		value = test_geometry_list(ray_pos, ray_dir, geo_list, rand_state);
+		//value = test_geometry_list(ray_pos, ray_dir, geo_list, rand_state);
 		//cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
-		//if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
-		//else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
+		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
+		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, geo_list, oct_root, atmosphere);
 	}
 
 

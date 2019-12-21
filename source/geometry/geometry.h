@@ -76,7 +76,7 @@ class geometry {
 public:
 
 	__device__ virtual int intersect(float3 ray_pos, float3 ray_dir, float&t_min, float &t_max) const = 0;
-	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3 &atten, Rand_state rand_state) const = 0;
+	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3& normal, float3& atten, Rand_state rand_state) const = 0;
 };
 
 
@@ -138,10 +138,11 @@ public:
 	};
 
 
-	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3 &atten, Rand_state rand_state) const {
+	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3& normal, float3& atten, Rand_state rand_state) const {
 
+		ray_dir = normalize(ray_dir);
 		ray_pos += ray_dir * t_min;
-		float3 normal = normalize((ray_pos - center) / radius);
+		normal = normalize((ray_pos - center) / radius);
 		float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
 
 		float phi = 2 * M_PI * rand(&rand_state);
@@ -155,9 +156,9 @@ public:
 		float3 hemisphere_dir = normalize(u * cosf(phi) * r2s + v * sinf(phi) * r2s + w * sqrtf(1 - r2));
 		float3 ref = reflect(ray_dir, nl);
 		ray_dir = lerp(ref, hemisphere_dir, roughness);
-
-		ray_pos += -nl * 0.1f;
 		
+		ray_pos += ray_dir * 0.1;
+
 		atten *= color;
 
 		return true;
@@ -202,14 +203,14 @@ public:
 
 	}
 
-	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3 &atten, Rand_state rand_state) const {
+	__device__ virtual bool scatter(float3& ray_pos, float3& ray_dir, float t_min, float3& normal, float3& atten, Rand_state rand_state) const {
 
 		float t_max;
 		int idx = this->intersect(ray_pos, ray_dir, t_min, t_max);
 
 		if (idx > -1) {
 
-			list[idx]->scatter(ray_pos, ray_dir, t_min, atten, rand_state);
+			list[idx]->scatter(ray_pos, ray_dir, t_min, normal, atten, rand_state);
 			return true;
 
 		}

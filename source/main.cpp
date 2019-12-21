@@ -1415,7 +1415,7 @@ int main(const int argc, const char* argv[])
 	
 	// create geometry_list on gpu
 	geometry **d_list;
-	int num_geo = 2;
+	int num_geo = 5;
 	checkCudaErrors(cudaMalloc((void **)&d_list, num_geo * sizeof(geometry *)));
 	
 	geometry_list **d_geo_list;
@@ -1425,10 +1425,14 @@ int main(const int argc, const char* argv[])
 	error = cuLaunchKernel(cuCreateGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, geo_params, NULL);
 	if (error != cudaSuccess) printf("function create list launch error %i\n", error);
 	
-	void* test_geo_params[] = { &cam, (void*)&l_list , (void*)&d_volume_ptr, (void*)&d_geo_ptr, (void**)&d_geo_list, &bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void*)atmos_params, &kernel_params };
+#ifdef  LOG_LEVEL_LOG
+
+	void* test_geo_params[] = { (void**)&d_geo_list };
 	error = cuLaunchKernel(cuTestGeometryKernel, 1, 1, 1, 1, 1, 1, 0, NULL, test_geo_params, NULL);
 	if (error != cudaSuccess) printf("function test list launch error %i\n", error);
 	cudaDeviceSynchronize();
+
+#endif //  LOG_LEVEL_LOG
 
 	// Create OIDN devices 
 	oidn::DeviceRef oidn_device = oidn::newDevice();

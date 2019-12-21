@@ -81,33 +81,27 @@ typedef unsigned long long	uint64;
 extern "C" __global__ void create_geometry_list(geometry **d_list, geometry_list **d_geo_list){
 
 	if (threadIdx.x == 0 && blockIdx.x == 0) {
-		float3 center = make_float3(100, 320, -200);
-		float radius = 100;
+		float3 center = make_float3(0, 320, -200);
+		float radius = 50;
 
-		d_list[0] = new sphere(center , radius, make_float3(1.0f, 0.7, 0.7), 1.0f);
-		d_list[1] = new sphere(center+make_float3(0, 150 , 0) , radius, make_float3(0.7, 0.7, 1.0f), 1.0f);
+		d_list[0] = new sphere(center , radius, make_float3(0.18f, .0f, .0f), 1.0f); // R
+		d_list[1] = new sphere(center+make_float3(150, 0 , 0) , radius, make_float3(0.0f, .18f, .0f), 1.0f); // G
+		d_list[2] = new sphere(center+make_float3(300, 0 , 0) , radius, make_float3(0.0f, .0f, .18f), 1.0f); // B
+		d_list[3] = new sphere(center+make_float3(450, 0 , 0) , radius, make_float3(0.18f), 1.0f); // W
+		d_list[4] = new sphere(center+make_float3(600, 0 , 0) , radius, make_float3(0.0f), 0.0f); // S
 
-		*d_geo_list = new geometry_list(d_list, 2);
+		*d_geo_list = new geometry_list(d_list, 5);
 		
 	}
 }
 
 // Test to see if geo_list is filled right 
-extern "C" __global__ void test_geometry_list(
-	const camera cam,
-	const light_list lights,
-	const GPU_VDB * gpu_vdb,
-	const sphere & sphere,
-	const geometry_list * *geo_list,
-	BVHNode * root_node,
-	OCTNode * oct_root,
-	const AtmosphereParameters atmosphere,
-	const Kernel_params kernel_params) {
+extern "C" __global__ void test_geometry_list(const geometry_list **geo_list) {
 
 
 	if (threadIdx.x == 0 && blockIdx.x == 0) {
 		float t_min, t_max;
-		if ((*geo_list)->intersect(make_float3(0, 320, -200), make_float3(1, 0, 0), t_min, t_max)) printf("geometry test OK...\n");
+		if ((*geo_list)->intersect(make_float3(0, 320, -200), make_float3(1, 0, 0), t_min, t_max) > -1) printf("geometry test OK...\n");
 		else printf("Error! geometry didn't create properly. \n");
 	}
 }
