@@ -1406,7 +1406,7 @@ int main(const int argc, const char* argv[])
 	float radius = 100;
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 1.0f;
-	ref_sphere.color = make_float3(1.0f, 0 , 0);
+	ref_sphere.color = make_float3(10.0f, 0 , 0);
 	   	  
 	CUdeviceptr d_geo_ptr;
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
@@ -1719,7 +1719,7 @@ int main(const int argc, const char* argv[])
 		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
 
 		// Launch volume rendering kernel.
-		dim3 block(8, 8, 1);
+		dim3 block(16, 16, 1);
 		dim3 grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 		dim3 threads_per_block(16, 16);
 		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);

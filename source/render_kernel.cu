@@ -1725,6 +1725,7 @@ __device__ inline float3 direct_integrator(
 		}
 		obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
 		if (obj == 2) {
+
 			ray_pos += ray_dir * t_min;
 			float3 normal = normalize((ray_pos - ref_sphere.center) / ref_sphere.radius);
 			float3 nl = dot(normal, ray_dir) < 0 ? normal : normal * -1;
@@ -1746,9 +1747,7 @@ __device__ inline float3 direct_integrator(
 			ray_pos += normal * EPS;
 			float3 v_tr = Tr(rand_state, ray_pos, light_dir, kernel_params, gpu_vdb, ref_sphere, root);
 			L += kernel_params.sun_color * kernel_params.sun_mult * v_tr * ref_sphere.color * fmaxf(dot(light_dir, normal), .0f) * beta;
-			if (kernel_params.emission_scale > .0f) L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			env_pos = ray_pos;
-
 		}
 
 	}
