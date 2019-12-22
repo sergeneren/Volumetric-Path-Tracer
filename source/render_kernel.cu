@@ -83,8 +83,8 @@ typedef unsigned long long	uint64;
 
 __device__ inline void coordinate_system(
 	float3 v1,
-	float3 &v2,
-	float3 &v3)
+	float3& v2,
+	float3& v3)
 {
 	if (fabsf(v1.x) > fabsf(v1.y))	v2 = make_float3(-v1.z, 0.0f, v1.x);
 	else							v2 = make_float3(0.0f, v1.z, -v1.y);
@@ -159,7 +159,7 @@ __device__ inline float tex_lookup_2d(
 __device__ inline float draw_sample_from_distribution(
 	Kernel_params kernel_params,
 	Rand_state rand_state,
-	float3 &wo) {
+	float3& wo) {
 
 	float xi = rand(&rand_state);
 	float zeta = rand(&rand_state);
@@ -283,7 +283,7 @@ __device__ inline float double_henyey_greenstein(
 
 __device__ inline float sample_spherical(
 	Rand_state rand_state,
-	float3 &wi)
+	float3& wi)
 {
 	float phi = (float)(2.0f * M_PI) * rand(&rand_state);
 	float cos_theta = 1.0f - 2.0f * rand(&rand_state);
@@ -296,8 +296,8 @@ __device__ inline float sample_spherical(
 
 
 __device__ inline float sample_hg(
-	float3 &wo,
-	Rand_state &randstate,
+	float3& wo,
+	Rand_state& randstate,
 	float g)
 {
 
@@ -318,7 +318,7 @@ __device__ inline float sample_hg(
 
 
 __device__ inline float sample_double_hg(
-	float3 &wi,
+	float3& wi,
 	Rand_state randstate,
 	float f,
 	float g1,
@@ -434,7 +434,7 @@ __device__  float2 GetTransmittanceTextureUvFromRMu(const AtmosphereParameters a
 	return make_float2(GetTextureCoordFromUnitRange(x_mu, TRANSMITTANCE_TEXTURE_WIDTH), GetTextureCoordFromUnitRange(x_r, TRANSMITTANCE_TEXTURE_HEIGHT));
 }
 
-__device__  void GetRMuFromTransmittanceTextureUv(const AtmosphereParameters atmosphere, float2 uv, float &r, float &mu)
+__device__  void GetRMuFromTransmittanceTextureUv(const AtmosphereParameters atmosphere, float2 uv, float& r, float& mu)
 {
 	float x_mu = GetUnitRangeFromTextureCoord(uv.x, TRANSMITTANCE_TEXTURE_WIDTH);
 	float x_r = GetUnitRangeFromTextureCoord(uv.y, TRANSMITTANCE_TEXTURE_HEIGHT);
@@ -560,7 +560,7 @@ __device__  float4 GetScatteringTextureUvwzFromRMuMuSNu(const AtmosphereParamete
 	return make_float4(u_nu, u_mu_s, u_mu, u_r);
 }
 
-__device__  void GetRMuMuSNuFromScatteringTextureUvwz(const AtmosphereParameters atmosphere, float4 uvwz, float &r, float &mu, float &mu_s, float &nu, bool &ray_r_mu_intersects_ground)
+__device__  void GetRMuMuSNuFromScatteringTextureUvwz(const AtmosphereParameters atmosphere, float4 uvwz, float& r, float& mu, float& mu_s, float& nu, bool& ray_r_mu_intersects_ground)
 {
 
 	// Distance to top atmosphere boundary for a horizontal ray at ground level.
@@ -801,7 +801,7 @@ __device__  float3 GetSkyRadianceToPoint(const AtmosphereParameters atmosphere, 
 	return sky_radiance;
 }
 
-__device__  float3 GetSunAndSkyIrradiance(const AtmosphereParameters atmosphere, float3 point, float3 normal, float3 sun_direction, float3 &sky_irradiance)
+__device__  float3 GetSunAndSkyIrradiance(const AtmosphereParameters atmosphere, float3 point, float3 normal, float3 sun_direction, float3& sky_irradiance)
 {
 	float r = length(point);
 	float mu_s = dot(point, sun_direction) / r;
@@ -829,8 +829,8 @@ __device__ float3 GetSolarRadiance(const AtmosphereParameters atmosphere) {
 // Light Samplers 
 
 __device__ inline float3 sample_atmosphere(
-	const Kernel_params &kernel_params,
-	const AtmosphereParameters &atmosphere,
+	const Kernel_params& kernel_params,
+	const AtmosphereParameters& atmosphere,
 	const float3 ray_pos, const float3 ray_dir)
 {
 
@@ -914,7 +914,7 @@ __device__ __inline__ float3 get_color(float3 pos, const GPU_VDB& gpu_vdb) {
 
 	float4 Cd = tex3D<float4>(gpu_vdb.vdb_info.color_texture, pos.x, pos.y, pos.z);
 
-	return make_float3(Cd); 
+	return make_float3(Cd);
 
 }
 
@@ -932,7 +932,7 @@ __device__ __inline__ float3 sum_color(float3 ray_pos, OCTNode* leaf_node, const
 
 }
 
-__device__ __inline__ float3 get_emission(float3 pos, Kernel_params kernel_params, const GPU_VDB &gpu_vdb) {
+__device__ __inline__ float3 get_emission(float3 pos, Kernel_params kernel_params, const GPU_VDB& gpu_vdb) {
 
 	pos = gpu_vdb.get_xform().transpose().inverse().transform_point(pos);
 
@@ -944,18 +944,18 @@ __device__ __inline__ float3 get_emission(float3 pos, Kernel_params kernel_param
 	pos.y /= float(gpu_vdb.vdb_info.dim.y);
 	pos.z /= float(gpu_vdb.vdb_info.dim.z);
 
-	if (pos.x<.0f || pos.y<.0f || pos.z<.0f || pos.x>1.0f || pos.y>1.0f || pos.z>1.0f) return make_float3(.0f);
+	if (pos.x < .0f || pos.y < .0f || pos.z < .0f || pos.x>1.0f || pos.y>1.0f || pos.z>1.0f) return make_float3(.0f);
 
 	float index = tex3D<float>(gpu_vdb.vdb_info.emission_texture, pos.x, pos.y, pos.z);
 
 	index = clamp(index * 255.0f / kernel_params.emission_pivot, .0f, 255.0f);
 	float3 emission = kernel_params.emission_texture[int(index)] * kernel_params.emission_scale;
 
-	return emission; 
+	return emission;
 
 }
 
-__device__ __inline__ float3 sum_emission(float3 ray_pos, Kernel_params kernel_params, OCTNode *leaf_node, const GPU_VDB *volumes) {
+__device__ __inline__ float3 sum_emission(float3 ray_pos, Kernel_params kernel_params, OCTNode* leaf_node, const GPU_VDB* volumes) {
 
 	float3 emmission = make_float3(0.0f);
 
@@ -969,7 +969,7 @@ __device__ __inline__ float3 sum_emission(float3 ray_pos, Kernel_params kernel_p
 
 }
 
-__device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
+__device__ __inline__ float get_density(float3 pos, const GPU_VDB& gpu_vdb) {
 
 	// world space to object space
 	pos = gpu_vdb.get_xform().transpose().inverse().transform_point(pos);
@@ -982,13 +982,13 @@ __device__ __inline__ float get_density(float3 pos, const GPU_VDB &gpu_vdb) {
 	pos.y /= float(gpu_vdb.vdb_info.dim.y);
 	pos.z /= float(gpu_vdb.vdb_info.dim.z);
 
-	if (pos.x<.0f || pos.y<.0f || pos.z<.0f || pos.x>1.0f || pos.y>1.0f || pos.z>1.0f) return .0f;
+	if (pos.x < .0f || pos.y < .0f || pos.z < .0f || pos.x>1.0f || pos.y>1.0f || pos.z>1.0f) return .0f;
 
 	float density = tex3D<float>(gpu_vdb.vdb_info.density_texture, pos.x, pos.y, pos.z);
 	return density;
 }
 
-__device__ inline float sum_density(float3 ray_pos, OCTNode *leaf_node, const GPU_VDB *volumes) {
+__device__ inline float sum_density(float3 ray_pos, OCTNode* leaf_node, const GPU_VDB* volumes) {
 
 	float density = 0.0f;
 
@@ -1001,7 +1001,7 @@ __device__ inline float sum_density(float3 ray_pos, OCTNode *leaf_node, const GP
 	return density;
 }
 
-__device__ inline bool traverse_octree(float3 ray_pos, float3 ray_dir, OCTNode *root, float &t_min, float&t_max) {
+__device__ inline bool traverse_octree(float3 ray_pos, float3 ray_dir, OCTNode* root, float& t_min, float& t_max) {
 
 	/*
 	// Recursive traversal (This doesn't work)
@@ -1049,9 +1049,9 @@ __device__ inline bool traverse_octree(float3 ray_pos, float3 ray_dir, OCTNode *
 
 }
 
-__device__ inline OCTNode* get_closest_leaf_node(float3 ray_pos, float3 ray_dir, OCTNode *root, float &t_min, float &t_max) {
+__device__ inline OCTNode* get_closest_leaf_node(float3 ray_pos, float3 ray_dir, OCTNode* root, float& t_min, float& t_max) {
 
-	OCTNode *node = NULL;
+	OCTNode* node = NULL;
 
 	// Lets first check if we intersect root
 	if (root->bbox.Intersect(ray_pos, ray_dir, t_min, t_max)) {
@@ -1087,7 +1087,7 @@ __device__ inline OCTNode* get_closest_leaf_node(float3 ray_pos, float3 ray_dir,
 	return node;
 }
 
-__device__ inline int get_quadrant(OCTNode *root, float3 pos) {
+__device__ inline int get_quadrant(OCTNode* root, float3 pos) {
 
 	int child_idx = -1;
 
@@ -1103,7 +1103,7 @@ __device__ inline int get_quadrant(OCTNode *root, float3 pos) {
 }
 
 // Finds the closest geo and returns t_min TODO use bvh to determine closest interaction 
-__device__ inline int get_closest_object(float3 ray_pos, float3 ray_dir, OCTNode *root, const sphere ref_sphere, float &t_min) {
+__device__ inline int get_closest_object(float3 ray_pos, float3 ray_dir, OCTNode* root, const sphere ref_sphere, float& t_min) {
 
 
 	float tmin1 = M_INF, tmax1 = -M_INF, tmin2 = M_INF, tmax2 = -M_INF;
@@ -1124,13 +1124,13 @@ __device__ inline int get_closest_object(float3 ray_pos, float3 ray_dir, OCTNode
 
 
 __device__ inline float3 Tr(
-	Rand_state &rand_state,
+	Rand_state& rand_state,
 	float3 ray_pos,
 	float3 ray_dir,
-	const Kernel_params &kernel_params,
-	const GPU_VDB *volumes,
+	const Kernel_params& kernel_params,
+	const GPU_VDB* volumes,
 	const sphere ref_sphere,
-	OCTNode *root)
+	OCTNode* root)
 {
 
 
@@ -1163,7 +1163,7 @@ __device__ inline float3 Tr(
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root, volumes);
-		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		tr *= 1 - fmaxf(.0f, density * inv_max_density);
 		tr = fmaxf(tr, make_float3(.0f));
 	}
 #endif
@@ -1218,7 +1218,7 @@ __device__ inline float3 Tr(
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 
-		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes) ;
+		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 
 		tr *= 1 - ((density - sigma_c) * sigma_r_inv);
 		if (length(tr) < EPS) break;
@@ -1233,12 +1233,12 @@ __device__ inline float3 Tr(
 }
 
 __device__ inline float3 estimate_emission(
-	Rand_state &rand_state,
+	Rand_state& rand_state,
 	float3 ray_pos,
 	float3 ray_dir,
-	const Kernel_params &kernel_params,
-	const GPU_VDB *volumes,
-	OCTNode *root)
+	const Kernel_params& kernel_params,
+	const GPU_VDB* volumes,
+	OCTNode* root)
 {
 
 	// Run ratio tracking to estimate emission
@@ -1315,12 +1315,12 @@ __device__ inline float pdf_li(
 
 __device__ inline float3 estimate_sky(
 	Kernel_params kernel_params,
-	Rand_state &randstate,
-	const float3 &ray_pos,
-	float3 &ray_dir,
-	const GPU_VDB *gpu_vdb,
+	Rand_state& randstate,
+	const float3& ray_pos,
+	float3& ray_dir,
+	const GPU_VDB* gpu_vdb,
 	const sphere ref_sphere,
-	OCTNode *root,
+	OCTNode* root,
 	const AtmosphereParameters atmosphere)
 {
 	float3 Ld = BLACK;
@@ -1405,12 +1405,12 @@ __device__ inline float3 estimate_sky(
 __device__ inline float3 estimate_point_light(
 	Kernel_params kernel_params,
 	const light_list lights,
-	Rand_state &randstate,
-	const float3 &ray_pos,
-	float3 &ray_dir,
-	const GPU_VDB *gpu_vdb,
+	Rand_state& randstate,
+	const float3& ray_pos,
+	float3& ray_dir,
+	const GPU_VDB* gpu_vdb,
 	const sphere ref_sphere,
-	OCTNode *root)
+	OCTNode* root)
 {
 
 	float3 Ld = make_float3(.0f);
@@ -1419,7 +1419,7 @@ __device__ inline float3 estimate_point_light(
 	for (int i = 0; i < lights.num_lights; i++) {
 
 		float dist = length(lights.light_ptr[i].pos - ray_pos);
-		float possible_tr = expf(-gpu_vdb[0].vdb_info.max_density * dist / (sqrtf(lights.light_ptr[i].power)*kernel_params.tr_depth));
+		float possible_tr = expf(-gpu_vdb[0].vdb_info.max_density * dist / (sqrtf(lights.light_ptr[i].power) * kernel_params.tr_depth));
 
 		if (possible_tr > 0.01f) {
 			float3 dir = normalize(lights.light_ptr[i].pos - ray_pos);
@@ -1436,12 +1436,12 @@ __device__ inline float3 estimate_point_light(
 
 __device__ inline float3 estimate_sun(
 	Kernel_params kernel_params,
-	Rand_state &randstate,
-	const float3 &ray_pos,
-	float3 &ray_dir,
-	const GPU_VDB *gpu_vdb,
-	const sphere &ref_sphere,
-	OCTNode *root,
+	Rand_state& randstate,
+	const float3& ray_pos,
+	float3& ray_dir,
+	const GPU_VDB* gpu_vdb,
+	const sphere& ref_sphere,
+	OCTNode* root,
 	const AtmosphereParameters atmosphere)
 {
 	float3 Ld = BLACK;
@@ -1478,12 +1478,12 @@ __device__ inline float3 estimate_sun(
 __device__ inline float3 uniform_sample_one_light(
 	Kernel_params kernel_params,
 	const light_list lights,
-	const float3 &ray_pos,
-	float3 &ray_dir,
-	Rand_state &randstate,
-	const GPU_VDB *gpu_vdb,
+	const float3& ray_pos,
+	float3& ray_dir,
+	Rand_state& randstate,
+	const GPU_VDB* gpu_vdb,
 	const sphere ref_sphere,
-	OCTNode *root,
+	OCTNode* root,
 	const AtmosphereParameters atmosphere)
 {
 
@@ -1513,16 +1513,16 @@ __device__ inline float3 uniform_sample_one_light(
 }
 
 __device__ inline float3 sample(
-	Rand_state &rand_state,
-	float3 &ray_pos,
-	const float3 &ray_dir,
-	bool &interaction,
-	int &obj,
-	float &Alpha,
-	const Kernel_params &kernel_params,
-	const GPU_VDB *volumes,
+	Rand_state& rand_state,
+	float3& ray_pos,
+	const float3& ray_dir,
+	bool& interaction,
+	int& obj,
+	float& Alpha,
+	const Kernel_params& kernel_params,
+	const GPU_VDB* volumes,
 	const sphere ref_sphere,
-	OCTNode *root)
+	OCTNode* root)
 {
 	// Run delta tracking with octree traversal
 	// We assume that the ray_pos is inside the root bbox at the beginning 
@@ -1530,7 +1530,7 @@ __device__ inline float3 sample(
 	float t_min, t_max, geo_dist = .0f, distance = .0f, t = 0.0f;
 	bool geo;
 
-	
+
 
 
 #ifndef DDA_STEP_TRUE
@@ -1573,8 +1573,8 @@ __device__ inline float3 sample(
 				t_max = fmaxf(t_max, 0.1f);
 				ray_pos += ray_dir * t_max;
 				continue;
-	}
-}
+			}
+		}
 		else break;
 
 		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
@@ -1611,7 +1611,7 @@ __device__ inline float3 sample(
 		t -= logf(1 - rand(&rand_state)) * inv_max_density * inv_density_mult;
 
 		if (t >= distance) {
-			if(geo) obj = 2;
+			if (geo) obj = 2;
 			break;
 		}
 
@@ -1639,7 +1639,7 @@ __device__ inline float3 sample(
 
 }
 
-__device__ void traverse_bvh(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, BVHNode *node, float3 &t, int &volume_idx) {
+__device__ void traverse_bvh(float3 ray_pos, float3 ray_dir, const GPU_VDB* volumes, BVHNode* node, float3& t, int& volume_idx) {
 
 	float tmin, tmax;
 	if (node->boundingBox.Intersect(ray_pos, ray_dir, tmin, tmax)) {
@@ -1652,8 +1652,8 @@ __device__ void traverse_bvh(float3 ray_pos, float3 ray_dir, const GPU_VDB *volu
 		}
 		else {
 
-			BVHNode *leftChild = node->leftChild;
-			BVHNode *rightChild = node->rightChild;
+			BVHNode* leftChild = node->leftChild;
+			BVHNode* rightChild = node->rightChild;
 
 			traverse_bvh(ray_pos, ray_dir, volumes, leftChild, t, volume_idx);
 			traverse_bvh(ray_pos, ray_dir, volumes, rightChild, t, volume_idx);
@@ -1673,11 +1673,11 @@ __device__ inline float3 vol_integrator(
 	const light_list lights,
 	float3 ray_pos,
 	float3 ray_dir,
-	float &tr,
+	float& tr,
 	const Kernel_params kernel_params,
-	const GPU_VDB *gpu_vdb,
+	const GPU_VDB* gpu_vdb,
 	const sphere ref_sphere,
-	OCTNode *root,
+	OCTNode* root,
 	const AtmosphereParameters atmosphere)
 {
 
@@ -1720,11 +1720,11 @@ __device__ inline float3 direct_integrator(
 	Rand_state rand_state,
 	float3 ray_pos,
 	float3 ray_dir,
-	float &tr,
+	float& tr,
 	const Kernel_params kernel_params,
-	const GPU_VDB *gpu_vdb,
-	const sphere &ref_sphere,
-	OCTNode *root,
+	const GPU_VDB* gpu_vdb,
+	const sphere& ref_sphere,
+	OCTNode* root,
 	const AtmosphereParameters atmosphere)
 {
 	float3 L = BLACK;
@@ -1772,7 +1772,7 @@ __device__ inline float3 direct_integrator(
 			float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
 			float3 v = cross(w, u);
 
-			float3 hemisphere_dir = normalize(u*cosf(phi)*r2s + v * sinf(phi)*r2s + w * sqrtf(1 - r2));
+			float3 hemisphere_dir = normalize(u * cosf(phi) * r2s + v * sinf(phi) * r2s + w * sqrtf(1 - r2));
 			float3 ref = reflect(ray_dir, nl);
 			ray_dir = lerp(ref, hemisphere_dir, ref_sphere.roughness);
 
@@ -1810,6 +1810,39 @@ __device__ inline float3 direct_integrator(
 
 }
 
+__device__ inline float3 depth_calculator(
+	Rand_state rand_state,
+	float3 ray_pos,
+	float3 ray_dir,
+	float& tr,
+	const Kernel_params kernel_params,
+	const GPU_VDB* gpu_vdb,
+	const sphere& ref_sphere,
+	OCTNode* root)
+{
+
+	float3 pos = ray_pos;
+	bool mi = false;
+	float t_min;
+	int obj;
+
+	obj = get_closest_object(ray_pos, ray_dir, root, ref_sphere, t_min);
+
+	if (obj == 1) {
+		ray_pos += ray_dir * (t_min + EPS);
+		sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, ref_sphere, root);
+		if (mi) return ray_pos;
+		else return pos;
+	}
+	if (obj == 2) {
+		ray_pos += ray_dir * t_min;
+		return ray_pos;
+	}
+
+	return pos;
+}
+
+
 
 //////////////////////////////////////////////////////////////////////////
 // Test Kernels 
@@ -1826,14 +1859,14 @@ __device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, cons
 */
 
 __device__ inline float3 sample_cost(
-	Rand_state &rand_state,
-	float3 &ray_pos,
-	const float3 &ray_dir,
-	bool &interaction,
-	float &tr,
-	const Kernel_params &kernel_params,
-	const GPU_VDB *volumes,
-	OCTNode *root)
+	Rand_state& rand_state,
+	float3& ray_pos,
+	const float3& ray_dir,
+	bool& interaction,
+	float& tr,
+	const Kernel_params& kernel_params,
+	const GPU_VDB* volumes,
+	OCTNode* root)
 {
 
 	float t_min, t_max, t = 0.0f;
@@ -1853,7 +1886,7 @@ __device__ inline float3 sample_cost(
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root, volumes);
-		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		tr *= 1 - fmaxf(.0f, density * inv_max_density);
 		if (tr < 1.0f) tr += density;
 
 		if (density * inv_max_density > rand(&rand_state)) {
@@ -1880,8 +1913,8 @@ __device__ inline float3 sample_cost(
 				continue;
 
 
-	}
-}
+			}
+		}
 		else break;
 
 		int depth2_node = get_quadrant(root->children[depth3_node], ray_pos);
@@ -1915,7 +1948,7 @@ __device__ inline float3 sample_cost(
 		ray_pos += ray_dir * t;
 		if (!Contains(root->bbox, ray_pos))	break;
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
-		tr *= 1 - fmaxf(.0f, density*inv_max_density);
+		tr *= 1 - fmaxf(.0f, density * inv_max_density);
 		if (tr < 1.0f) tr += density;
 
 		if (density * inv_max_density > rand(&rand_state)) {
@@ -1935,10 +1968,10 @@ __device__ inline float3 cost_calculator(
 	Rand_state rand_state,
 	float3 ray_pos,
 	float3 ray_dir,
-	float &tr,
+	float& tr,
 	const Kernel_params kernel_params,
-	const GPU_VDB *gpu_vdb,
-	OCTNode *root,
+	const GPU_VDB* gpu_vdb,
+	OCTNode* root,
 	const AtmosphereParameters atmosphere)
 {
 	float3 L = BLACK;
@@ -1972,11 +2005,11 @@ __device__ inline float3 octree_integrator(
 	Rand_state rand_state,
 	float3 ray_pos,
 	float3 ray_dir,
-	float &tr,
+	float& tr,
 	const Kernel_params kernel_params,
-	const GPU_VDB *gpu_vdb,
+	const GPU_VDB* gpu_vdb,
 	const sphere ref_sphere,
-	OCTNode *root_node,
+	OCTNode* root_node,
 	const AtmosphereParameters atmosphere)
 {
 
@@ -2007,7 +2040,7 @@ __device__ inline float3 octree_integrator(
 
 	if (kernel_params.environment_type == 0) {
 
-		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root_node, atmosphere) * beta  * kernel_params.sun_color * kernel_params.sun_mult;
+		if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root_node, atmosphere) * beta * kernel_params.sun_color * kernel_params.sun_mult;
 		L += sample_atmosphere(kernel_params, atmosphere, env_pos, ray_dir) * beta;
 
 	}
@@ -2026,7 +2059,7 @@ __device__ inline float3 octree_integrator(
 
 }
 
-__device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, BVHNode *root_node)
+__device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU_VDB* volumes, BVHNode* root_node)
 {
 	float3 L = BLACK;
 	float3 t = make_float3(NOHIT);
@@ -2045,7 +2078,7 @@ __device__ inline float3 visualize_BVH(float3 ray_pos, float3 ray_dir, const GPU
 	return L;
 }
 
-__device__ inline float3 visualize_OCTree(float3 ray_pos, float3 ray_dir, const GPU_VDB *volumes, OCTNode *root)
+__device__ inline float3 visualize_OCTree(float3 ray_pos, float3 ray_dir, const GPU_VDB* volumes, OCTNode* root)
 {
 	float3 L = BLACK;
 	float3 t = make_float3(NOHIT);
@@ -2105,10 +2138,10 @@ __device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, cons
 	float t_min, t_max;
 	float3 atten = WHITE;
 
-	
+
 	for (int i = 0; i < 20; ++i) {
 		int idx = geo_list.list[0].intersect(ray_pos, ray_dir, t_min, t_max);
-		
+
 		/*
 		if (idx > -1) {
 			float3 normal;
@@ -2116,7 +2149,7 @@ __device__ inline float3 test_geometry_list(float3 ray_pos, float3 ray_dir, cons
 		}
 		*/
 	}
-	
+
 	return atten;
 }
 
@@ -2137,11 +2170,11 @@ __device__ inline float3 rtt_and_odt_fit(float3 v)
 extern "C" __global__ void volume_rt_kernel(
 	const camera cam,
 	const light_list lights,
-	const GPU_VDB *gpu_vdb,
-	const sphere &sphere,
-	const geometry_list &geo_list,
-	BVHNode *root_node,
-	OCTNode *oct_root,
+	const GPU_VDB * gpu_vdb,
+	const sphere & sphere,
+	const geometry_list & geo_list,
+	BVHNode * root_node,
+	OCTNode * oct_root,
 	const AtmosphereParameters atmosphere,
 	const Kernel_params kernel_params) {
 
@@ -2168,30 +2201,39 @@ extern "C" __global__ void volume_rt_kernel(
 	float3 ray_pos = camera_ray.A;
 	float3 value = WHITE;
 	float3 cost = BLACK;
+	float3 depth = BLACK;
 	float tr = .0f;
 
 
 	if (kernel_params.iteration < kernel_params.max_interactions && kernel_params.render)
 	{
 		//value = test_geometry_list(ray_pos, ray_dir, geo_list, rand_state);
-		//cost = cost_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, oct_root, atmosphere);
+		depth = depth_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root);
 		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
 	}
 
+	depth = make_float3(length(depth - cam.origin));
 
 	// Check if values contains nan or infinite values
 	if (isNan(value) || isInf(value)) value = kernel_params.accum_buffer[idx];
 	if (isnan(tr) || isinf(tr)) tr = 1.0f;
 
+	if (0) { // TODO focus plane viz 
+		if (length(depth) > cam.focus_dist + 5.0f) value = lerp(value, RED, 0.5f);
+		if (length(depth) < cam.focus_dist - 5) value = lerp(value, BLUE, 0.5f);
+		if (length(depth) > cam.focus_dist - 5 || length(depth) < cam.focus_dist + 5) value = lerp(value, GREEN, 0.5f);
+	}
+
+
 	// Accumulate.
 	if (kernel_params.iteration == 0) {
 		kernel_params.accum_buffer[idx] = value;
-		kernel_params.cost_buffer[idx] = cost;
+		kernel_params.cost_buffer[idx] = depth;
 	}
 	else if (kernel_params.iteration < kernel_params.max_interactions) {
 		kernel_params.accum_buffer[idx] = kernel_params.accum_buffer[idx] + (value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
-		kernel_params.cost_buffer[idx] = kernel_params.cost_buffer[idx] + (cost - kernel_params.cost_buffer[idx]) / (float)(kernel_params.iteration + 1);
+		kernel_params.cost_buffer[idx] = kernel_params.cost_buffer[idx] + (depth - kernel_params.cost_buffer[idx]) / (float)(kernel_params.iteration + 1);
 	}
 
 	// Update display buffer (ACES Tonemapping).

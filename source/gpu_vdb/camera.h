@@ -109,7 +109,7 @@ public:
 
 	__host__ __device__ void update_camera(float3 lookfrom, float3 lookat, float3 vup, float vfov, float aspect, float aperture) {
 
-		float focus_dist = length(lookfrom - lookat);
+		focus_dist = length(lookfrom - lookat);
 		lens_radius = aperture / 2.0f;
 		float theta = vfov * float(M_PI) / 180.0f;
 		float half_height = tan(theta / 2.0f);
@@ -138,6 +138,7 @@ public:
 
 	float time1, time0;
 	float3 origin;
+	float focus_dist;
 	float3 lower_left_corner;
 	float3 horizontal;
 	float3 vertical;
