@@ -398,7 +398,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		texDescr.readMode = cudaReadModeElementType;
 		//texDescr.readMode = cudaReadModeNormalizedFloat;
 
-		checkCudaErrors(cudaCreateTextureObject(&vdb_info.emission_texture, &texRes, &texDescr, NULL));
+		checkCudaErrors(cudaCreateTextureObject(&vdb_info.color_texture, &texRes, &texDescr, NULL));
 	}
 
 	// Fill vdb_info

@@ -914,7 +914,7 @@ __device__ __inline__ float3 get_color(float3 pos, const GPU_VDB& gpu_vdb) {
 
 	float4 Cd = tex3D<float4>(gpu_vdb.vdb_info.color_texture, pos.x, pos.y, pos.z);
 
-	return make_float3(Cd); // TODO blackbody transfer function here
+	return make_float3(Cd); 
 
 }
 
@@ -951,7 +951,7 @@ __device__ __inline__ float3 get_emission(float3 pos, Kernel_params kernel_param
 	index = clamp(index * 255.0f / kernel_params.emission_pivot, .0f, 255.0f);
 	float3 emission = kernel_params.emission_texture[int(index)] * kernel_params.emission_scale;
 
-	return emission; // TODO blackbody transfer function here
+	return emission; 
 
 }
 
