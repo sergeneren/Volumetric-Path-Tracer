@@ -456,6 +456,32 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 			ctx->change = true;
 			break;
+		case GLFW_KEY_KP_8:
+		case GLFW_KEY_8:
+			lookat += cam.w * 5.0f;
+			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
+			ctx->change = true;
+			break;
+		case GLFW_KEY_KP_2:
+		case GLFW_KEY_2:
+			lookat -= cam.w * 5.0f;
+			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
+			ctx->change = true;
+			break;
+		case GLFW_KEY_KP_4:
+		case GLFW_KEY_4:
+			aperture -= 0.1f;
+			aperture = fmaxf(aperture, .0f);
+			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
+			ctx->change = true;
+			break;
+		case GLFW_KEY_KP_6:
+		case GLFW_KEY_6:
+			aperture += 0.1f;
+			aperture = fmaxf(aperture, .0f);
+			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
+			ctx->change = true;
+			break;
 		case GLFW_KEY_S: // Save linear image 
 			ctx->save_image = true;
 			break;
