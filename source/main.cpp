@@ -986,7 +986,7 @@ static void read_instance_file(std::string file_name) {
 	for (int i = 0; i < volume_files.size(); ++i) {
 
 		unique_vdb_files.push_back(GPU_VDB());
-		unique_vdb_files.at(i).loadVDB(volume_files.at(i).vdb_file, "density", "heat");
+		unique_vdb_files.at(i).loadVDB(volume_files.at(i).vdb_file, "density", "heat", "Cd");
 
 		for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
 			
@@ -1158,7 +1158,7 @@ int main(const int argc, const char* argv[])
 
 		instances.clear();
 		instances.push_back(GPU_VDB());
-		instances.at(0).loadVDB(file_path, "density", "heat");
+		instances.at(0).loadVDB(file_path, "density", "heat", "Cd");
 
 		mat4 xform = instances.at(0).get_xform();
 		//xform.scale(make_float3(20.0f));

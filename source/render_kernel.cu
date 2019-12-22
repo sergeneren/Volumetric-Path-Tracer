@@ -898,6 +898,39 @@ __device__ inline float3 sample_env_tex(
 	return make_float3(texval);
 }
 
+__device__ __inline__ float3 get_color(float3 pos, const GPU_VDB& gpu_vdb) {
+
+	pos = gpu_vdb.get_xform().transpose().inverse().transform_point(pos);
+
+	// object space position to index position
+	pos -= gpu_vdb.vdb_info.bmin;
+
+	// index position to [0-1] position
+	pos.x /= float(gpu_vdb.vdb_info.dim.x);
+	pos.y /= float(gpu_vdb.vdb_info.dim.y);
+	pos.z /= float(gpu_vdb.vdb_info.dim.z);
+
+	if (pos.x < .0f || pos.y < .0f || pos.z < .0f || pos.x>1.0f || pos.y>1.0f || pos.z>1.0f) return make_float3(.0f);
+
+	float4 Cd = tex3D<float4>(gpu_vdb.vdb_info.color_texture, pos.x, pos.y, pos.z);
+
+	return make_float3(Cd); // TODO blackbody transfer function here
+
+}
+
+__device__ __inline__ float3 sum_color(float3 ray_pos, OCTNode* leaf_node, const GPU_VDB* volumes) {
+
+	float3 color = make_float3(0.0f);
+
+	for (int i = 0; i < leaf_node->num_volumes; ++i) {
+
+		color += get_color(ray_pos, volumes[leaf_node->vol_indices[i]]);
+
+	}
+
+	return color;
+
+}
 
 __device__ __inline__ float3 get_emission(float3 pos, Kernel_params kernel_params, const GPU_VDB &gpu_vdb) {
 
@@ -1588,6 +1621,7 @@ __device__ inline float3 sample(
 
 
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+		float3 Cd = sum_color(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 
 		int index = int(floorf(fminf(fmaxf((density * inv_max_density * 255.0f / kernel_params.emission_pivot), 0.0f), 255.0f)));
 		float3 density_color = kernel_params.density_color_texture[index];
@@ -1596,7 +1630,7 @@ __device__ inline float3 sample(
 
 		if (density * inv_max_density > rand(&rand_state)) {
 			interaction = true;
-			return (kernel_params.albedo * density_color / kernel_params.extinction) * float(kernel_params.energy_inject);
+			return (kernel_params.albedo * Cd * density_color / kernel_params.extinction) * float(kernel_params.energy_inject);
 		}
 	}
 

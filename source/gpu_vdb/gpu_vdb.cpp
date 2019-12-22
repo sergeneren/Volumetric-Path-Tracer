@@ -134,7 +134,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	// Print grid attributes
 	auto grids = file.readAllGridMetadata();
 	for (auto grid : *grids) {
-		log("Grid " + grid->getName() + grid->valueType(), LOG);
+		log("Grid " + grid->getName() + " " + grid->valueType(), LOG);
 	}
 
 	// Read density and emission channel from the file 

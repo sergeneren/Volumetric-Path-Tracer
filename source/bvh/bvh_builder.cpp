@@ -71,9 +71,6 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 		octree.root_node->max_extinction = fmaxf(octree.root_node->max_extinction, vdbs.at(i).vdb_info.max_density);
 		octree.root_node->min_extinction = fminf(octree.root_node->min_extinction, vdbs.at(i).vdb_info.min_density);
 
-		octree.root_node->max_emission = fmaxf(octree.root_node->max_emission, vdbs.at(i).vdb_info.max_emission);
-		octree.root_node->min_emission = fminf(octree.root_node->min_emission, vdbs.at(i).vdb_info.min_emission);
-
 		octree.root_node->has_children = true;
 	}
 

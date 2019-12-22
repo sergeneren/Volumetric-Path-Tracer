@@ -224,10 +224,6 @@ struct OCTNode {
 	float max_extinction = .0f;
 	float min_extinction = M_INF;
 
-	float max_emission = .0f;
-	float min_emission = M_INF;
-
-
 	float voxel_size = M_INF;
 	int depth = -1;
 	bool has_children = false;
