@@ -63,11 +63,10 @@ struct ALIGN(16) VDB_INFO {
 	float3	bmax;
 	float	max_density;
 	float	min_density;
-	float	max_emission;
-	float	min_emission;
 
 	cudaTextureObject_t density_texture; 
 	cudaTextureObject_t emission_texture;
+	cudaTextureObject_t color_texture;
 
 };
 
@@ -113,7 +112,7 @@ public:
 	}
 
 	// Host functions
-	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="");
+	__host__ bool loadVDB(std::string file_name, std::string density_channel, std::string emission_channel="", std::string color_channel="");
 	
 	__host__ VDB_INFO * get_vdb_info() ;
 	

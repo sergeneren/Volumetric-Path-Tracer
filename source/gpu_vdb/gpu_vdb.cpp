@@ -63,6 +63,14 @@ void set_vec3s(float3 &fl, openvdb::Vec3s vec) {
 	fl.y = vec[1];
 	fl.z = vec[2];
 }
+
+void set_vec3s(float4 &fl, openvdb::Vec3s vec) {
+	fl.x = vec[0];
+	fl.y = vec[1];
+	fl.z = vec[2];
+	fl.w = 1.0f;
+}
+
 void set_vec3i(int3 &dim, openvdb::Vec3i vec) {
 
 	dim.x = vec[0];
@@ -94,7 +102,7 @@ GPU_VDB * GPU_VDB::clone() {
 	return this;
 }
 
-bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::string emission_channel) {
+bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::string emission_channel, std::string color_channel) {
 
 	if (!fs::exists(fs::path(filename))) {
 		
@@ -118,8 +126,6 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 
 	vdb_info.max_density = .0f;
 	vdb_info.min_density = FLT_MAX;
-	vdb_info.max_emission = .0f;
-	vdb_info.min_emission = FLT_MAX;
 
 	openvdb::initialize();
 	openvdb::io::File file(filename);
@@ -134,6 +140,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	// Read density and emission channel from the file 
 	openvdb::GridBase::Ptr densityGridBase;
 	openvdb::GridBase::Ptr emissionGridBase;
+	openvdb::GridBase::Ptr colorGridBase;
 
 	for (openvdb::io::File::NameIterator nameIter = file.beginName(); nameIter != file.endName(); ++nameIter)
 	{
@@ -144,10 +151,14 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		else if (!emission_channel.empty() && nameIter.gridName() == emission_channel) {
 			emissionGridBase = file.readGrid(nameIter.gridName());
 		}
+		else if (!color_channel.empty() && nameIter.gridName() == color_channel) {
+			colorGridBase = file.readGrid(nameIter.gridName());
+		}
 		else {
 			log("skipping grid " + nameIter.gridName(), WARNING);
 		}
 	}
+
 	openvdb::MetaMap::Ptr filemetadata = file.getMetadata();
 	file.close();
 
@@ -270,10 +281,6 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 				for (int x = 0; x < dim_x; x++) {
 					int idx = z * dim_x*dim_y + y * dim_x + x;
 					float val = dense.getValue(idx);
-
-					vdb_info.max_emission = fmaxf(vdb_info.max_emission, val);
-					vdb_info.min_emission = fminf(vdb_info.min_emission, fmaxf( FLT_EPSILON , val));
-
 					volume_data_host[idx] = val;
 				}
 			}
@@ -289,6 +296,83 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		// copy data to 3D array
 		cudaMemcpy3DParms copyParams = { 0 };
 		copyParams.srcPtr = make_cudaPitchedPtr(volume_data_host, vol_size.width * sizeof(float), vol_size.width, vol_size.height);
+		copyParams.dstArray = d_volumeArray;
+		copyParams.extent = vol_size;
+		copyParams.kind = cudaMemcpyHostToDevice;
+		checkCudaErrors(cudaMemcpy3D(&copyParams));
+
+
+		cudaResourceDesc            texRes;
+		memset(&texRes, 0, sizeof(cudaResourceDesc));
+
+		texRes.resType = cudaResourceTypeArray;
+		texRes.res.array.array = d_volumeArray;
+
+		cudaTextureDesc             texDescr;
+		memset(&texDescr, 0, sizeof(cudaTextureDesc));
+
+		texDescr.normalizedCoords = true; // access with normalized texture coordinates
+		texDescr.filterMode = cudaFilterModeLinear; // linear interpolation
+
+		texDescr.addressMode[0] = cudaAddressModeClamp;  // clamp texture coordinates
+		texDescr.addressMode[1] = cudaAddressModeClamp;
+		texDescr.addressMode[2] = cudaAddressModeClamp;
+
+		texDescr.readMode = cudaReadModeElementType;
+		//texDescr.readMode = cudaReadModeNormalizedFloat;
+
+		checkCudaErrors(cudaCreateTextureObject(&vdb_info.emission_texture, &texRes, &texDescr, NULL));
+	}
+
+	// Fill color channel if specified 
+	if (!color_channel.empty() && colorGridBase) {
+
+		openvdb::Vec3SGrid::Ptr grid = openvdb::gridPtrCast<openvdb::Vec3SGrid>(colorGridBase);
+		openvdb::Vec3STree tree = grid->tree();
+		openvdb::CoordBBox bbox;
+		tree.evalActiveVoxelBoundingBox(bbox);
+
+		//Create dense volume
+		openvdb::tools::Dense<openvdb::Vec3s, openvdb::tools::LayoutXYZ> dense(bbox);
+		openvdb::tools::copyToDense(tree, dense);
+
+#ifdef LOG_LEVEL_LOG
+		dense.print();
+#endif
+
+		log("value count: " + std::to_string(dense.valueCount()), LOG);
+
+		int dim_x = bbox.dim().x();
+		int dim_y = bbox.dim().y();
+		int dim_z = bbox.dim().z();
+
+		cudaExtent vol_size;
+		vol_size.width = dim_x;
+		vol_size.height = dim_y;
+		vol_size.depth = dim_z;
+
+		float4* volume_data_host = (float4*)malloc(dim_x * dim_y * dim_z * sizeof(float4));
+		// Copy vdb values
+		for (int z = 0; z < dim_z; z++) {
+			for (int y = 0; y < dim_y; y++) {
+				for (int x = 0; x < dim_x; x++) {
+					int idx = z * dim_x * dim_y + y * dim_x + x;
+					openvdb::Vec3s val = dense.getValue(idx);
+					set_vec3s(volume_data_host[idx], val);
+				}
+			}
+		}
+
+
+		// create 3D array
+		cudaArray* d_volumeArray = 0;
+
+		cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float4>();
+		checkCudaErrors(cudaMalloc3DArray(&d_volumeArray, &channelDesc, vol_size));
+
+		// copy data to 3D array
+		cudaMemcpy3DParms copyParams = { 0 };
+		copyParams.srcPtr = make_cudaPitchedPtr(volume_data_host, vol_size.width * sizeof(float4), vol_size.width, vol_size.height);
 		copyParams.dstArray = d_volumeArray;
 		copyParams.extent = vol_size;
 		copyParams.kind = cudaMemcpyHostToDevice;
@@ -373,8 +457,6 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	
 	log("max density: " + std::to_string(vdb_info.max_density), LOG);
 	log("min density: " + std::to_string(vdb_info.min_density), LOG);
-	log("max emission: " + std::to_string(vdb_info.max_emission), LOG);
-	log("min emission: " + std::to_string(vdb_info.min_emission), LOG);
 
 	set_xform(xform_temp);
 	return true;
