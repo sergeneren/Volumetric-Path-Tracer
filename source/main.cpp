@@ -1800,7 +1800,10 @@ int main(const int argc, const char* argv[])
 			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			bool success = save_texture_exr(c, file_path, width, height, true);
+			float* depth = (float*)malloc(res * sizeof(float));
+			check_success(cudaMemcpy(c, depth_buffer, sizeof(float)* res, cudaMemcpyDeviceToHost) == cudaSuccess);
+
+			bool success = save_texture_exr(c, depth, file_path, width, height, true);
 
 #endif
 
@@ -1821,8 +1824,7 @@ int main(const int argc, const char* argv[])
 			float3 *c = (float3*)malloc(res * sizeof(float3));
 			check_success(cudaMemcpy(c, cost_buffer, sizeof(float3) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			float *depth = (float*)malloc(res * sizeof(float));
-			check_success(cudaMemcpy(c, depth_buffer, sizeof(float) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
+			
 
 
 			bool success = save_texture_exr(c, file_path, width, height, true);
