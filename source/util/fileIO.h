@@ -63,11 +63,17 @@ bool save_texture_tga(float3 *buffer, std::string filename, const int width, con
 // Saves a tga with given float4 buffer
 bool save_texture_tga(float4 *buffer, std::string filename, const int width, const int height);
 
-// Saves a exr with given float3 buffer
+// Saves an exr with given float3 buffer
 bool save_texture_exr(float3 *buffer, std::string filename, const int width, const int height, bool flip);
 
-// Saves a exr with given float4 buffer
+// Saves an exr with given float4 buffer
 bool save_texture_exr(float4 *buffer, std::string filename, const int width, const int height, bool flip);
+
+// Saves an exr with given float3 buffer and Z depth
+bool save_texture_exr(float3 *buffer, float *depth, std::string filename, const int width, const int height, bool flip);
+
+// Saves an exr with given float4 buffer and Z depth
+bool save_texture_exr(float4 *buffer, float *depth, std::string filename, const int width, const int height, bool flip);
 
 // Loads an exr to a float3 buffer
 bool load_texture_exr(float3 **buffer, std::string filename, int &width, int &height, bool flip);
