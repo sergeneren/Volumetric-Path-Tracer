@@ -1430,6 +1430,7 @@ int main(const int argc, const char* argv[])
 	bool render = true;
 	bool debug = false;
 	bool denoise = false;
+	bool viz_dof = false;
 	int frame = 0;
 	float rot_amount = 0.0f;
 
@@ -1560,6 +1561,8 @@ int main(const int argc, const char* argv[])
 		if (energy == 0) kernel_params.energy_inject = 1.0;
 		else kernel_params.energy_inject = 1.0 + (energy / 100000.0);
 
+		cam.viz_dof = viz_dof;
+
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
 
@@ -1584,7 +1587,7 @@ int main(const int argc, const char* argv[])
 		ImGui::InputInt("Ray Depth", &ray_depth, 1);
 		ImGui::InputInt("Volume Depth", &volume_depth, 1);
 		ImGui::InputInt("Integrator", &integrator, 0);
-		ImGui::SliderFloat("Camera Aperture", &aperture, .0f, 10.0f);
+		
 		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
@@ -1598,7 +1601,12 @@ int main(const int argc, const char* argv[])
 		ImGui::SliderFloat("Emission Pivot", &emission_pivot, .0f, 10.0f);
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
+		// Camera Parameters GUI
+		ImGui::Begin("Camera Parameters");
+		ImGui::SliderFloat("Camera Aperture", &aperture, .0f, 10.0f);
+		ImGui::Checkbox("Visualize DOF", &viz_dof);
 
+		// Atmosphere Parameters GUI
 		ImGui::Begin("Atmosphere Parameters");
 		ImGui::SliderFloat("Sky Exposure", &exposure, -10.0f, 10.0f);
 		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
@@ -1656,7 +1664,8 @@ int main(const int argc, const char* argv[])
 			ray_depth != kernel_params.ray_depth ||
 			integrator != kernel_params.integrator ||
 			emission_scale != kernel_params.emission_scale || 
-			emission_pivot != kernel_params.emission_pivot) {
+			emission_pivot != kernel_params.emission_pivot || 
+			cam.viz_dof != viz_dof) {
 
 			kernel_params.integrator = integrator;
 			//update_debug_buffer(&debug_buffer, kernel_params);

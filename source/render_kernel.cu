@@ -2218,11 +2218,15 @@ extern "C" __global__ void volume_rt_kernel(
 	// Check if values contains nan or infinite values
 	if (isNan(value) || isInf(value)) value = kernel_params.accum_buffer[idx];
 	if (isnan(tr) || isinf(tr)) tr = 1.0f;
+	
+	float aof = 1 / cam.lens_radius;
 
-	if (0) { // TODO focus plane viz 
-		if (length(depth) > cam.focus_dist + 5.0f) value = lerp(value, RED, 0.5f);
-		if (length(depth) < cam.focus_dist - 5) value = lerp(value, BLUE, 0.5f);
-		if (length(depth) > cam.focus_dist - 5 || length(depth) < cam.focus_dist + 5) value = lerp(value, GREEN, 0.5f);
+	aof = clamp(aof, .0f, FLT_MAX);
+
+	if (cam.viz_dof) { // TODO focus plane viz 
+		if (depth.x > (cam.focus_dist + aof) ) value = lerp(value, RED, 0.5f);
+		if (depth.x < (cam.focus_dist - aof) ) value = lerp(value, BLUE, 0.5f);
+		if (depth.x > (cam.focus_dist - aof) && depth.x < (cam.focus_dist + aof)) value = lerp(value, GREEN, 0.5f);
 	}
 
 

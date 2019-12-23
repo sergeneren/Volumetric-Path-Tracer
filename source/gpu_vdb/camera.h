@@ -144,6 +144,7 @@ public:
 	float3 vertical;
 	float3 u, v, w;
 	float lens_radius;
+	bool viz_dof;
 };
 
 #endif
