@@ -590,6 +590,13 @@ static void resize_buffers(
 
 }
 
+static void resize_buffer(float **buffer, int width, int height) {
+
+	if (*buffer)	check_success(cudaFree(*buffer) == cudaSuccess);
+	check_success(cudaMalloc(buffer, width * height * sizeof(float)) == cudaSuccess);
+
+}
+
 static void resize_buffer(float3 **buffer, int width, int height) {
 
 	if (*buffer)	check_success(cudaFree(*buffer) == cudaSuccess);
@@ -1352,6 +1359,7 @@ int main(const int argc, const char* argv[])
 	cudaGraphicsResource_t display_buffer_cuda = NULL;
 	float3 *debug_buffer = NULL;
 	float3 *cost_buffer = NULL;
+	float *depth_buffer = NULL;
 
 	Kernel_params kernel_params;
 	memset(&kernel_params, 0, sizeof(Kernel_params));
@@ -1743,7 +1751,9 @@ int main(const int argc, const char* argv[])
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 			resize_buffers(&accum_buffer, &raw_buffer, &display_buffer_cuda, width, height, display_buffer);
 			resize_buffer(&cost_buffer, width, height);
+			resize_buffer(&depth_buffer, width, height);
 
+			kernel_params.depth_buffer = depth_buffer;
 			kernel_params.cost_buffer = cost_buffer;
 			kernel_params.accum_buffer = accum_buffer;
 			kernel_params.raw_buffer = raw_buffer;
@@ -1810,6 +1820,10 @@ int main(const int argc, const char* argv[])
 			int res = width * height;
 			float3 *c = (float3*)malloc(res * sizeof(float3));
 			check_success(cudaMemcpy(c, cost_buffer, sizeof(float3) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
+
+			float *depth = (float*)malloc(res * sizeof(float));
+			check_success(cudaMemcpy(c, depth_buffer, sizeof(float) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
+
 
 			bool success = save_texture_exr(c, file_path, width, height, true);
 

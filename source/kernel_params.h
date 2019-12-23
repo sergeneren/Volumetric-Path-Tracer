@@ -58,6 +58,7 @@ struct Kernel_params {
 	// Progressive rendering state
 	unsigned int iteration;
 	float3 *accum_buffer;
+	float *depth_buffer;
 
 	// Limit on path length
 	unsigned int max_interactions;		// Accumulation buffer count

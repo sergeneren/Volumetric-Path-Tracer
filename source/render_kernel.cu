@@ -67,6 +67,14 @@ typedef unsigned long long	uint64;
 //#include "geometry/sphere.h"
 #include "geometry/geometry.h"
 
+// Definitions 
+
+// #define COMBINED_SCATTERING_TEXTURES
+
+//#define RATIO_TRACKING
+#define RESIDUAL_RATIO_TRACKING
+
+
 #define BLACK			make_float3(0.0f, 0.0f, 0.0f)
 #define WHITE			make_float3(1.0f, 1.0f, 1.0f)
 #define RED				make_float3(1.0f, 0.0f, 0.0f)
@@ -926,7 +934,7 @@ __device__ __inline__ float3 sum_color(float3 ray_pos, OCTNode* leaf_node, const
 
 	for (int i = 0; i < leaf_node->num_volumes; ++i) {
 
-		color += get_color(ray_pos, volumes[leaf_node->vol_indices[i]]);
+		color = fmaxf(color, get_color(ray_pos, volumes[leaf_node->vol_indices[i]]));
 
 	}
 
@@ -1151,10 +1159,13 @@ __device__ inline float3 Tr(
 	//if (ref_sphere.intersect(ray_pos, ray_dir, geo_dist, t_max)) distance = geo_dist;
 	if (ref_sphere.intersect(ray_pos, ray_dir, geo_dist, t_max)) return BLACK;
 
+#ifdef RESIDUAL_RATIO_TRACKING
 	// Control variate  
 	float sigma_c = root->min_extinction;
 	float sigma_r_inv = 1.0f / (root->max_extinction - sigma_c);
 	float T_c = expf(-sigma_c * distance);
+#endif // RESIDUAL_RATIO_TRACKING
+
 
 	// Code path 1:
 	// This is the old transmittance estimate algorithm that is agnostic of octree structure 
@@ -1215,6 +1226,7 @@ __device__ inline float3 Tr(
 		}
 		else break;
 
+#ifdef RESIDUAL_RATIO_TRACKING
 
 		t -= logf(1 - rand(&rand_state)) * sigma_r_inv * kernel_params.tr_depth;
 		if (t >= distance) break;
@@ -1225,15 +1237,39 @@ __device__ inline float3 Tr(
 		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
 
 		tr *= 1 - ((density - sigma_c) * sigma_r_inv);
+
+
+#endif
+		
+#ifdef RATIO_TRACKING
+
+		float inv_max_density = 1 / root->max_extinction;
+
+		t -= logf(1 - rand(&rand_state)) * inv_max_density * kernel_params.tr_depth;
+		if (t >= distance) break;
+
+		ray_pos += ray_dir * t;
+		if (!Contains(root->bbox, ray_pos))	break;
+
+		float density = sum_density(ray_pos, root->children[depth3_node]->children[depth2_node]->children[leaf_node], volumes);
+		tr *= (1 - fmaxf(.0f, density * inv_max_density));
+		tr = fmaxf(tr, make_float3(.0f));
+
+#endif
+
+
 		if (length(tr) < EPS) break;
 	}
 
 #endif
 
-
+#ifdef RESIDUAL_RATIO_TRACKING
 	return clamp(tr * T_c, .0f, 1.0f);
+#endif
 
-
+#ifdef RATIO_TRACKING
+	return tr;
+#endif
 }
 
 __device__ inline float3 estimate_emission(
@@ -1814,7 +1850,7 @@ __device__ inline float3 direct_integrator(
 
 }
 
-__device__ inline float3 depth_calculator(
+__device__ inline float depth_calculator(
 	Rand_state rand_state,
 	float3 ray_pos,
 	float3 ray_dir,
@@ -1824,8 +1860,8 @@ __device__ inline float3 depth_calculator(
 	const sphere& ref_sphere,
 	OCTNode* root)
 {
+	float3 orig = ray_pos;
 
-	float3 pos = ray_pos;
 	bool mi = false;
 	float t_min;
 	int obj;
@@ -1835,15 +1871,15 @@ __device__ inline float3 depth_calculator(
 	if (obj == 1) {
 		ray_pos += ray_dir * (t_min + EPS);
 		sample(rand_state, ray_pos, ray_dir, mi, obj, tr, kernel_params, gpu_vdb, ref_sphere, root);
-		if (mi) return ray_pos;
-		else return pos;
+		if (mi) return length(orig - ray_pos);
+		else return .0f;
 	}
 	if (obj == 2) {
 		ray_pos += ray_dir * t_min;
-		return ray_pos;
+		return length(orig - ray_pos);
 	}
 
-	return pos;
+	return .0f;
 }
 
 
@@ -2205,7 +2241,7 @@ extern "C" __global__ void volume_rt_kernel(
 	float3 ray_pos = camera_ray.A;
 	float3 value = WHITE;
 	float3 cost = BLACK;
-	float3 depth = BLACK;
+	float depth = .0f;
 	float tr = .0f;
 
 
@@ -2217,8 +2253,6 @@ extern "C" __global__ void volume_rt_kernel(
 		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
 	}
 
-	depth = make_float3(length(depth - cam.origin));
-
 	// Check if values contains nan or infinite values
 	if (isNan(value) || isInf(value)) value = kernel_params.accum_buffer[idx];
 	if (isnan(tr) || isinf(tr)) tr = 1.0f;
@@ -2228,20 +2262,22 @@ extern "C" __global__ void volume_rt_kernel(
 	aof = clamp(aof, .0f, FLT_MAX);
 
 	if (cam.viz_dof) { // TODO focus plane viz 
-		if (depth.x > (cam.focus_dist + aof) ) value = lerp(value, RED, 0.5f);
-		if (depth.x < (cam.focus_dist - aof) ) value = lerp(value, BLUE, 0.5f);
-		if (depth.x > (cam.focus_dist - aof) && depth.x < (cam.focus_dist + aof)) value = lerp(value, GREEN, 0.5f);
+		if (depth > (cam.focus_dist + aof) ) value = lerp(value, RED, 0.5f);
+		if (depth < (cam.focus_dist - aof) ) value = lerp(value, BLUE, 0.5f);
+		if (depth > (cam.focus_dist - aof) && depth < (cam.focus_dist + aof)) value = lerp(value, GREEN, 0.5f);
 	}
 
 
 	// Accumulate.
 	if (kernel_params.iteration == 0) {
 		kernel_params.accum_buffer[idx] = value;
-		kernel_params.cost_buffer[idx] = depth;
+		kernel_params.cost_buffer[idx] = cost;
+		kernel_params.depth_buffer[idx] = depth;
 	}
 	else if (kernel_params.iteration < kernel_params.max_interactions) {
 		kernel_params.accum_buffer[idx] = kernel_params.accum_buffer[idx] + (value - kernel_params.accum_buffer[idx]) / (float)(kernel_params.iteration + 1);
-		kernel_params.cost_buffer[idx] = kernel_params.cost_buffer[idx] + (depth - kernel_params.cost_buffer[idx]) / (float)(kernel_params.iteration + 1);
+		kernel_params.cost_buffer[idx] = kernel_params.cost_buffer[idx] + (cost - kernel_params.cost_buffer[idx]) / (float)(kernel_params.iteration + 1);
+		kernel_params.depth_buffer[idx] = kernel_params.depth_buffer[idx] + (depth - kernel_params.depth_buffer[idx]) / (float)(kernel_params.iteration + 1);
 	}
 
 	// Update display buffer (ACES Tonemapping).
