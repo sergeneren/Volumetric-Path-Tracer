@@ -900,6 +900,8 @@ __device__ inline float3 sample_env_tex(
 
 __device__ __inline__ float3 get_color(float3 pos, const GPU_VDB& gpu_vdb) {
 
+	if (!gpu_vdb.vdb_info.has_color) return WHITE;
+
 	pos = gpu_vdb.get_xform().transpose().inverse().transform_point(pos);
 
 	// object space position to index position
@@ -933,6 +935,8 @@ __device__ __inline__ float3 sum_color(float3 ray_pos, OCTNode* leaf_node, const
 }
 
 __device__ __inline__ float3 get_emission(float3 pos, Kernel_params kernel_params, const GPU_VDB& gpu_vdb) {
+
+	if (!gpu_vdb.vdb_info.has_emission) return BLACK;
 
 	pos = gpu_vdb.get_xform().transpose().inverse().transform_point(pos);
 

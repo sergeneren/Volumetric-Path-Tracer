@@ -64,6 +64,9 @@ struct ALIGN(16) VDB_INFO {
 	float	max_density;
 	float	min_density;
 
+	bool has_color;
+	bool has_emission;
+
 	cudaTextureObject_t density_texture; 
 	cudaTextureObject_t emission_texture;
 	cudaTextureObject_t color_texture;

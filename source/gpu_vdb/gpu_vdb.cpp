@@ -127,6 +127,9 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	vdb_info.max_density = .0f;
 	vdb_info.min_density = FLT_MAX;
 
+	vdb_info.has_color = false;
+	vdb_info.has_emission = false;
+
 	openvdb::initialize();
 	openvdb::io::File file(filename);
 	file.open();
@@ -322,6 +325,9 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		//texDescr.readMode = cudaReadModeNormalizedFloat;
 
 		checkCudaErrors(cudaCreateTextureObject(&vdb_info.emission_texture, &texRes, &texDescr, NULL));
+
+		vdb_info.has_emission = true;
+
 	}
 
 	// Fill color channel if specified 
@@ -399,6 +405,9 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		//texDescr.readMode = cudaReadModeNormalizedFloat;
 
 		checkCudaErrors(cudaCreateTextureObject(&vdb_info.color_texture, &texRes, &texDescr, NULL));
+
+		vdb_info.has_color = true;
+
 	}
 
 	// Fill vdb_info
