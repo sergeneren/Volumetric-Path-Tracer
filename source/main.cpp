@@ -592,7 +592,7 @@ static void resize_buffers(
 
 static void resize_buffer(float **buffer, int width, int height) {
 
-	if (*buffer)	check_success(cudaFree(*buffer) == cudaSuccess);
+	if (*buffer) check_success(cudaFree(*buffer) == cudaSuccess);
 	check_success(cudaMalloc(buffer, width * height * sizeof(float)) == cudaSuccess);
 
 }
@@ -1800,10 +1800,11 @@ int main(const int argc, const char* argv[])
 			float4 *c = (float4*)malloc(res * sizeof(float4));
 			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
+			// TODO send depth buffer to Z layer  
 			float* depth = (float*)malloc(res * sizeof(float));
 			check_success(cudaMemcpy(c, depth_buffer, sizeof(float)* res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			bool success = save_texture_exr(c, depth, file_path, width, height, true);
+			bool success = save_texture_exr(c, file_path, width, height, true);
 
 #endif
 
