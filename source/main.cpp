@@ -1503,7 +1503,7 @@ int main(const int argc, const char* argv[])
 
 	log("Setting up geometry and device pointers...", LOG);
 	float3 center = make_float3(400, 320, -200);
-	float radius = 10;
+	float radius = 100;
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 1.0f;
 	ref_sphere.color = make_float3(1.0f, 0 , 0);

@@ -67,7 +67,7 @@ struct Kernel_params {
 
 	//Volume parameters ( No absorbtion coefficient)
 
-	float min_extinction;	// TO-DO: Extinction minorant (for residual ratio tracking)
+	float min_extinction;	// Extinction minorant (for residual ratio tracking)
 	float phase_g1;			// Phase function anisotropy (.0f means isotropic phase function)
 	float phase_g2;			// Phase function anisotropy for double lobe phase functions
 	float phase_f;			// Anistropy factor for double henyey_greeinstein
