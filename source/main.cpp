@@ -1802,9 +1802,9 @@ int main(const int argc, const char* argv[])
 
 			// TODO send depth buffer to Z layer  
 			float* depth = (float*)malloc(res * sizeof(float));
-			check_success(cudaMemcpy(c, depth_buffer, sizeof(float)* res, cudaMemcpyDeviceToHost) == cudaSuccess);
+			check_success(cudaMemcpy(depth, depth_buffer, sizeof(float)* res, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-			bool success = save_texture_exr(c, file_path, width, height, true);
+			bool success = save_texture_exr(c, depth, file_path, width, height, true);
 
 #endif
 

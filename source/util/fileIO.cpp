@@ -319,10 +319,10 @@ bool save_texture_exr(float3* buffer, float *depth, std::string filename, const 
 
 	float* image_ptr[4];
 
-	image_ptr[0] = &(images[3].at(0)); // Z
-	image_ptr[1] = &(images[2].at(0)); // B
-	image_ptr[2] = &(images[1].at(0)); // G
-	image_ptr[3] = &(images[0].at(0)); // R
+	image_ptr[0] = &(images[2].at(0)); // B
+	image_ptr[1] = &(images[1].at(0)); // G
+	image_ptr[2] = &(images[0].at(0)); // R
+	image_ptr[3] = &(images[3].at(0)); // Z
 
 	image.images = (unsigned char**)image_ptr;
 	image.width = width;
@@ -331,10 +331,10 @@ bool save_texture_exr(float3* buffer, float *depth, std::string filename, const 
 	header.num_channels = 4;
 	header.channels = (EXRChannelInfo*)malloc(sizeof(EXRChannelInfo) * header.num_channels);
 	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "Z", 255); header.channels[0].name[strlen("Z")] = '\0';
-	strncpy(header.channels[1].name, "B", 255); header.channels[1].name[strlen("B")] = '\0';
-	strncpy(header.channels[2].name, "G", 255); header.channels[2].name[strlen("G")] = '\0';
-	strncpy(header.channels[3].name, "R", 255); header.channels[3].name[strlen("R")] = '\0';
+	strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
+	strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
+	strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
+	strncpy(header.channels[3].name, "Z", 255); header.channels[3].name[strlen("Z")] = '\0';
 
 	header.pixel_types = (int*)malloc(sizeof(int) * header.num_channels);
 	header.requested_pixel_types = (int*)malloc(sizeof(int) * header.num_channels);
@@ -358,7 +358,6 @@ bool save_texture_exr(float3* buffer, float *depth, std::string filename, const 
 
 	return true;
 }
-
 
 bool save_texture_exr(float4 *buffer, std::string filename, const int width, const int height, bool flip)
 {
@@ -504,7 +503,6 @@ bool save_texture_exr(float4* buffer, float *depth, std::string filename, const 
 
 	return true;
 }
-
 
 bool load_texture_exr(float3 **buffer, std::string filename, int &width, int &height, bool flip)
 {
