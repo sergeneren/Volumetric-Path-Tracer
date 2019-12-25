@@ -66,6 +66,7 @@ struct ALIGN(16) VDB_INFO {
 
 	bool has_color;
 	bool has_emission;
+	bool matte;
 
 	cudaTextureObject_t density_texture; 
 	cudaTextureObject_t emission_texture;
