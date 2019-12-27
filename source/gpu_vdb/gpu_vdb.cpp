@@ -544,11 +544,53 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
 	void* params[] = {&device_density_buffer, (void *)&dimensions, &noise_type};
 	cuLaunchKernel(fill_buffer_function, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, params, NULL);
 	
-	// TODO send buffer to texture 
+	// send buffer to texture 
+
+	cudaExtent vol_size;
+	vol_size.width = dim_x;
+	vol_size.height = dim_y;
+	vol_size.depth = dim_z;
+
+	float* volume_data_host = (float*)malloc(dim_x * dim_y * dim_z * sizeof(float));
+	checkCudaErrors(cudaMemcpy(volume_data_host, device_density_buffer, dim_x * dim_y * dim_z * sizeof(float), cudaMemcpyDeviceToHost));
+
+	// create 3D array
+	cudaArray* d_volumeArray = 0;
+
+	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
+	checkCudaErrors(cudaMalloc3DArray(&d_volumeArray, &channelDesc, vol_size));
+
+	// copy data to 3D array
+	cudaMemcpy3DParms copyParams = { 0 };
+	copyParams.srcPtr = make_cudaPitchedPtr(volume_data_host, vol_size.width * sizeof(float), vol_size.width, vol_size.height);
+	copyParams.dstArray = d_volumeArray;
+	copyParams.extent = vol_size;
+	copyParams.kind = cudaMemcpyHostToDevice;
+	checkCudaErrors(cudaMemcpy3D(&copyParams));
 
 
+	cudaResourceDesc            texRes;
+	memset(&texRes, 0, sizeof(cudaResourceDesc));
 
+	texRes.resType = cudaResourceTypeArray;
+	texRes.res.array.array = d_volumeArray;
+
+	cudaTextureDesc             texDescr;
+	memset(&texDescr, 0, sizeof(cudaTextureDesc));
+
+	texDescr.normalizedCoords = true; // access with normalized texture coordinates
+	texDescr.filterMode = cudaFilterModeLinear; // linear interpolation
+
+	texDescr.addressMode[0] = cudaAddressModeClamp;  // clamp texture coordinates
+	texDescr.addressMode[1] = cudaAddressModeClamp;
+	texDescr.addressMode[2] = cudaAddressModeClamp;
+
+	texDescr.readMode = cudaReadModeElementType;
+	//texDescr.readMode = cudaReadModeNormalizedFloat;
+
+	checkCudaErrors(cudaCreateTextureObject(&vdb_info.density_texture, &texRes, &texDescr, NULL));
 
 	cudaFree(device_density_buffer);
+
 	return true;
 }

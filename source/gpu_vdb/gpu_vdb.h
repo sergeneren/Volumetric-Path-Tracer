@@ -154,7 +154,7 @@ private:
 };
 
 
-class GPU_PROC_VOL : virtual public GPU_VDB {
+class GPU_PROC_VOL : public GPU_VDB {
 
 
 public: 
