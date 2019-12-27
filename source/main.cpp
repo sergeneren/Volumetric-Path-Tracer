@@ -1258,13 +1258,19 @@ int main(const int argc, const char* argv[])
 	error = cuModuleGetFunction(&cuTestGeometryKernel, Module, "test_geometry_list");
 	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
 
+	// Test procedural volume 
+	GPU_PROC_VOL proc_vol;
+	if(!proc_vol.create_volume(make_float3(0, 100, 0), make_float3(100, 120, 100), 0.25f)) return 0;
 	
+	instances.clear();
+	instances.push_back(proc_vol);
+
 	// Send volume instances to gpu
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * instances.size()) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_volume_ptr, instances.data(), sizeof(GPU_VDB) * instances.size()) == cudaSuccess);
-
+	
 
 	// Create BVH from vdb vector 
 	log("Creating BVH and Octree structures...", LOG);

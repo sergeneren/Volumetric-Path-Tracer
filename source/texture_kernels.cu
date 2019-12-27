@@ -68,7 +68,7 @@ extern "C" __global__ void glow(const Kernel_params kernel_params, float treshol
 
 }
 
-extern "C" __global__ void fill_volume_buffer(float *buffer, int3 dims, int noise_type) {
+extern "C" __global__ void fill_volume_buffer( float *buffer, const int3 dims, const int noise_type) {
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -78,6 +78,5 @@ extern "C" __global__ void fill_volume_buffer(float *buffer, int3 dims, int nois
 
 	const unsigned int idx = x + dims.x * (y + dims.y * z);
 
-	buffer[idx] = .0f;
-
+	buffer[idx] = 1.0f;
 }

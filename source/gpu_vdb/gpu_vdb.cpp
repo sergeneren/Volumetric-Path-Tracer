@@ -507,6 +507,8 @@ GPU_PROC_VOL::GPU_PROC_VOL() {
 // fill vdb_info density texture with procedural noise texture 
 bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
 
+	log("Creating procedural volume...", LOG);
+
 	if (min.x > max.x&& min.y > max.y&& min.z > max.z) {
 		log("max < min", ERROR);
 		return false;
@@ -514,6 +516,12 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
 
 	mat4 xform;
 	xform.scale(make_float3(res));
+	
+#ifdef LOG_LEVEL_LOG
+	log("XForm: ", LOG);
+	xform.print();
+#endif // LOG_LEVEL_LOG
+	
 	set_xform(xform);
 
 	int dim_x = floorf((max.x - min.x) / res);
@@ -524,8 +532,8 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
 
 	// Fill vdb info parameters that would normally come from a vdb file 
 	vdb_info.dim = dimensions;
-	vdb_info.bmin = make_float3(.0f);
-	vdb_info.bmax = make_float3(dimensions);
+	vdb_info.bmin = min;
+	vdb_info.bmax = make_float3(min.x + dim_x, min.y + dim_y, min.z + dim_z);
 	vdb_info.voxelsize = res;
 	vdb_info.min_density = .0f;
 	vdb_info.max_density = 1.0f;
@@ -535,15 +543,23 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
 	// set noise type , see texture_kernels.cu for noise types    
 	int noise_type = 0;
 
+	
 	// Allocate device memory for volume buffer 
+	log("Allocating device memory for volume buffer...", LOG);
 	checkCudaErrors(cudaMalloc(&device_density_buffer, dimensions.x * dimensions.y * dimensions.z * sizeof(float)));
-
-	dim3 block(16, 16, 16);
+	
+	dim3 block(8, 8, 8);
 	dim3 grid(int(dimensions.x / block.x) + 1, int(dimensions.y / block.y) + 1, int(dimensions.z / block.z) + 1);
 
-	void* params[] = {&device_density_buffer, (void *)&dimensions, &noise_type};
-	cuLaunchKernel(fill_buffer_function, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, params, NULL);
-	
+	log("filling volume buffer in device...", LOG);
+	void* params[] = { &device_density_buffer , &dimensions, &noise_type};
+	CUresult result = cuLaunchKernel(fill_buffer_function, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, params, NULL);
+	checkCudaErrors(cudaDeviceSynchronize());
+	if (result != CUDA_SUCCESS) {
+		printf("Unable to launch fill_buffer_function! result: %i\n", result);
+		return false;
+	}
+
 	// send buffer to texture 
 
 	cudaExtent vol_size;
@@ -551,8 +567,28 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
 	vol_size.height = dim_y;
 	vol_size.depth = dim_z;
 
+	log("transport volume buffer from device to host...", LOG);
 	float* volume_data_host = (float*)malloc(dim_x * dim_y * dim_z * sizeof(float));
 	checkCudaErrors(cudaMemcpy(volume_data_host, device_density_buffer, dim_x * dim_y * dim_z * sizeof(float), cudaMemcpyDeviceToHost));
+
+#ifdef LOG_LEVEL_LOG
+
+	for (int x = 0; x < dimensions.x; ++x) {
+		for (int y = 0; y < dimensions.y; ++y) {
+			for (int z = 0; z < dimensions.z; ++z) {
+
+				const unsigned int idx = x + dimensions.x * (y + dimensions.y * z);
+
+				log( " value: " + std::to_string(volume_data_host[idx]), LOG);
+
+			}
+		}
+	}
+	   
+#endif // LOG_LEVEL_LOG
+
+
+
 
 	// create 3D array
 	cudaArray* d_volumeArray = 0;
