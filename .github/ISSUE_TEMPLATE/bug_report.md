@@ -12,7 +12,7 @@ Please make sure you have completed below checklist before submitting a report
 
 - [ ] Build VPT with DebugLevel "Log"
 - [ ] Run VPT to a log file [e.g "*.\vpt.exe fireball.ins >log.txt*" ]  
-- [ ] Attach the log file here with a link 
+- [ ] Attach the log file here
 
 **Describe the bug**
 A clear and concise description of what the bug is.
