@@ -1264,7 +1264,7 @@ int main(const int argc, const char* argv[])
 	float3 proc_box_max = make_float3(500, 1020, 500);
 	if(!proc_vol.create_volume(proc_box_min, proc_box_max, 1.0f, 0, 0.1f)) return 0;
 	
-	instances.clear();
+	//instances.clear();
 	instances.push_back(proc_vol);
 
 	// Send volume instances to gpu
@@ -1700,7 +1700,10 @@ int main(const int argc, const char* argv[])
 		{
 
 			proc_vol.create_volume(proc_box_min, proc_box_max, noise_res, noise_type, scale);
-			check_success(cuMemcpyHtoD(d_volume_ptr, &proc_vol, sizeof(GPU_VDB)* instances.size()) == cudaSuccess);
+			
+			instances.pop_back();
+			instances.push_back(proc_vol);
+			check_success(cuMemcpyHtoD(d_volume_ptr, instances.data(), sizeof(GPU_VDB)* instances.size()) == cudaSuccess);
 			
 			kernel_params.iteration = 0;
 
