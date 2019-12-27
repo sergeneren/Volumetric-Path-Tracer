@@ -56,6 +56,11 @@
 #define INV_PI			1.0f / M_PI 
 
 
+typedef curandStatePhilox4_32_10_t Rand_state;
+#define rand(state) curand_uniform(state)
+
+
+
 extern "C" __global__ void glow(const Kernel_params kernel_params, float treshold , const int width, const int height) {
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -68,7 +73,7 @@ extern "C" __global__ void glow(const Kernel_params kernel_params, float treshol
 
 }
 
-extern "C" __global__ void fill_volume_buffer( float *buffer, const int3 dims, const int noise_type) {
+extern "C" __global__ void fill_volume_buffer( float *buffer, const int3 dims, const float scale, const int noise_type) {
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -78,5 +83,46 @@ extern "C" __global__ void fill_volume_buffer( float *buffer, const int3 dims, c
 
 	const unsigned int idx = x + dims.x * (y + dims.y * z);
 
-	buffer[idx] = 1.0f;
+	Rand_state rand_state;
+
+	int seed = 123;
+	float du = 1.0f / (float)dims.x;
+
+	float dx = cudaNoise::randomFloat(482 + floor(rand(&rand_state) * 2) * 47 + seed) / (float)dims.x;
+	float dy = cudaNoise::randomFloat(472 + floor(rand(&rand_state) * 2) * 38 + seed) / (float)dims.y;
+	float dz = cudaNoise::randomFloat(348 + floor(rand(&rand_state) * 2) * 14 + seed) / (float)dims.z;
+
+	float3 pos = make_float3(x+dx, y+dy, z+dz);
+	
+	switch (noise_type)
+	{
+	case(0):
+		buffer[idx] = cudaNoise::perlinNoise(pos, scale, seed);
+		break;
+	case(1):
+		buffer[idx] = cudaNoise::simplexNoise(pos, scale, seed);
+		break;
+	case(2):
+		buffer[idx] = cudaNoise::worleyNoise(pos, scale, seed, 300.1f, 4, 4, 1.0f);
+		break;
+	case(3):
+		buffer[idx] = cudaNoise::repeaterPerlin(pos, scale, seed, 128, 1.9f, 0.5f);
+		break;
+	case(4):
+		buffer[idx] = cudaNoise::repeaterPerlinAbs(pos, scale, seed, 128, 1.9f, 0.5f);
+		break;
+	case(5):
+		buffer[idx] = cudaNoise::fractalSimplex(pos, scale, seed, du, 512, 1.5f, 0.95f);
+		break;
+	case(6):
+		buffer[idx] = cudaNoise::repeaterTurbulence(pos, 0.2f, scale, seed, 0.8f, 32, cudaNoise::BASIS_PERLIN, cudaNoise::BASIS_PERLIN);
+		break;
+	case(7):
+		buffer[idx] = cudaNoise::cubicValue(pos, scale, seed);
+		break;
+	case(8):
+		buffer[idx] = cudaNoise::spots(pos, scale, seed, 0.1f, 0, 8, 1.0f, cudaNoise::SHAPE_STEP);
+		break;
+	}
+
 }

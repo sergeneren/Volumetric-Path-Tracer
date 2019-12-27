@@ -505,7 +505,7 @@ GPU_PROC_VOL::GPU_PROC_VOL() {
 }
 
 // fill vdb_info density texture with procedural noise texture 
-bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
+bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res, int noise_type, float scale) {
 
 	log("Creating procedural volume...", LOG);
 
@@ -539,10 +539,6 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
 	vdb_info.max_density = 1.0f;
 	vdb_info.has_emission = false;
 	vdb_info.has_color = false;
-
-	// set noise type , see texture_kernels.cu for noise types    
-	int noise_type = 0;
-
 	
 	// Allocate device memory for volume buffer 
 	log("Allocating device memory for volume buffer...", LOG);
@@ -552,7 +548,7 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
 	dim3 grid(int(dimensions.x / block.x) + 1, int(dimensions.y / block.y) + 1, int(dimensions.z / block.z) + 1);
 
 	log("filling volume buffer in device...", LOG);
-	void* params[] = { &device_density_buffer , &dimensions, &noise_type};
+	void* params[] = { &device_density_buffer , &dimensions, &scale, &noise_type};
 	CUresult result = cuLaunchKernel(fill_buffer_function, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, params, NULL);
 	checkCudaErrors(cudaDeviceSynchronize());
 	if (result != CUDA_SUCCESS) {
@@ -570,25 +566,6 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
 	log("transport volume buffer from device to host...", LOG);
 	float* volume_data_host = (float*)malloc(dim_x * dim_y * dim_z * sizeof(float));
 	checkCudaErrors(cudaMemcpy(volume_data_host, device_density_buffer, dim_x * dim_y * dim_z * sizeof(float), cudaMemcpyDeviceToHost));
-
-#ifdef LOG_LEVEL_LOG
-
-	for (int x = 0; x < dimensions.x; ++x) {
-		for (int y = 0; y < dimensions.y; ++y) {
-			for (int z = 0; z < dimensions.z; ++z) {
-
-				const unsigned int idx = x + dimensions.x * (y + dimensions.y * z);
-
-				log( " value: " + std::to_string(volume_data_host[idx]), LOG);
-
-			}
-		}
-	}
-	   
-#endif // LOG_LEVEL_LOG
-
-
-
 
 	// create 3D array
 	cudaArray* d_volumeArray = 0;

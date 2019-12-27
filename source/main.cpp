@@ -1260,7 +1260,9 @@ int main(const int argc, const char* argv[])
 
 	// Test procedural volume 
 	GPU_PROC_VOL proc_vol;
-	if(!proc_vol.create_volume(make_float3(0, 100, 0), make_float3(100, 120, 100), 0.25f)) return 0;
+	float3 proc_box_min = make_float3(0, 1000, 0);
+	float3 proc_box_max = make_float3(500, 1020, 500);
+	if(!proc_vol.create_volume(proc_box_min, proc_box_max, 1.0f, 0, 0.1f)) return 0;
 	
 	instances.clear();
 	instances.push_back(proc_vol);
@@ -1458,6 +1460,13 @@ int main(const int argc, const char* argv[])
 	float exposure = 1.0f;
 	float emission_scale = 0.0f;
 	float emission_pivot = 1.0f;
+
+
+	// Noise parameters
+	int noise_type = 0 , temp_noise_type;
+	float scale = 1.0f , temp_scale;
+	float noise_res = 1.0f , temp_res;
+	   
 	// End ImGui parameters
 
 	
@@ -1509,7 +1518,7 @@ int main(const int argc, const char* argv[])
 
 	log("Setting up geometry and device pointers...", LOG);
 	float3 center = make_float3(400, 320, -200);
-	float radius = 100;
+	float radius = 1;
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 1.0f;
 	ref_sphere.color = make_float3(1.0f, 0 , 0);
@@ -1586,6 +1595,13 @@ int main(const int argc, const char* argv[])
 		earth_atmosphere.m_use_ozone = use_ozone;
 		earth_atmosphere.m_do_white_balance = do_white_balance;
 		earth_atmosphere.m_exposure = exposure;
+		
+		// Update temp holders
+		temp_noise_type = noise_type;
+		temp_scale = scale;
+		temp_res = noise_res;
+		
+		
 		// Draw imgui 
 		//-------------------------------------------------------------------
 
@@ -1619,6 +1635,12 @@ int main(const int argc, const char* argv[])
 		ImGui::Begin("Camera Parameters");
 		ImGui::SliderFloat("Camera Aperture", &aperture, .0f, 10.0f);
 		ImGui::Checkbox("Visualize DOF", &viz_dof);
+
+		// Noise parameters gui
+		ImGui::Begin("Camera Parameters");
+		ImGui::InputInt("Noise Type", &noise_type, 1);
+		ImGui::InputFloat("Noise Scale", &scale);
+		ImGui::InputFloat("Noise resolution", &noise_res);
 
 		// Atmosphere Parameters GUI
 		ImGui::Begin("Atmosphere Parameters");
@@ -1671,6 +1693,19 @@ int main(const int argc, const char* argv[])
 			kernel_params.iteration = 0;
 
 		}
+
+		if (temp_noise_type != noise_type ||
+			temp_res != noise_res ||
+			temp_scale != scale)
+		{
+
+			proc_vol.create_volume(proc_box_min, proc_box_max, noise_res, noise_type, scale);
+			check_success(cuMemcpyHtoD(d_volume_ptr, &proc_vol, sizeof(GPU_VDB)* instances.size()) == cudaSuccess);
+			
+			kernel_params.iteration = 0;
+
+		}
+
 
 		// Restart rendering if there is a change 
 		if (ctx->change ||

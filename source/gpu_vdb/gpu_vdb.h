@@ -163,7 +163,7 @@ public:
 	__host__ GPU_PROC_VOL(const GPU_PROC_VOL& copy);
 	__host__ ~GPU_PROC_VOL();
 
-	__host__ bool create_volume(float3 min, float3 max, float res);
+	__host__ bool create_volume(float3 min, float3 max, float res, int noise_type, float scale);
 
 private:
 
