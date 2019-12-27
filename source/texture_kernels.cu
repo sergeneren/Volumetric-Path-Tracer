@@ -49,6 +49,7 @@
 
 // Internal includes
 #include "kernel_params.h"
+#include "cuda_noise.cuh"
 
 #define INV_2_PI		1.0f / (2.0f * M_PI) 
 #define INV_4_PI		1.0f / (4.0f * M_PI) 

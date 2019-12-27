@@ -10,9 +10,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/Helpers.cmake)
 
 set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/thirdparty/")
 
-
 #set OIDN libraries 
-
 set(OID_DIR "${THIRDPARTY_DIR}/OpenImageDenoise")
 find_library(OIDN_LIB "OpenImageDenoise" "${OID_DIR}/lib")
 find_library(OIDN_MKLDNN_LIB "mkldnn" "${OID_DIR}/lib")
@@ -113,7 +111,7 @@ message ( STATUS "Build CUDA kernels: ${CUDA_SOURCES}" )
 _COMPILEPTX ( SOURCES ${CUDA_SOURCES} 
 	TARGET_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} 
 	GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS 
-	INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${_VCPKG_INCLUDE_DIR},${CMAKE_CURRENT_SOURCE_DIR}/common,${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb" 
+	INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${_VCPKG_INCLUDE_DIR},${CMAKE_CURRENT_SOURCE_DIR}/common, ${THIRDPARTY_DIR}/cuda-noise/include, ${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb" 
 	OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math --maxrregcount=128)
 
 ###################################################################
@@ -132,4 +130,5 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/util)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/bvh)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/geometry)
+include_directories(${THIRDPARTY_DIR}/cuda-noise/include)
 include_directories(${OID_DIR}/include)
