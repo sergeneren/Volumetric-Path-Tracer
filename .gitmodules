@@ -1,0 +1,3 @@
+[submodule "thirdparty/cuda-noise"]
+	path = thirdparty/cuda-noise
+	url = https://github.com/sergeneren/cuda-noise
