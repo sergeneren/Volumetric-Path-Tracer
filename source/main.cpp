@@ -1846,8 +1846,6 @@ int main(const int argc, const char* argv[])
 		// Launch volume rendering kernel.
 		dim3 block(16, 16, 1);
 		dim3 grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
-		dim3 threads_per_block(16, 16);
-		dim3 num_blocks((width + 15) / 16, (height + 15) / 16);
 
 		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void*)&d_geo_list_ptr ,&bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);

@@ -470,3 +470,85 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	set_xform(xform_temp);
 	return true;
 }
+
+
+// Class implementations for procedural volume 
+
+
+GPU_PROC_VOL::~GPU_PROC_VOL() {
+
+
+	if (device_density_buffer) {
+		cudaFree(device_density_buffer);
+	}
+
+}
+
+
+GPU_PROC_VOL::GPU_PROC_VOL(const GPU_PROC_VOL& copy){
+	
+	set_xform(copy.get_xform());
+	this->vdb_info = copy.vdb_info;
+
+}
+
+GPU_PROC_VOL::GPU_PROC_VOL() {
+
+	CUresult error = cuModuleLoad(&texture_module, "texture_kernels.ptx");
+	if (error != CUDA_SUCCESS) log("cuModuleLoad" + std::to_string(error), ERROR);
+
+	error = cuModuleGetFunction(&fill_buffer_function, texture_module, "fill_volume_buffer");
+	if (error != CUDA_SUCCESS) {
+		log("Unable to bind buffer fill function!", ERROR);
+	}
+
+}
+
+// fill vdb_info density texture with procedural noise texture 
+bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res) {
+
+	if (min.x > max.x&& min.y > max.y&& min.z > max.z) {
+		log("max < min", ERROR);
+		return false;
+	}
+
+	mat4 xform;
+	xform.scale(make_float3(res));
+	set_xform(xform);
+
+	int dim_x = floorf((max.x - min.x) / res);
+	int dim_y = floorf((max.y - min.y) / res);
+	int dim_z = floorf((max.z - min.z) / res);
+
+	dimensions = make_int3(dim_x, dim_y, dim_z);
+
+	// Fill vdb info parameters that would normally come from a vdb file 
+	vdb_info.dim = dimensions;
+	vdb_info.bmin = make_float3(.0f);
+	vdb_info.bmax = make_float3(dimensions);
+	vdb_info.voxelsize = res;
+	vdb_info.min_density = .0f;
+	vdb_info.max_density = 1.0f;
+	vdb_info.has_emission = false;
+	vdb_info.has_color = false;
+
+	// set noise type , see texture_kernels.cu for noise types    
+	int noise_type = 0;
+
+	// Allocate device memory for volume buffer 
+	checkCudaErrors(cudaMalloc(&device_density_buffer, dimensions.x * dimensions.y * dimensions.z * sizeof(float)));
+
+	dim3 block(16, 16, 16);
+	dim3 grid(int(dimensions.x / block.x) + 1, int(dimensions.y / block.y) + 1, int(dimensions.z / block.z) + 1);
+
+	void* params[] = {&device_density_buffer, (void *)&dimensions, &noise_type};
+	cuLaunchKernel(fill_buffer_function, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, params, NULL);
+	
+	// TODO send buffer to texture 
+
+
+
+
+	cudaFree(device_density_buffer);
+	return true;
+}

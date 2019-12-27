@@ -58,7 +58,6 @@
 
 extern "C" __global__ void glow(const Kernel_params kernel_params, float treshold , const int width, const int height) {
 
-
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 	if (x >= width || y >= height) return;
@@ -66,5 +65,19 @@ extern "C" __global__ void glow(const Kernel_params kernel_params, float treshol
 
 	// TODO gaussian blur and add glow effect to display buffer 
 
+
+}
+
+extern "C" __global__ void fill_volume_buffer(float *buffer, int3 dims, int noise_type) {
+
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+	int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+	if (x >= dims.x || y >= dims.y || z >= dims.z) return;
+
+	const unsigned int idx = x + dims.x * (y + dims.y * z);
+
+	buffer[idx] = .0f;
 
 }

@@ -39,6 +39,7 @@
 #ifndef _GPU_VDB_H_
 #define _GPU_VDB_H_
 
+#include "cuda.h"
 #include "cuda_runtime_api.h"
 
 #include "texture_types.h"
@@ -145,10 +146,33 @@ public:
 	}
 
 	VDB_INFO vdb_info;
+
 private:
 
 	mat4 xform;
 
 };
+
+
+class GPU_PROC_VOL : virtual public GPU_VDB {
+
+
+public: 
+
+	__host__ GPU_PROC_VOL();
+	__host__ GPU_PROC_VOL(const GPU_PROC_VOL& copy);
+	__host__ ~GPU_PROC_VOL();
+
+	__host__ bool create_volume(float3 min, float3 max, float res);
+
+private:
+
+	CUmodule texture_module;
+	CUfunction fill_buffer_function;
+	float *device_density_buffer;
+	float resolution;
+	int3 dimensions;
+};
+
 
 #endif //endif _GPU_VDB_H_
