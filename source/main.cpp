@@ -1181,7 +1181,13 @@ int main(const int argc, const char* argv[])
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
 
+	std::string env_name;
+	if (argc >= 3) env_name = argv[2];
+
+
 	std::string file_extension = boost::filesystem::extension(fname);
+	std::string file_extension_env = boost::filesystem::extension(env_name);
+
 	if (file_extension == ".vdb") {
 	
 		std::string file_path = ASSET_PATH;
@@ -1204,6 +1210,11 @@ int main(const int argc, const char* argv[])
 		env_tex = true;
 		env_tex_name = ASSET_PATH;
 		env_tex_name.append(fname);
+	}
+	if(file_extension_env == ".hdr") {
+		env_tex = true;
+		env_tex_name = ASSET_PATH;
+		env_tex_name.append(env_name);
 	}
 
 	else { // No vdb or instance file is given procede with procedural volume 
