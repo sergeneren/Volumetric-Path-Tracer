@@ -126,6 +126,10 @@ float	aperture;
 
 atmosphere earth_atmosphere;
 
+// Env texture
+bool env_tex = false;
+std::string env_tex_name;
+
 
 #define check_success(expr) \
     do { \
@@ -1099,12 +1103,6 @@ static void update_camera(double dx, double dy, double mx, double my, int zoom_d
 int main(const int argc, const char* argv[])
 {
 
-	if (argc < 2) {
-		log("Please specify a vdb file!", ERROR);
-		return 0;
-	}
-	
-
 	
 	//***********************************************************************************************************************************
 	// Create necessary folders
@@ -1202,8 +1200,14 @@ int main(const int argc, const char* argv[])
 	else if (file_extension == ".ins") {
 		read_instance_file(fname);
 	}
-	else {
-		log("Unknown file format! Please provide a valid vdb file or an instance file", ERROR);
+	else if (file_extension == ".hdr") {
+		env_tex = true;
+		env_tex_name = ASSET_PATH;
+		env_tex_name.append(fname);
+	}
+
+	else { // No vdb or instance file is given procede with procedural volume 
+		log("No vdb file or an instance file is provided. Continuing with procedural volume", LOG);
 	}
 	
 
@@ -1431,7 +1435,7 @@ int main(const int argc, const char* argv[])
 	cudaArray_t env_cdf_data = 0;
 	cudaArray_t env_marginal_func_data = 0;
 	cudaArray_t env_marginal_cdf_data = 0;
-	bool env_tex = false;
+	
 
 	// Imgui Parameters
 
@@ -1474,10 +1478,8 @@ int main(const int argc, const char* argv[])
 	// Create env texture 
 	//
 	//***********************************************************************************************************************************
-	if (argc >= 3) {
+	if (env_tex) {
 
-		std::string env_tex_name = ASSET_PATH;
-		env_tex_name.append(argv[2]);
 		env_tex = create_environment(&kernel_params.env_tex, &env_tex_data, env_tex_name.c_str());
 	}
 	if (env_tex) {
