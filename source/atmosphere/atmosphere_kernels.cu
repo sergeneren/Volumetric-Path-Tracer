@@ -673,11 +673,11 @@ extern "C" __global__ void calculate_indirect_irradiance(const AtmosphereParamet
 
 }
 
-extern "C" __global__ void calculate_multiple_scattering(const AtmosphereParameters atmosphere, const int blend, mat3 luminance_from_radiance, const int scattering_order, const int layer){
+extern "C" __global__ void calculate_multiple_scattering(const AtmosphereParameters atmosphere, const int blend, mat3 luminance_from_radiance, const int scattering_order){
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-	int z = layer;
+	int z = blockIdx.z * blockDim.z + threadIdx.z;
 
 	if (x >= SCATTERING_TEXTURE_WIDTH || y >= SCATTERING_TEXTURE_HEIGHT || z >= SCATTERING_TEXTURE_DEPTH) return;
 
@@ -699,11 +699,11 @@ extern "C" __global__ void calculate_multiple_scattering(const AtmosphereParamet
 
 }
 
-extern "C" __global__ void calculate_scattering_density(const AtmosphereParameters atmosphere, const float4 blend, const int scattering_order, const int layer){
+extern "C" __global__ void calculate_scattering_density(const AtmosphereParameters atmosphere, const float4 blend, const int scattering_order){
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-	int z = layer;
+	int z = blockIdx.z * blockDim.z + threadIdx.z;
 
 	if (x >= SCATTERING_TEXTURE_WIDTH || y >= SCATTERING_TEXTURE_HEIGHT || z >= SCATTERING_TEXTURE_DEPTH) return;
 
@@ -716,11 +716,11 @@ extern "C" __global__ void calculate_scattering_density(const AtmosphereParamete
 	atmosphere.delta_scattering_density_buffer[idx] = make_float4(scattering_density, 1.0f);
 }
 
-extern "C" __global__ void calculate_single_scattering(const AtmosphereParameters atmosphere, const float4 blend, mat3 luminance_from_radiance, const int layer){
+extern "C" __global__ void calculate_single_scattering(const AtmosphereParameters atmosphere, const float4 blend, mat3 luminance_from_radiance){
 	
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
-	int z = layer;
+	int z = blockIdx.z * blockDim.z + threadIdx.z;
 
 	if (x >= SCATTERING_TEXTURE_WIDTH || y >= SCATTERING_TEXTURE_HEIGHT || z>= SCATTERING_TEXTURE_DEPTH) return;
 	
