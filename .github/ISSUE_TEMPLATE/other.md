@@ -1,7 +1,7 @@
 ---
 name: Other
 about: 'For all other inquiries '
-title: ''
+title: "[OTHER]"
 labels: ''
 assignees: ''
 
