@@ -50,6 +50,13 @@ file(WRITE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fireball.ins"
 	"-200 200 0 0 0 0 1 20") 
 
 
+## Create a cmd file to test vpt 
+
+file(WRITE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_vpt.cmd"
+	"echo on\n"
+	"vpt.exe fireball.ins")
+
+
 ## Grab source files 
 
 file( GLOB ATMOSPHERE
