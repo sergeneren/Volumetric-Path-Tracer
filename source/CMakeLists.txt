@@ -27,9 +27,14 @@ set( RENDER_ENV_TEXTURES OFF CACHE BOOL "Render env sampling textures after crea
 	 add_definitions(-DRENDER_ENV_SAMPLE_TEXTURES=0)
   endif()
   
-## Set ASSET_PATH variable to use with VolumeGVDB add path function
-get_filename_component(ASSET_DIR ${CMAKE_SOURCE_DIR}/assets ABSOLUTE)
+## Set ASSET_PATH variable to assets folder and copy the folder to binary directory
+
+file( GLOB ASSET_FILES "${CMAKE_SOURCE_DIR}/assets/*.*")
+file( INSTALL ${ASSET_FILES} DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets")
+
+set(ASSET_DIR "./assets")
 add_definitions(-DASSET_PATH="${ASSET_DIR}/")
+
 ###################################################################
 
 
@@ -42,9 +47,10 @@ file(WRITE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/fireball.ins"
 	"3\n"
 	"0 200 0 0 0 0 1 20\n"
 	"200 200 0 0 0 0 1 20\n"
-	"-200 200 0 0 0 0 1 20")
+	"-200 200 0 0 0 0 1 20") 
 
 
+## Grab source files 
 
 file( GLOB ATMOSPHERE
 		"${CMAKE_CURRENT_SOURCE_DIR}/atmosphere/*.h"
@@ -96,6 +102,8 @@ set(SOURCE_FILES
 	${ATMOSPHERE}
 	${GEOMETRY}
 	${UTIL})
+
+## Group source files 
 
 source_group(Cuda FILES ${CUDA_SOURCES})
 source_group(bvh FILES ${BVH})
