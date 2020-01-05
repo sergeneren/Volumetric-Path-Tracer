@@ -109,7 +109,10 @@ CUfunction cuTestGeometryKernel;
 std::vector<GPU_VDB> unique_vdb_files;
 std::vector<GPU_VDB> instances;
 std::vector<vdb_instance> volume_files;
+
 std::vector<point_light> point_lights;
+light_list l_list(0);
+CUdeviceptr d_lights;
 
 static int num_volumes = 3; // TODO: read number of instances from json file 
 BVH_Builder bvh_builder;
@@ -983,10 +986,39 @@ static void read_instance_file(std::string file_name) {
 	std::getline(stream, num_vdbs);
 
 	if (num_vdbs == "light") {
-		log("instancing lights", LOG);
+
+		log("Setting up instanced point lights...", LOG);
+		
 		int num_lights;
-	
-	
+		std::string num_points;
+		std::getline(stream, num_points);
+		std::istringstream iss(num_points);
+
+		iss >> num_lights;
+		l_list.num_lights = num_lights;
+		l_list.light_ptr = (point_light*)malloc(num_lights * sizeof(point_light));
+		cudaMallocManaged(&l_list.light_ptr, num_lights * sizeof(point_light));
+
+		for (int i = 0; i < num_lights; ++i) {
+
+			std::string instance_parameters;
+			std::getline(stream, instance_parameters);
+			std::istringstream params(instance_parameters);
+			double p_x, p_y, p_z, r, g, b, p;
+			params >> p_x >> p_y >> p_z >> r >> g >> b >> p;
+
+
+			l_list.light_ptr[i] = point_light();
+			l_list.light_ptr[i].color = make_float3(r, g, b);
+			l_list.light_ptr[i].pos = make_float3(p_x, p_y, p_z);;
+			l_list.light_ptr[i].power = p;
+
+
+		}
+
+		check_success(cuMemAlloc(&d_lights, sizeof(light_list)) == cudaSuccess);
+		check_success(cuMemcpyHtoD(d_lights, &l_list, sizeof(light_list)) == cudaSuccess);
+
 	}
 	else {
 
@@ -1279,8 +1311,8 @@ int main(const int argc, const char* argv[])
 
 	// Test procedural volume 
 	GPU_PROC_VOL proc_vol;
-	float3 proc_box_min = make_float3(0, 1000, 0);
-	float3 proc_box_max = make_float3(500, 1020, 500);
+	float3 proc_box_min = make_float3(-230, -100, -228);
+	float3 proc_box_max = make_float3(230, 100, 244);
 	if(!proc_vol.create_volume(proc_box_min, proc_box_max, 1.0f, 0, 0.1f)) return 0;
 	
 	//instances.clear();
@@ -1326,55 +1358,6 @@ int main(const int argc, const char* argv[])
 	if (max_dim == 2) scene_max = scene_bounds.Diagonal().z;
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
-
-
-
-
-
-
-	
-	//***********************************************************************************************************************************
-	// Setup Lights
-	//
-	//***********************************************************************************************************************************
-
-	log("Setting up point lights...", LOG);
-#if defined(__CAMERA_H__) || defined(__LIGHT_H__) 
-#undef rand // undefine the rand coming from camera.h and light.h
-
-	float3 min = instances[0].get_xform().transpose().transform_point(instances[0].vdb_info.bmin);
-	float3 max = instances[0].get_xform().transpose().transform_point(instances[0].vdb_info.bmax);
-
-	std::mt19937 e2(std::random_device{}());
-	std::uniform_real_distribution<> dist(0, 1);
-
-	int num_lights = 1;
-	
-	light_list l_list(num_lights);
-	l_list.light_ptr = (point_light*)malloc(num_lights * sizeof(point_light));
-	cudaMallocManaged(&l_list.light_ptr, num_lights * sizeof(point_light));
-
-	l_list.light_ptr[0] = point_light();
-	l_list.light_ptr[0].color = make_float3(1.0f, 1.0f, 0.9f);
-	l_list.light_ptr[0].pos = make_float3(.0f);;
-	l_list.light_ptr[0].power = 5000.0f;
-
-	for (int i = 1; i < num_lights; ++i) {
-		float3 pos = min + make_float3(dist(e2) * (max.x - min.x), dist(e2) * (max.y - min.y), dist(e2) * (max.z - min.z));
-		float3 color = make_float3(1 - (dist(e2)*0.5), dist(e2), 1 - (dist(e2) * 0.5));
-		
-		l_list.light_ptr[i] = point_light();
-		l_list.light_ptr[i].color = color;
-		l_list.light_ptr[i].pos = pos;
-		l_list.light_ptr[i].power = 1000.0f;
-	}
-
-	CUdeviceptr d_lights;
-	check_success(cuMemAlloc(&d_lights, sizeof(light_list)) == cudaSuccess);
-	check_success(cuMemcpyHtoD(d_lights, &l_list, sizeof(light_list)) == cudaSuccess);
-#endif 
-
-
 
 
 	
