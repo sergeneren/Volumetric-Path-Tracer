@@ -1454,18 +1454,19 @@ __device__ inline float3 estimate_point_light(
 {
 
 	float3 Ld = make_float3(.0f);
-	float max_density = gpu_vdb[0].vdb_info.max_density;
+	
+	float max_density = root->max_extinction;
+	int light_budget = 10;
 
-	for (int i = 0; i < lights.num_lights; i++) {
+	while (light_budget >= 0) {
 
-		float dist = length(lights.light_ptr[i].pos - ray_pos);
-		float possible_tr = expf(-gpu_vdb[0].vdb_info.max_density * dist / (sqrtf(lights.light_ptr[i].power) * kernel_params.tr_depth));
+		int light_index = int(floor(rand(&randstate) * lights.num_lights));
 
-		if (possible_tr > 0.01f) {
-			float3 dir = normalize(lights.light_ptr[i].pos - ray_pos);
-			float3 tr = Tr(randstate, ray_pos, dir, kernel_params, gpu_vdb, ref_sphere, root);
-			Ld += lights.light_ptr[i].Le(randstate, ray_pos, ray_dir, kernel_params.phase_g1, tr, max_density, kernel_params.density_mult, kernel_params.tr_depth);
-		}
+		float3 dir = normalize(lights.light_ptr[light_index].pos - ray_pos);
+		float3 tr = Tr(randstate, ray_pos, dir, kernel_params, gpu_vdb, ref_sphere, root);
+		if(light_budget < lights.num_lights) Ld += lights.light_ptr[light_index].Le(randstate, ray_pos, ray_dir, kernel_params.phase_g1, tr, max_density, kernel_params.density_mult, kernel_params.tr_depth);
+
+		light_budget--;
 
 	}
 
@@ -1763,6 +1764,7 @@ __device__ inline float3 direct_integrator(
 	float& tr,
 	const Kernel_params kernel_params,
 	const GPU_VDB* gpu_vdb,
+	const light_list lights,
 	const sphere& ref_sphere,
 	OCTNode* root,
 	const AtmosphereParameters atmosphere)
@@ -1792,7 +1794,11 @@ __device__ inline float3 direct_integrator(
 				}
 
 			}
-			if (mi) L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * beta;
+			if (mi) {
+				L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * beta;
+				L += estimate_point_light(kernel_params, lights, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root) * beta;
+			}
+
 			if (kernel_params.emission_scale > 0 && mi) {
 				L += estimate_emission(rand_state, ray_pos, ray_dir, kernel_params, gpu_vdb, root);
 			}
@@ -2250,7 +2256,7 @@ extern "C" __global__ void volume_rt_kernel(
 		//value = test_geometry_list(ray_pos, ray_dir, geo_list, rand_state);
 		depth = depth_calculator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root);
 		if (kernel_params.integrator) value = vol_integrator(rand_state, lights, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
-		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, sphere, oct_root, atmosphere);
+		else value = direct_integrator(rand_state, ray_pos, ray_dir, tr, kernel_params, gpu_vdb, lights, sphere, oct_root, atmosphere);
 	}
 
 	// Check if values contains nan or infinite values

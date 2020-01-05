@@ -1061,7 +1061,7 @@ static void read_instance_file(std::string file_name) {
 				volume_files.at(i).instances.at(x).position[1],
 				volume_files.at(i).instances.at(x).position[2]));
 			
-
+			
 			new_instance.set_xform(xform);
 			instances.push_back(new_instance);
 
@@ -1197,11 +1197,6 @@ int main(const int argc, const char* argv[])
 		instances.push_back(GPU_VDB());
 		instances.at(0).loadVDB(file_path, "density", "heat", "Cd");
 
-		mat4 xform = instances.at(0).get_xform();
-		//xform.scale(make_float3(20.0f));
-		xform.translate(make_float3(0, 200, 0));
-		instances.at(0).set_xform(xform);
-
 	}
 	else if (file_extension == ".ins") {
 		read_instance_file(fname);
@@ -1280,7 +1275,7 @@ int main(const int argc, const char* argv[])
 	if(!proc_vol.create_volume(proc_box_min, proc_box_max, 1.0f, 0, 0.1f)) return 0;
 	
 	//instances.clear();
-	instances.push_back(proc_vol);
+	//instances.push_back(proc_vol);
 
 	// Send volume instances to gpu
 
@@ -1344,15 +1339,20 @@ int main(const int argc, const char* argv[])
 	std::mt19937 e2(std::random_device{}());
 	std::uniform_real_distribution<> dist(0, 1);
 
-	int num_lights = 0;
+	int num_lights = 1;
 	
 	light_list l_list(num_lights);
 	l_list.light_ptr = (point_light*)malloc(num_lights * sizeof(point_light));
 	cudaMallocManaged(&l_list.light_ptr, num_lights * sizeof(point_light));
 
-	for (int i = 0; i < num_lights; ++i) {
+	l_list.light_ptr[0] = point_light();
+	l_list.light_ptr[0].color = make_float3(1.0f, 1.0f, 0.9f);
+	l_list.light_ptr[0].pos = make_float3(.0f);;
+	l_list.light_ptr[0].power = 5000.0f;
+
+	for (int i = 1; i < num_lights; ++i) {
 		float3 pos = min + make_float3(dist(e2) * (max.x - min.x), dist(e2) * (max.y - min.y), dist(e2) * (max.z - min.z));
-		float3 color = make_float3(dist(e2), dist(e2), dist(e2));
+		float3 color = make_float3(1 - (dist(e2)*0.5), dist(e2), 1 - (dist(e2) * 0.5));
 		
 		l_list.light_ptr[i] = point_light();
 		l_list.light_ptr[i].color = color;
@@ -1530,11 +1530,11 @@ int main(const int argc, const char* argv[])
 	//***********************************************************************************************************************************
 
 	log("Setting up geometry and device pointers...", LOG);
-	float3 center = make_float3(400, 320, -200);
+	float3 center = make_float3(0, 1000, 0);
 	float radius = 1;
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 1.0f;
-	ref_sphere.color = make_float3(1.0f, 0 , 0);
+	ref_sphere.color = make_float3(10.0f, 0 , 0);
 	   	  
 	CUdeviceptr d_geo_ptr;
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);

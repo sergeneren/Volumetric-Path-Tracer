@@ -113,10 +113,12 @@ public:
 		wi = normalize(pos - ray_pos);
 		float cos_theta = dot(ray_dir, wi);
 		phase_pdf = henyey_greenstein(cos_theta, phase_g1);
-		
-		float falloff = 1 / length(pos*pos - ray_pos * ray_pos);
+		float sqr_dist = length(pos * pos - ray_pos * ray_pos);
+		float falloff = 1 / sqr_dist;
 
 		float3 Li = color * power * tr  * phase_pdf * falloff;
+		
+		return Li;
 
 		// Sample point light with equiangular pdf
 
