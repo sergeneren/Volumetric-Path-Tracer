@@ -52,7 +52,7 @@ static PRM_Default	 theFileDefault(0, "$HIP/Outputs/VPT/defgeo.ins");
 PRM_Template VPT_INS_ROP::myTemplateList[] = {
 	PRM_Template(PRM_FILE_E,	1, &names[0], &theFileDefault , 0, 0 , 0 ,  &PRM_SpareData::fileChooserModeWrite),	// file Output
 	PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH, 1, &names[1], 0, 0, 0, 0, &PRM_SpareData::sopPath),				// sop path
-	PRM_Template(PRM_TOGGLE, 0, &names[2], PRMzeroDefaults),														// render Light instance
+	PRM_Template(PRM_TOGGLE, 1, &names[2], PRMzeroDefaults),														// render Light instance
 	PRM_Template()																									// placeholder
 };
 
@@ -162,9 +162,9 @@ ROP_RENDER_CODE VPT_INS_ROP::renderFrame(fpreal time, UT_Interrupt *)
 
 	SOP_Node		*sop;
 	UT_String		 soppath, savepath, name;
-	bool			render_light;
 
 	OUTPUT(savepath, time);
+	bool render_light = LIGHT();
 
 	if (!executePreFrameScript(time))
 		return ROP_ABORT_RENDER;
@@ -215,9 +215,7 @@ ROP_RENDER_CODE VPT_INS_ROP::renderFrame(fpreal time, UT_Interrupt *)
 	if (evalInt("mkpath", 0, 0)) {
 		ROP_Node::makeFilePathDirs(savepath);
 	}
-
-	render_light = LIGHT();
-
+	
 	if (render_light) light_save(gdp, (const char*)savepath);
 	else file_save(gdp, (const char *)savepath);
 

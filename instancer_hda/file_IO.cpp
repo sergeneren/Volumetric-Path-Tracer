@@ -195,10 +195,9 @@ namespace vpt_instance {
 		GA_ROHandleV3 Cd_h(gdp, GA_ATTRIB_POINT, "Cd");
 		GA_ROHandleF power_h(gdp, GA_ATTRIB_POINT, "power");
 
-		
 		file << "light" << std::endl;
 		file << gdp->getNumPoints() << std::endl;
-
+		
 		GA_Offset lcl_start, lcl_end, ptoff;
 		for (GA_Iterator lcl_it(gdp->getPointRange()); lcl_it.blockAdvance(lcl_start, lcl_end); ) {
 			for (ptoff = lcl_start; ptoff < lcl_end; ++ptoff) {

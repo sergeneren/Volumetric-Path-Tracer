@@ -131,7 +131,7 @@ namespace vpt_instance {
 		virtual ROP_RENDER_CODE endRender();
 
 	private:
-		int		LIGHT() { return evalInt("render_light", 0 , 0 ); }
+		bool	LIGHT() { return evalInt("render_light", 0 , 0 ); }
 		void	OUTPUT(UT_String &str, fpreal t) { return evalString(str, "outputFile", 0, t); }
 		void	SOPPATH(UT_String &str, fpreal t) { return evalString(str, "soppath", 0, t); }
 		int		INITSIM() { return evalInt("initsim", 0, 0); }
