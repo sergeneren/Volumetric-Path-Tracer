@@ -197,6 +197,7 @@ namespace vpt_instance {
 
 		
 		file << "light" << std::endl;
+		file << gdp->getNumPoints() << std::endl;
 
 		GA_Offset lcl_start, lcl_end, ptoff;
 		for (GA_Iterator lcl_it(gdp->getPointRange()); lcl_it.blockAdvance(lcl_start, lcl_end); ) {

@@ -109,6 +109,7 @@ CUfunction cuTestGeometryKernel;
 std::vector<GPU_VDB> unique_vdb_files;
 std::vector<GPU_VDB> instances;
 std::vector<vdb_instance> volume_files;
+std::vector<point_light> point_lights;
 
 static int num_volumes = 3; // TODO: read number of instances from json file 
 BVH_Builder bvh_builder;
@@ -980,94 +981,102 @@ static void read_instance_file(std::string file_name) {
 
 	std::string num_vdbs;
 	std::getline(stream, num_vdbs);
-	std::istringstream iss(num_vdbs);
 
-	int num_volumes;
-	iss >> num_volumes;
-	log("number of vdbs: " + num_volumes, LOG);
-	volume_files.resize(num_volumes);
+	if (num_vdbs == "light") {
+		log("instancing lights", LOG);
+		int num_lights;
+	
+	
+	}
+	else {
 
-	for (int i = 0; i < num_volumes; ++i) {
+		std::istringstream iss(num_vdbs);
+		int num_volumes;
+		iss >> num_volumes;
+		log("number of vdbs: " + num_volumes, LOG);
+		volume_files.resize(num_volumes);
 
-		std::string vdb_file_name;
-		std::getline(stream, vdb_file_name);
-		volume_files.at(i).vdb_file = vdb_file_name;
-		std::string num_instances;
-		std::getline(stream, num_instances);
-		std::istringstream nis(num_instances);
-		nis >> volume_files.at(i).num_instances;
-		volume_files.at(i).instances.resize(volume_files.at(i).num_instances);
+		for (int i = 0; i < num_volumes; ++i) {
 
-		for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
-			
-			std::string instance_parameters;
-			std::getline(stream, instance_parameters);
-			std::istringstream params(instance_parameters);
-			double p1, p2, p3, r1, r2, r3, r4, s;
-			params >> p1 >> p2 >> p3 >> r1 >> r2 >> r3 >> r4 >> s;
-			volume_files.at(i).instances.at(x).position[0] = p1;
-			volume_files.at(i).instances.at(x).position[1] = p2;
-			volume_files.at(i).instances.at(x).position[2] = p3;
+			std::string vdb_file_name;
+			std::getline(stream, vdb_file_name);
+			volume_files.at(i).vdb_file = vdb_file_name;
+			std::string num_instances;
+			std::getline(stream, num_instances);
+			std::istringstream nis(num_instances);
+			nis >> volume_files.at(i).num_instances;
+			volume_files.at(i).instances.resize(volume_files.at(i).num_instances);
 
-			volume_files.at(i).instances.at(x).rotation[0] = r1;
-			volume_files.at(i).instances.at(x).rotation[1] = r2;
-			volume_files.at(i).instances.at(x).rotation[2] = r3;
-			volume_files.at(i).instances.at(x).rotation[3] = r4;
+			for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
 
-			volume_files.at(i).instances.at(x).scale = s;
+				std::string instance_parameters;
+				std::getline(stream, instance_parameters);
+				std::istringstream params(instance_parameters);
+				double p1, p2, p3, r1, r2, r3, r4, s;
+				params >> p1 >> p2 >> p3 >> r1 >> r2 >> r3 >> r4 >> s;
+				volume_files.at(i).instances.at(x).position[0] = p1;
+				volume_files.at(i).instances.at(x).position[1] = p2;
+				volume_files.at(i).instances.at(x).position[2] = p3;
+
+				volume_files.at(i).instances.at(x).rotation[0] = r1;
+				volume_files.at(i).instances.at(x).rotation[1] = r2;
+				volume_files.at(i).instances.at(x).rotation[2] = r3;
+				volume_files.at(i).instances.at(x).rotation[3] = r4;
+
+				volume_files.at(i).instances.at(x).scale = s;
+			}
+		}
+
+		stream.close();
+
+		for (int i = 0; i < volume_files.size(); ++i) {
+
+			unique_vdb_files.push_back(GPU_VDB());
+			unique_vdb_files.at(i).loadVDB(volume_files.at(i).vdb_file, "density", "heat", "Cd");
+
+			for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
+
+				GPU_VDB new_instance(GPU_VDB(unique_vdb_files.at(i)));
+
+				mat4 xform = unique_vdb_files.at(i).get_xform();
+
+				// Set translation vector to 0 if it's coming from houdini
+				xform.translate(-xform.extract_translate());
+
+				// Set scale
+				xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
+
+
+				// Apply instance rotation
+
+				float3 euler = quaternion_to_euler(
+					volume_files.at(i).instances.at(x).rotation[0],
+					volume_files.at(i).instances.at(x).rotation[1],
+					volume_files.at(i).instances.at(x).rotation[2],
+					volume_files.at(i).instances.at(x).rotation[3]);
+
+				mat4 rotation_matrix = quaternion_to_mat4(
+					volume_files.at(i).instances.at(x).rotation[0],
+					volume_files.at(i).instances.at(x).rotation[1],
+					volume_files.at(i).instances.at(x).rotation[2],
+					volume_files.at(i).instances.at(x).rotation[3]);
+
+				xform = rotation_matrix * xform;
+
+				// Translate with instance position
+
+				xform.translate(make_float3(
+					volume_files.at(i).instances.at(x).position[0],
+					volume_files.at(i).instances.at(x).position[1],
+					volume_files.at(i).instances.at(x).position[2]));
+
+
+				new_instance.set_xform(xform);
+				instances.push_back(new_instance);
+
+			}
 		}
 	}
-
-	stream.close();
-
-	for (int i = 0; i < volume_files.size(); ++i) {
-
-		unique_vdb_files.push_back(GPU_VDB());
-		unique_vdb_files.at(i).loadVDB(volume_files.at(i).vdb_file, "density", "heat", "Cd");
-
-		for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
-			
-			GPU_VDB new_instance(GPU_VDB(unique_vdb_files.at(i)));
-			
-			mat4 xform = unique_vdb_files.at(i).get_xform();
-			
-			// Set translation vector to 0 if it's coming from houdini
-			xform.translate(-xform.extract_translate());
-			
-			// Set scale
-			xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
-			
-			
-			// Apply instance rotation
-
-			float3 euler = quaternion_to_euler(
-				volume_files.at(i).instances.at(x).rotation[0],
-				volume_files.at(i).instances.at(x).rotation[1],
-				volume_files.at(i).instances.at(x).rotation[2],
-				volume_files.at(i).instances.at(x).rotation[3]);
-
-			mat4 rotation_matrix = quaternion_to_mat4(
-				volume_files.at(i).instances.at(x).rotation[0],
-				volume_files.at(i).instances.at(x).rotation[1],
-				volume_files.at(i).instances.at(x).rotation[2],
-				volume_files.at(i).instances.at(x).rotation[3]);
-
-			xform = rotation_matrix * xform;
-			
-			// Translate with instance position
-
-			xform.translate(make_float3(
-				volume_files.at(i).instances.at(x).position[0],
-				volume_files.at(i).instances.at(x).position[1],
-				volume_files.at(i).instances.at(x).position[2]));
-			
-			
-			new_instance.set_xform(xform);
-			instances.push_back(new_instance);
-
-		}
-	}
-
 }
 
 // Process camera movement.
@@ -1275,7 +1284,7 @@ int main(const int argc, const char* argv[])
 	if(!proc_vol.create_volume(proc_box_min, proc_box_max, 1.0f, 0, 0.1f)) return 0;
 	
 	//instances.clear();
-	//instances.push_back(proc_vol);
+	instances.push_back(proc_vol);
 
 	// Send volume instances to gpu
 
