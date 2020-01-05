@@ -52,6 +52,7 @@ namespace vpt_instance {
 
 
 	GA_Detail::IOStatus file_save(const GU_Detail *gdp, const char *file_name);
+	GA_Detail::IOStatus light_save(const GU_Detail *gdp, const char *file_name);
 
 
 }

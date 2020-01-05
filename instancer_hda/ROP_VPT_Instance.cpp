@@ -43,14 +43,16 @@ using namespace vpt_instance;
 
 static PRM_Name names[] = {
 	PRM_Name("outputFile",     "Output File"),
-	PRM_Name("soppath", "SOP Path")
+	PRM_Name("soppath", "SOP Path"),
+	PRM_Name("render_light", "Render Light Instances")
 };
 
 static PRM_Default	 theFileDefault(0, "$HIP/Outputs/VPT/defgeo.ins");
 
 PRM_Template VPT_INS_ROP::myTemplateList[] = {
 	PRM_Template(PRM_FILE_E,	1, &names[0], &theFileDefault , 0, 0 , 0 ,  &PRM_SpareData::fileChooserModeWrite),	// file Output
-	PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH, 1, &names[1], 0, 0, 0, 0, &PRM_SpareData::sopPath),			// sop path
+	PRM_Template(PRM_STRING, PRM_TYPE_DYNAMIC_PATH, 1, &names[1], 0, 0, 0, 0, &PRM_SpareData::sopPath),				// sop path
+	PRM_Template(PRM_TOGGLE, 0, &names[2], PRMzeroDefaults),														// render Light instance
 	PRM_Template()																									// placeholder
 };
 
@@ -79,6 +81,7 @@ static PRM_Template * getTemplates()
 	prmTemplate[ROP_VPT_TAKE] = theRopTemplates[ROP_TAKENAME_TPLATE];
 	prmTemplate[ROP_VPT_SOPOUTPUT] = VPT_INS_ROP::myTemplateList[0];
 	prmTemplate[ROP_VPT_SOPPATH] = VPT_INS_ROP::myTemplateList[1];
+	prmTemplate[ROP_VPT_LIGHT] = VPT_INS_ROP::myTemplateList[2];
 
 	prmTemplate[ROP_VPT_TPRERENDER] = theRopTemplates[ROP_TPRERENDER_TPLATE];
 	prmTemplate[ROP_VPT_PRERENDER] = theRopTemplates[ROP_PRERENDER_TPLATE];
@@ -159,6 +162,7 @@ ROP_RENDER_CODE VPT_INS_ROP::renderFrame(fpreal time, UT_Interrupt *)
 
 	SOP_Node		*sop;
 	UT_String		 soppath, savepath, name;
+	bool			render_light;
 
 	OUTPUT(savepath, time);
 
@@ -212,7 +216,10 @@ ROP_RENDER_CODE VPT_INS_ROP::renderFrame(fpreal time, UT_Interrupt *)
 		ROP_Node::makeFilePathDirs(savepath);
 	}
 
-	file_save(gdp, (const char *)savepath);
+	render_light = LIGHT();
+
+	if (render_light) light_save(gdp, (const char*)savepath);
+	else file_save(gdp, (const char *)savepath);
 
 	if (ALFPROGRESS() && (endTime != startTime))
 	{

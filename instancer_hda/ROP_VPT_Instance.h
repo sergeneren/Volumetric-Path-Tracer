@@ -85,6 +85,7 @@ namespace vpt_instance {
 		ROP_VPT_TRANGE,
 		ROP_VPT_FRANGE,
 		ROP_VPT_TAKE,
+		ROP_VPT_LIGHT,
 		ROP_VPT_SOPPATH,
 		ROP_VPT_SOPOUTPUT,
 
@@ -130,6 +131,7 @@ namespace vpt_instance {
 		virtual ROP_RENDER_CODE endRender();
 
 	private:
+		int		LIGHT() { return evalInt("render_light", 0 , 0 ); }
 		void	OUTPUT(UT_String &str, fpreal t) { return evalString(str, "outputFile", 0, t); }
 		void	SOPPATH(UT_String &str, fpreal t) { return evalString(str, "soppath", 0, t); }
 		int		INITSIM() { return evalInt("initsim", 0, 0); }

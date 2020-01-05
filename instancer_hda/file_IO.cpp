@@ -186,5 +186,42 @@ namespace vpt_instance {
 
 	}
 
+	GA_Detail::IOStatus light_save(const GU_Detail *gdp, const char *file_name) {
+
+		UT_OFStream file(file_name);
+
+		GA_ROHandleV3 pos_h(gdp, GA_ATTRIB_POINT, "P");
+		UT_Vector3F pos_val(0, 0, 0);
+		GA_ROHandleV3 Cd_h(gdp, GA_ATTRIB_POINT, "Cd");
+		GA_ROHandleF power_h(gdp, GA_ATTRIB_POINT, "power");
+
+		
+		file << "light" << std::endl;
+
+		GA_Offset lcl_start, lcl_end, ptoff;
+		for (GA_Iterator lcl_it(gdp->getPointRange()); lcl_it.blockAdvance(lcl_start, lcl_end); ) {
+			for (ptoff = lcl_start; ptoff < lcl_end; ++ptoff) {
+				
+				pos_val = pos_h.get(ptoff);
+
+				file << pos_val.x() << " " << pos_val.y() << " " << pos_val.z() << " ";
+				if (Cd_h.isValid()) {
+					UT_Vector3F Cd = Cd_h.get(ptoff);
+					file << Cd.r() << " " << Cd.g() << " " << Cd.b() << " ";
+				}else file << 1 << " " << 1 << " " << 1 << " ";
+			
+				if (power_h.isValid()) {
+					file << power_h.get(ptoff) << std::endl;
+				}else file << 100 << std::endl;
+							
+			}
+		}
+
+
+		file.close();
+		return true;
+
+	}
+
 
 }
