@@ -1306,16 +1306,17 @@ int main(const int argc, const char* argv[])
 		env_tex_name = ASSET_PATH;
 		env_tex_name.append(fname);
 	}
-	else if(file_extension_env == ".hdr") {
-		env_tex = true;
-		env_tex_name = ASSET_PATH;
-		env_tex_name.append(env_name);
-	}
 	else { // No vdb or instance file is given procede with procedural volume 
 		log("No vdb file or an instance file is provided. Continuing with procedural volume", LOG);
 		
 	}
 	
+	if (file_extension_env == ".hdr") {
+		env_tex = true;
+		env_tex_name = ASSET_PATH;
+		env_tex_name.append(env_name);
+	}
+
 
 	if (empty_volume) {
 
