@@ -134,6 +134,7 @@ atmosphere earth_atmosphere;
 bool env_tex = false;
 std::string env_tex_name;
 
+bool empty_volume = false;
 
 #define check_success(expr) \
     do { \
@@ -1018,7 +1019,7 @@ static void read_instance_file(std::string file_name) {
 
 		check_success(cuMemAlloc(&d_lights, sizeof(light_list)) == cudaSuccess);
 		check_success(cuMemcpyHtoD(d_lights, &l_list, sizeof(light_list)) == cudaSuccess);
-
+		empty_volume = true;
 	}
 	else {
 
@@ -1312,16 +1313,18 @@ int main(const int argc, const char* argv[])
 	}
 	else { // No vdb or instance file is given procede with procedural volume 
 		log("No vdb file or an instance file is provided. Continuing with procedural volume", LOG);
-		// Test procedural volume 
+		
+	}
+	
+
+	if (empty_volume) {
+
 		proc_box_min = make_float3(-230, -100, -228);
 		proc_box_max = make_float3(230, 100, 244);
 		if (!proc_vol.create_volume(proc_box_min, proc_box_max, 1.0f, 0, 0.1f)) return 0;
 
 		instances.push_back(proc_vol);
 	}
-	
-
-	
 	
 
 	
