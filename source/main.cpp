@@ -1022,6 +1022,8 @@ static void read_instance_file(std::string file_name) {
 	}
 	else {
 
+		log("Setting up instanced volumes...", LOG);
+
 		std::istringstream iss(num_vdbs);
 		int num_volumes;
 		iss >> num_volumes;
@@ -1212,6 +1214,58 @@ int main(const int argc, const char* argv[])
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
+
+	//***********************************************************************************************************************************
+	// Setup modules and contexes 
+	//
+	//***********************************************************************************************************************************
+
+	const char* render_module_name = "render_kernel.ptx";
+	const char* texture_module_name = "texture_kernels.ptx";
+	const char* render_kernel_name = "volume_rt_kernel";
+	const char* texture_kernel_name = "glow";
+
+	int cuda_devices[1];
+	unsigned int num_cuda_devices;
+	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
+	if (num_cuda_devices == 0) {
+		log("Could not determine CUDA device for context", ERROR);
+		exit(EXIT_FAILURE);
+	}
+
+	CUcontext cuctx;
+	cuCtxGetCurrent(&cuctx);
+
+	log("Loading Cuda kernel modules and functions...", LOG);
+	CUresult error;
+
+	CUlinkState state;
+	cuLinkCreate_v2(0, 0, 0, &state);
+	cuLinkAddFile_v2(state, CU_JIT_INPUT_PTX, "render_kernel.ptx", 0, 0, 0);
+	cuLinkAddFile_v2(state, CU_JIT_INPUT_PTX, "geometry_kernels.ptx", 0, 0, 0);
+	cuLinkAddFile_v2(state, CU_JIT_INPUT_PTX, "texture_kernels.ptx", 0, 0, 0);
+
+	size_t sz;
+	char* image;
+	cuLinkComplete(state, (void**)&image, &sz);
+
+	error = cuModuleLoadData(&Module, image);
+	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, ERROR);
+	cuLinkDestroy(state);
+
+	error = cuModuleGetFunction(&cuRaycastKernel, Module, render_kernel_name);
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+
+	error = cuModuleGetFunction(&cuTextureKernel, Module, texture_kernel_name);
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+
+
+	error = cuModuleGetFunction(&cuCreateGeometryKernel, Module, "create_geometry_list");
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+	error = cuModuleGetFunction(&cuTestGeometryKernel, Module, "test_geometry_list");
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+
+
 	
 	//***********************************************************************************************************************************
 	// Setup gpu_vdb
@@ -1228,6 +1282,10 @@ int main(const int argc, const char* argv[])
 
 	std::string file_extension = boost::filesystem::extension(fname);
 	std::string file_extension_env = boost::filesystem::extension(env_name);
+
+	GPU_PROC_VOL proc_vol;
+	float3 proc_box_min;
+	float3 proc_box_max;
 
 	if (file_extension == ".vdb") {
 	
@@ -1247,76 +1305,26 @@ int main(const int argc, const char* argv[])
 		env_tex_name = ASSET_PATH;
 		env_tex_name.append(fname);
 	}
-	if(file_extension_env == ".hdr") {
+	else if(file_extension_env == ".hdr") {
 		env_tex = true;
 		env_tex_name = ASSET_PATH;
 		env_tex_name.append(env_name);
 	}
-
 	else { // No vdb or instance file is given procede with procedural volume 
 		log("No vdb file or an instance file is provided. Continuing with procedural volume", LOG);
+		// Test procedural volume 
+		proc_box_min = make_float3(-230, -100, -228);
+		proc_box_max = make_float3(230, 100, 244);
+		if (!proc_vol.create_volume(proc_box_min, proc_box_max, 1.0f, 0, 0.1f)) return 0;
+
+		instances.push_back(proc_vol);
 	}
 	
 
 	
-	//***********************************************************************************************************************************
-	// Setup modules and contexes 
-	//
-	//***********************************************************************************************************************************
 	
-	const char *render_module_name = "render_kernel.ptx";
-	const char *texture_module_name = "texture_kernels.ptx";
-	const char *render_kernel_name = "volume_rt_kernel";
-	const char *texture_kernel_name = "glow";
 
-	int cuda_devices[1];
-	unsigned int num_cuda_devices;
-	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
-	if (num_cuda_devices == 0) {
-		log( "Could not determine CUDA device for context" , ERROR);
-		exit(EXIT_FAILURE);
-	}
-
-	CUcontext cuctx;
-	cuCtxGetCurrent(&cuctx);
-
-	log("Loading Cuda kernel modules and functions...", LOG);
-	CUresult error;
-
-	CUlinkState state;
-	cuLinkCreate_v2(0, 0, 0, &state);
-	cuLinkAddFile_v2(state, CU_JIT_INPUT_PTX, "render_kernel.ptx" , 0, 0, 0);
-	cuLinkAddFile_v2(state, CU_JIT_INPUT_PTX, "geometry_kernels.ptx" , 0, 0, 0);
-	cuLinkAddFile_v2(state, CU_JIT_INPUT_PTX, "texture_kernels.ptx" , 0, 0, 0);
 	
-	size_t sz;
-	char* image;
-	cuLinkComplete(state, (void**)&image, &sz);
-	
-	error = cuModuleLoadData(&Module, image);
-	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, ERROR);
-	cuLinkDestroy(state);
-
-	error = cuModuleGetFunction(&cuRaycastKernel, Module, render_kernel_name);
-	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
-
-	error = cuModuleGetFunction(&cuTextureKernel, Module, texture_kernel_name);
-	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
-
-
-	error = cuModuleGetFunction(&cuCreateGeometryKernel, Module, "create_geometry_list");
-	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
-	error = cuModuleGetFunction(&cuTestGeometryKernel, Module, "test_geometry_list");
-	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
-
-	// Test procedural volume 
-	GPU_PROC_VOL proc_vol;
-	float3 proc_box_min = make_float3(-230, -100, -228);
-	float3 proc_box_max = make_float3(230, 100, 244);
-	if(!proc_vol.create_volume(proc_box_min, proc_box_max, 1.0f, 0, 0.1f)) return 0;
-	
-	//instances.clear();
-	instances.push_back(proc_vol);
 
 	// Send volume instances to gpu
 
