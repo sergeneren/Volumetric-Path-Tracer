@@ -1796,7 +1796,7 @@ __device__ inline float3 direct_integrator(
 			}
 			if (mi) {
 				L += estimate_sun(kernel_params, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root, atmosphere) * beta;
-				L += estimate_point_light(kernel_params, lights, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root) * beta;
+				if(lights.num_lights>0) L += estimate_point_light(kernel_params, lights, rand_state, ray_pos, ray_dir, gpu_vdb, ref_sphere, root) * beta;
 			}
 
 			if (kernel_params.emission_scale > 0 && mi) {
