@@ -22,7 +22,7 @@ This repo is currently built and tested only under Windows.
 
 v 1.0.2 Alpha
 
-*Please see the releases section for release notes.*
+*Please see the [releases](https://github.com/sergeneren/Volumetric-Path-Tracer/releases) section for release notes.*
 
 ## Installation, Build and Usage
 
