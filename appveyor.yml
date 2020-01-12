@@ -19,7 +19,7 @@ environment:
 install:
     cmd: "@echo off"
     cmd: "echo Downloading CUDA toolkit 10.2"
-    cmd: "appveyor DownloadFile  [link to custom CUDA distribution]"
+    cmd: "appveyor DownloadFile https://drive.google.com/file/d/1VVZKPOHMHMlOQf4qRi3dimQeKpbL43AB/view?usp=sharing"
     cmd: "7z x cuda_distro.zip -ocuda"
     cmd: "cd cuda"
     cmd: "echo Installing CUDA toolkit 9"
