@@ -15,7 +15,7 @@ environment:
       APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
       PLATFORM: x64
       CONFIGURATION: Release 
-
+      NVCC: "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin\nvcc.exe"
 install:
 - cmd: >-
     @echo off
@@ -37,7 +37,7 @@ before_build:
   - cd build
   - mkdir bin
   - set OUTPUT_DIR=%cd%\bin
-  - cmake .. "-G%GENERATOR%" "-DCMAKE_CUDA_COMPILER=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin\nvcc.exe"
+  - cmake .. "-G%GENERATOR%" "-DCMAKE_CUDA_COMPILER=%NVCC%"
     
 
 
