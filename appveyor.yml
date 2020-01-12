@@ -17,8 +17,7 @@ environment:
       CONFIGURATION: Release
 
 install:
-    cmd: "@echo off"
-    cmd: "echo Downloading CUDA toolkit 10.2"
+    cmd: "@echo off\necho Downloading CUDA toolkit 10.2"
     cmd: "appveyor DownloadFile https://drive.google.com/file/d/1VVZKPOHMHMlOQf4qRi3dimQeKpbL43AB/view?usp=sharing"
     cmd: "7z x cuda_distro.zip -ocuda"
     cmd: "cd cuda"
