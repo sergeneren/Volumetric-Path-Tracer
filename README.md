@@ -1,3 +1,5 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/cbtij8mhtx87wche/branch/master?svg=true)](https://ci.appveyor.com/project/sergeneren/volumetric-path-tracer/branch/master)
+
 # Volumetric Path Tracer
 
 ![banner](https://github.com/sergeneren/Volumetric-Path-Tracer/blob/master/img/VPT_Banner.gif)
