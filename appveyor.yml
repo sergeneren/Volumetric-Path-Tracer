@@ -20,17 +20,13 @@ install:
 - cmd: >-
     @echo off
 
-    echo Downloading CUDA toolkit 10.2
-
     appveyor DownloadFile https://www.dropbox.com/s/1xhpg0m6u9mvi1d/cuda_distro.7z?dl=1
 
     7z x cuda_distro.7z -ocuda
 
     cd cuda
 
-    echo Installing CUDA toolkit 10.2
-
-    setup.exe -s compiler_10.2 cublas_10.2 cublas_dev_10.2 cudart_10.2 curand_10.2 curand_dev_10.2 visual_studio_integration_10.2 nvcc_10.2
+    setup.exe -s cublas_10.2 cublas_dev_10.2 cudart_10.2 curand_10.2 curand_dev_10.2 visual_studio_integration_10.2 nvcc_10.2
 
     if NOT EXIST "%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin\cudart64_102.dll" (echo "Failed to install CUDA" exit /B 1)
 
