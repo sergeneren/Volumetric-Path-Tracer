@@ -6,9 +6,7 @@ branches:
 
 skip_commits:
   message: /Created.*\.(png|jpg|jpeg|bmp|gif)/ 
-only_commits:
-  message: /build/
-  
+
 clone_depth: 5
 
 environment:
