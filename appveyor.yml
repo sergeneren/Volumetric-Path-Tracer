@@ -25,7 +25,7 @@ install:
 
     cuda_10.1.243_426.00_win10.exe -s
 
-    if NOT EXIST "%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin\cudart64_101.dll" (echo "Failed to install CUDA" exit /B 1)
+    if NOT EXIST "%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin\cudart64_101.dll" (echo "Failed to install CUDA" exit /B 1)
     
     cd C:\Tools\vcpkg
     
