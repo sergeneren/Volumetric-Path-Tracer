@@ -27,4 +27,4 @@ before_build:
 
 
 build_script:
-  - cmake --build .
+  - cmake .. --build .
