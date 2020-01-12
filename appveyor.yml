@@ -24,7 +24,7 @@ install:
 
     appveyor DownloadFile https://www.dropbox.com/s/1xhpg0m6u9mvi1d/cuda_distro.7z?dl=1
 
-    7z x cuda_distro.zip -ocuda
+    7z x cuda_distro.7z -ocuda
 
     cd cuda
 
