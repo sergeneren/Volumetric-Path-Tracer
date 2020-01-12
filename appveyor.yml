@@ -16,8 +16,5 @@ environment:
       PLATFORM: x64
       CONFIGURATION: Release
 
-install:
-    cmd: "@echo off\necho Downloading CUDA toolkit 10.2\nappveyor DownloadFile https://drive.google.com/file/d/1VVZKPOHMHMlOQf4qRi3dimQeKpbL43AB/view?usp=sharing\n7z x cuda_distro.zip -ocuda\ncd cuda\necho Installing CUDA toolkit 9\nsetup.exe -s cublas_10.2 cublas_dev_10.2 cudart_10.2 curand_10.2 curand_dev_10.2 visual_studio_integration_10.2 nvcc_10.2\nif NOT EXIST "%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin\cudart64_102.dll" (echo "Failed to install CUDA" exit /B 1)\ncd .."
-
 build_script:
   - cmake --build .
