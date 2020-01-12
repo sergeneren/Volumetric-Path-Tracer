@@ -26,7 +26,18 @@ install:
 
     if NOT EXIST "%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin\cudart64_102.dll" (echo "Failed to install CUDA" exit /B 1)
     
-    cd ..
+    cd C:\Tools\vcpkg
+    git pull
+    .\bootstrap-vcpkg.bat
+    vcpkg install glfw3
+    vcpkg install tinyexr
+    vcpkg install openvdb
+    
+    cd %APPVEYOR_BUILD_FOLDER%
+    
+cache:
+    - C:\tools\vcpkg\installed\
+    - C:\projects\volumetric-path-tracer\cuda_10.2.89_441.22_win10.exe
 
 before_build:
   - mkdir build
