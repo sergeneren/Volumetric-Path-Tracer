@@ -46,14 +46,14 @@ install:
     cd %APPVEYOR_BUILD_FOLDER%
     
 cache:
-  - C:\Tools\vcpkg\installed\
+  - c:\tools\vcpkg\installed\
   
 before_build:
   - mkdir build
   - cd build
   - mkdir bin
   - set OUTPUT_DIR=%cd%\bin
-  - cmake .. "-G%GENERATOR%" "-DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake"
+  - cmake .. "-G%GENERATOR%" -DCMAKE_CUDA_COMPILER=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.2/bin/nvcc.exe -DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake
     
 
 
