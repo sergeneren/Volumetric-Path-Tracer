@@ -16,15 +16,29 @@ environment:
       PLATFORM: x64
       CONFIGURATION: Release 
 
+clone_script:
+    - ps: >-
+    if(-not $env:APPVEYOR_PULL_REQUEST_NUMBER) {
+      git clone -q --branch=$env:APPVEYOR_REPO_BRANCH https://github.com/$env:APPVEYOR_REPO_NAME.git $env:APPVEYOR_BUILD_FOLDER
+      cd $env:APPVEYOR_BUILD_FOLDER
+      git checkout -qf $env:APPVEYOR_REPO_COMMIT
+    } else {
+      git clone -q https://github.com/$env:APPVEYOR_REPO_NAME.git $env:APPVEYOR_BUILD_FOLDER
+      cd $env:APPVEYOR_BUILD_FOLDER
+      git fetch -q origin +refs/pull/$env:APPVEYOR_PULL_REQUEST_NUMBER/merge:
+      git checkout -qf FETCH_HEAD
+    }
+    - cmd: git submodule update --init --recursive
+
 install:
 - cmd: >-
     @echo off
 
-    appveyor DownloadFile http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_441.22_win10.exe -FileName cuda_10.2.89_441.22_win10.exe
+    appveyor DownloadFile http://developer.download.nvidia.com/compute/cuda/10.1/Prod/local_installers/cuda_10.1.243_426.00_win10.exe -FileName cuda_10.1.243_426.00_win10.exe
 
-    cuda_10.2.89_441.22_win10.exe -s
+    cuda_10.1.243_426.00_win10.exe -s
 
-    if NOT EXIST "%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin\cudart64_102.dll" (echo "Failed to install CUDA" exit /B 1)
+    if NOT EXIST "%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin\cudart64_101.dll" (echo "Failed to install CUDA" exit /B 1)
     
     cd C:\Tools\vcpkg
     
@@ -40,13 +54,15 @@ install:
     
     cd %APPVEYOR_BUILD_FOLDER%
     
-
+cache:
+  - C:\Tools\vcpkg\installed\
+  
 before_build:
   - mkdir build
   - cd build
   - mkdir bin
   - set OUTPUT_DIR=%cd%\bin
-  - cmake .. "-G%GENERATOR%" "-DCMAKE_CUDA_COMPILER=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.2/bin/nvcc.exe" "-DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake"
+  - cmake .. "-G%GENERATOR%" "-DCMAKE_CUDA_COMPILER=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.1/bin/nvcc.exe" "-DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake"
     
 
 
