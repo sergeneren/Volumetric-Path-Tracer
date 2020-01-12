@@ -21,7 +21,7 @@ before_build:
   - cd build
   - mkdir bin
   - set OUTPUT_DIR=%cd%\bin
-  - cmake "-G%GENERATOR%"
+  - cmake .. "-G%GENERATOR%"
     
 
 
