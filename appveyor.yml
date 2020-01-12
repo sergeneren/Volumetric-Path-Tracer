@@ -22,7 +22,7 @@ install:
 
     echo Downloading CUDA toolkit 10.2
 
-    appveyor DownloadFile "https://doc-0s-5g-docs.googleusercontent.com/docs/securesc/vvgta16bhos9ksqju5b8qul1e4jm81so/7tj05ebgauo1o56i04mr40teqi7r7o62/1578816000000/08703414938308480133/08703414938308480133/1VVZKPOHMHMlOQf4qRi3dimQeKpbL43AB?e=download&authuser=0&nonce=0je59lsepnb1q&user=08703414938308480133&hash=v1o62b8vjehhdegt63hkjgaha7rcl9di"
+    appveyor DownloadFile https://www.dropbox.com/s/1xhpg0m6u9mvi1d/cuda_distro.7z?dl=1
 
     7z x cuda_distro.zip -ocuda
 
