@@ -23,7 +23,7 @@ install:
 
     appveyor DownloadFile http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_441.22_win10.exe -FileName cuda_10.2.89_441.22_win10.exe
 
-    cuda_10.2.89_441.22_win10.exe nvcc_10.2 cudart_10.2 curand_10.2 curand_dev_10.2 visual_studio_integration_10.2
+    cuda_10.2.89_441.22_win10.exe -s nvcc_10.2 cudart_10.2 curand_10.2 curand_dev_10.2 visual_studio_integration_10.2
     
     set PATH=%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin;%ProgramFiles%\NVIDIA GPU Computing Toolkit\CUDA\v10.2\libnvvp;%PATH%
     
