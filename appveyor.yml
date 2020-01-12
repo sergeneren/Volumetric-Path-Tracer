@@ -16,5 +16,15 @@ environment:
       PLATFORM: x64
       CONFIGURATION: Release
 
+before_build:
+  - mkdir build
+  - cd build
+  - mkdir bin
+  - set OUTPUT_DIR=%cd%\bin
+  - cmake "-G%GENERATOR%"
+    
+
+
+
 build_script:
   - cmake --build .
