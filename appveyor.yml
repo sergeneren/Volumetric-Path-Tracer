@@ -32,27 +32,24 @@ install:
     
     .\bootstrap-vcpkg.bat
     
-    vcpkg install glfw3
+    vcpkg install glfw3:x64-windows
     
-    vcpkg install tinyexr
+    vcpkg install tinyexr:x64-windows
     
-    vcpkg install openvdb
+    vcpkg install openvdb:x64-windows
     
     cd %APPVEYOR_BUILD_FOLDER%
     
-cache:
-    - C:\tools\vcpkg\installed\
-    - C:\projects\volumetric-path-tracer\cuda_10.2.89_441.22_win10.exe
 
 before_build:
   - mkdir build
   - cd build
   - mkdir bin
   - set OUTPUT_DIR=%cd%\bin
-  - cmake .. "-G%GENERATOR%" "-DCMAKE_CUDA_COMPILER=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.2/bin/nvcc.exe"
+  - cmake .. "-G%GENERATOR%" "-DCMAKE_CUDA_COMPILER=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v10.2/bin/nvcc.exe" "-DCMAKE_TOOLCHAIN_FILE=C:/Tools/vcpkg/scripts/buildsystems/vcpkg.cmake"
     
 
 
 
 build_script:
-  - cmake .. --build .
+  - cmake --build .
