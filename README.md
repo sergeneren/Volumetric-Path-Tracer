@@ -33,7 +33,7 @@ Please see [this](https://sergeneren.com/2020/01/07/using-vpt/) detailed article
 * **Sergen Eren** - [My website](https://sergeneren.com)
 
 ## Status
-This project is under active maintenance and development
+:heavy_check_mark: This project is under active maintenance and development
 
 ## License
 This project is licensed under BSD 3-Clause License
