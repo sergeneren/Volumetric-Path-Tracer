@@ -241,7 +241,6 @@ namespace __HelperGL {
 
 #define SDK_CHECK_ERROR_GL()                                              \
     if( false == sdkCheckErrorGL( __FILE__, __LINE__)) {                  \
-        DEVICE_RESET                                                      \
         exit(EXIT_FAILURE);                                               \
     }                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 
