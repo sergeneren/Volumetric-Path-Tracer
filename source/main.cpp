@@ -528,7 +528,7 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 static void handle_mouse_button(GLFWwindow *window, int button, int action, int mods)
 {
 	Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
-	bool imgui_hover = ImGui::IsAnyWindowHovered();
+	bool imgui_hover = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && !imgui_hover) {
 		if (action == GLFW_PRESS) {
