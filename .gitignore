@@ -4,3 +4,5 @@
 thirdparty/gvdb-voxels/
 
 instancer_hda/scenes/backup
+
+*.pdb

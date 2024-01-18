@@ -25,13 +25,17 @@
 
 #include "cuda_runtime.h"
 
+#ifdef _MSC_VER 
+#pragma warning( disable : 4244 4305 4005 4267)
+#endif // _MSC_VER 
+
+
 typedef unsigned int uint;
 typedef unsigned short ushort;
 
 #ifndef EXIT_WAIVED
 #define EXIT_WAIVED 2
 #endif
-
 
 #define M_EPSILON  0.00001f
 #define M_INF	   3.402823466e+38F
@@ -1401,28 +1405,28 @@ inline __host__ __device__ float4 fmodf(float4 a, float4 b)
 
 inline __host__ __device__ float2 fabs(float2 v)
 {
-    return make_float2(fabs(v.x), fabs(v.y));
+    return make_float2(fabsf(v.x), fabsf(v.y));
 }
 inline __host__ __device__ float3 fabs(float3 v)
 {
-    return make_float3(fabs(v.x), fabs(v.y), fabs(v.z));
+    return make_float3(fabsf(v.x), fabsf(v.y), fabsf(v.z));
 }
 inline __host__ __device__ float4 fabs(float4 v)
 {
-    return make_float4(fabs(v.x), fabs(v.y), fabs(v.z), fabs(v.w));
+    return make_float4(fabsf(v.x), fabsf(v.y), fabsf(v.z), fabsf(v.w));
 }
 
-inline __host__ __device__ int2 abs(int2 v)
+inline __host__ __device__ int2 fabsf(int2 v)
 {
-    return make_int2(abs(v.x), abs(v.y));
+    return make_int2(fabsf(v.x), fabsf(v.y));
 }
-inline __host__ __device__ int3 abs(int3 v)
+inline __host__ __device__ int3 fabsf(int3 v)
 {
-    return make_int3(abs(v.x), abs(v.y), abs(v.z));
+    return make_int3(fabsf(v.x), fabsf(v.y), fabsf(v.z));
 }
-inline __host__ __device__ int4 abs(int4 v)
+inline __host__ __device__ int4 fabsf(int4 v)
 {
-    return make_int4(abs(v.x), abs(v.y), abs(v.z), abs(v.w));
+    return make_int4(fabsf(v.x), fabsf(v.y), fabsf(v.z), fabsf(v.w));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1551,19 +1555,19 @@ inline __host__ __device__ float DegToRad(float degrees) { return degrees * M_PI
 
 inline __host__ __device__ float signf(float a) {
 
-	return a < 0 ? -1 : 1;
+	return a < 0.0f ? -1.0f : 1.0f;
 
 }
 
 inline __host__ __device__ float2 signf(float2 a) {
 
-	return make_float2(a.x < 0 ? -1 : 1, a.y < 0 ? -1 : 1);
+	return make_float2(a.x < 0.0f ? -1.0f : 1.0f, a.y < 0.0f ? -1.0f : 1.0f);
 
 }
 
 inline __host__ __device__ float3 signf(float3 a) {
 
-	return make_float3(a.x < 0 ? -1 : 1, a.y < 0 ? -1 : 1, a.z < 0 ? -1 : 1) ;
+	return make_float3(a.x < 0.0f ? -1.0f : 1.0f, a.y < 0.0f ? -1.0f : 1.0f, a.z < 0.0f ? -1.0f : 1.0f) ;
 
 }
 
@@ -1571,17 +1575,17 @@ inline __host__ __device__ float3 signf(float3 a) {
 // Conversion
 ////////////////////////////////////////////////////////////////////////////////
 
-inline __host__ __device__ float3 quaternion_to_euler(double x, double y, double z, double w) {
+inline __host__ __device__ float3 quaternion_to_euler(float x, float y, float z, float w) {
 
 	float heading, attitude, bank; // x, y, z rotations
 
-	double sw = w*w;
-	double sx = x*x;
-	double sy = y*y;
-	double sz = z*z;
+	float sw = w*w;
+	float sx = x*x;
+	float sy = y*y;
+	float sz = z*z;
 
-	double unit = sx + sy + sz + sw;
-	double test = x*y + z*w;
+	float unit = sx + sy + sz + sw;
+	float test = x*y + z*w;
 
 	if (test > 0.4999 * unit) { // singularity at north pole
 		heading = 2.0f * atan2f(x, w);

@@ -47,8 +47,8 @@
 #include <openvdb/tools/Dense.h>
 #include <openvdb/Metadata.h>
 
-#include "boost/filesystem.hpp"
-namespace fs = boost::filesystem;
+#include <filesystem>
+namespace fs = std::filesystem;
 
 GPU_VDB::GPU_VDB() {}
 
@@ -106,20 +106,20 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 
 	if (!fs::exists(fs::path(filename))) {
 		
-		log("File doesn't exists " + filename , ERROR);
+		log("File doesn't exists " + filename , VPT_ERROR);
 		return false;
 
 	}
 
 	if (filename.empty())
 	{
-		log("File name is empty " + filename, ERROR);
+		log("File name is empty " + filename, VPT_ERROR);
 		return false;
 	}
 
 	if (density_channel.empty()) {
 
-		log("Density channel can't be empty!!!", ERROR);
+		log("Density channel can't be empty!!!", VPT_ERROR);
 		return false;
 
 	}
@@ -137,7 +137,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	// Print grid attributes
 	auto grids = file.readAllGridMetadata();
 	for (auto grid : *grids) {
-		log("Grid " + grid->getName() + " " + grid->valueType(), LOG);
+		log("Grid " + grid->getName() + " " + grid->valueType(), VPT_LOG);
 	}
 
 	// Read density and emission channel from the file 
@@ -158,7 +158,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 			colorGridBase = file.readGrid(nameIter.gridName());
 		}
 		else {
-			log("skipping grid " + nameIter.gridName(), WARNING);
+			log("skipping grid " + nameIter.gridName(), VPT_WARNING);
 		}
 	}
 
@@ -183,7 +183,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		dense.print();
 #endif
 
-		log("value count: " + std::to_string(dense.valueCount()), LOG);
+		log("value count: " + std::to_string(dense.valueCount()), VPT_LOG);
 
 		int dim_x = bbox.dim().x();
 		int dim_y = bbox.dim().y();
@@ -266,7 +266,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		dense.print();
 #endif
 
-		log("value count: " + std::to_string(dense.valueCount()), LOG);
+		log("value count: " + std::to_string(dense.valueCount()), VPT_LOG);
 
 		int dim_x = bbox.dim().x();
 		int dim_y = bbox.dim().y();
@@ -346,7 +346,7 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 		dense.print();
 #endif
 
-		log("value count: " + std::to_string(dense.valueCount()), LOG);
+		log("value count: " + std::to_string(dense.valueCount()), VPT_LOG);
 
 		int dim_x = bbox.dim().x();
 		int dim_y = bbox.dim().y();
@@ -460,12 +460,12 @@ bool GPU_VDB::loadVDB(std::string filename, std::string density_channel, std::st
 	mat4 xform_temp = convert_to_mat4(ref_xform);
 	
 #ifdef LOG_LEVEL_LOG
-	log("XForm:  ", LOG);
+	log("XForm:  ", VPT_LOG);
 	xform_temp.print();
 #endif
 	
-	log("max density: " + std::to_string(vdb_info.max_density), LOG);
-	log("min density: " + std::to_string(vdb_info.min_density), LOG);
+	log("max density: " + std::to_string(vdb_info.max_density), VPT_LOG);
+	log("min density: " + std::to_string(vdb_info.min_density), VPT_LOG);
 
 	set_xform(xform_temp);
 	return true;
@@ -495,11 +495,11 @@ GPU_PROC_VOL::GPU_PROC_VOL(const GPU_PROC_VOL& copy){
 GPU_PROC_VOL::GPU_PROC_VOL() {
 
 	CUresult error = cuModuleLoad(&texture_module, "texture_kernels.ptx");
-	if (error != CUDA_SUCCESS) log("cuModuleLoad" + std::to_string(error), ERROR);
+	if (error != CUDA_SUCCESS) log("cuModuleLoad" + std::to_string(error), VPT_ERROR);
 
 	error = cuModuleGetFunction(&fill_buffer_function, texture_module, "fill_volume_buffer");
 	if (error != CUDA_SUCCESS) {
-		log("Unable to bind buffer fill function!", ERROR);
+		log("Unable to bind buffer fill function!", VPT_ERROR);
 	}
 
 }
@@ -507,10 +507,10 @@ GPU_PROC_VOL::GPU_PROC_VOL() {
 // fill vdb_info density texture with procedural noise texture 
 bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res, int noise_type, float scale) {
 
-	log("Creating procedural volume...", LOG);
+	log("Creating procedural volume...", VPT_LOG);
 
 	if (min.x > max.x&& min.y > max.y&& min.z > max.z) {
-		log("max < min", ERROR);
+		log("max < min", VPT_ERROR);
 		return false;
 	}
 
@@ -518,15 +518,15 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res, int noise_ty
 	xform.scale(make_float3(res));
 	
 #ifdef LOG_LEVEL_LOG
-	log("XForm: ", LOG);
+	log("XForm: ", VPT_LOG);
 	xform.print();
 #endif // LOG_LEVEL_LOG
 	
 	set_xform(xform);
 
-	int dim_x = floorf((max.x - min.x) / res);
-	int dim_y = floorf((max.y - min.y) / res);
-	int dim_z = floorf((max.z - min.z) / res);
+	int dim_x = int(floorf((max.x - min.x) / res));
+	int dim_y = int(floorf((max.y - min.y) / res));
+	int dim_z = int(floorf((max.z - min.z) / res));
 
 	dimensions = make_int3(dim_x, dim_y, dim_z);
 
@@ -541,13 +541,13 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res, int noise_ty
 	vdb_info.has_color = false;
 	
 	// Allocate device memory for volume buffer 
-	log("Allocating device memory for volume buffer...", LOG);
+	log("Allocating device memory for volume buffer...", VPT_LOG);
 	checkCudaErrors(cudaMalloc(&device_density_buffer, dimensions.x * dimensions.y * dimensions.z * sizeof(float)));
 	
 	dim3 block(8, 8, 8);
 	dim3 grid(int(dimensions.x / block.x) + 1, int(dimensions.y / block.y) + 1, int(dimensions.z / block.z) + 1);
 
-	log("filling volume buffer in device...", LOG);
+	log("filling volume buffer in device...", VPT_LOG);
 	void* params[] = { &device_density_buffer , &dimensions, &scale, &noise_type};
 	CUresult result = cuLaunchKernel(fill_buffer_function, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, params, NULL);
 	checkCudaErrors(cudaDeviceSynchronize());
@@ -563,7 +563,7 @@ bool GPU_PROC_VOL::create_volume(float3 min, float3 max, float res, int noise_ty
 	vol_size.height = dim_y;
 	vol_size.depth = dim_z;
 
-	log("transport volume buffer from device to host...", LOG);
+	log("transport volume buffer from device to host...", VPT_LOG);
 	float* volume_data_host = (float*)malloc(dim_x * dim_y * dim_z * sizeof(float));
 	checkCudaErrors(cudaMemcpy(volume_data_host, device_density_buffer, dim_x * dim_y * dim_z * sizeof(float), cudaMemcpyDeviceToHost));
 

@@ -52,11 +52,11 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 	checkCudaErrors(cudaMalloc(&volumes, num_volumes * sizeof(GPU_VDB)));
 	checkCudaErrors(cudaMemcpy(volumes, vdbs.data(), num_volumes * sizeof(GPU_VDB), cudaMemcpyHostToDevice));
 
-	log("Building BVH structure...", LOG);
+	log("Building BVH structure...", VPT_LOG);
 	BuildBVH(bvh, volumes, num_volumes, sceneBounds, m_debug_bvh);
 	
 
-	log("Building Octree root...", LOG);
+	log("Building Octree root...", VPT_LOG);
 	// Build octree 
 	octree.root_node = new OCTNode;
 	// <3, 3, 3> Octree
@@ -92,7 +92,7 @@ bvh_error_t BVH_Builder::build_bvh(std::vector<GPU_VDB> vdbs, int num_volumes, A
 	checkCudaErrors(cudaMalloc(&root, sizeof(OCTNode)));
 	checkCudaErrors(cudaMemcpy(root, octree.root_node, sizeof(OCTNode), cudaMemcpyHostToDevice));
 
-	log("Building Octree structure...", LOG);
+	log("Building Octree structure...", VPT_LOG);
 	build_octree(root, volumes, vdbs.size(), /*octree depth*/ octree.root_node->depth - 1, octree.m_debug); // GPU path
 
 	//octree.create_tree(vdbs, octree.root_node, 3); // CPU path

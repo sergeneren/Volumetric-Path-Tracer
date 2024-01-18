@@ -1,22 +1,22 @@
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 find_package(glfw3 CONFIG REQUIRED)
+find_package(glew CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(OpenVDB CONFIG REQUIRED)
+find_package(OpenImageIO CONFIG REQUIRED)
+find_package(tinyexr CONFIG REQUIRED)
+find_package(tbb CONFIG REQUIRED)
+find_package(OpenImageDenoise CONFIG REQUIRED)
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/Helpers.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/CompileObj.cmake)
 
 ##################################################################
 
 # set external directories 
 
-set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/thirdparty/")
-
-#set OIDN libraries 
-set(OID_DIR "${THIRDPARTY_DIR}/OpenImageDenoise")
-find_library(OIDN_LIB "OpenImageDenoise" "${OID_DIR}/lib")
-find_library(OIDN_MKLDNN_LIB "mkldnn" "${OID_DIR}/lib")
-find_library(OIDN_COMMON_LIB "common" "${OID_DIR}/lib")
-
-set(OIDN_LIBRARIES ${OIDN_LIB} ${OIDN_MKLDNN_LIB} ${OIDN_COMMON_LIB})
+set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/thirdparty")
 
 ##Set env mapping renders variable
 
@@ -83,6 +83,9 @@ file ( GLOB GEOMETRY
 file ( GLOB BVH 
 	"${CMAKE_CURRENT_SOURCE_DIR}/bvh/*.h"	
 	"${CMAKE_CURRENT_SOURCE_DIR}/bvh/*.cpp"	
+	)
+
+file ( GLOB CUDA_FUNCTIONS 
 	"${CMAKE_CURRENT_SOURCE_DIR}/bvh/*.cu"	
 	)
 
@@ -102,6 +105,7 @@ file( GLOB IMGUI_IMPL_SOURCES
 set(SOURCE_FILES
 	${HEADERS}
 	${CUDA_SOURCES}
+	${CUDA_FUNCTIONS}
 	${SOURCE_CPP}
 	${BVH}
 	${IMGUI_IMPL_SOURCES}
@@ -113,7 +117,7 @@ set(SOURCE_FILES
 ## Group source files 
 
 source_group(Cuda FILES ${CUDA_SOURCES})
-source_group(bvh FILES ${BVH})
+source_group(bvh FILES ${BVH} ${CUDA_FUNCTIONS})
 source_group(Imgui FILES ${IMGUI_IMPL_SOURCES})
 source_group(Helpers FILES ${COMMON} ${UTIL})
 source_group(Atmosphere FILES ${ATMOSPHERE})
@@ -123,23 +127,36 @@ source_group(Geometry FILES ${GEOMETRY})
 
 find_program(CUDA_NVCC_EXECUTABLE nvcc)
 message ( STATUS "Build CUDA kernels: ${CUDA_SOURCES}" )
-_COMPILEPTX ( SOURCES ${CUDA_SOURCES} 
+COMPILE_PTX ( SOURCES ${CUDA_SOURCES} 
 	TARGET_PATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} 
-	GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS 
-	INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${_VCPKG_INCLUDE_DIR},${CMAKE_CURRENT_SOURCE_DIR}/common, ${THIRDPARTY_DIR}/cuda-noise/include, ${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb" 
+	INCLUDE ${CMAKE_CURRENT_SOURCE_DIR} ${_VCPKG_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/common ${THIRDPARTY_DIR}/cuda-noise/include ${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb
 	OPTIONS -arch=compute_61 -code=sm_61 --ptxas-options=-v -O3 --use_fast_math --maxrregcount=128)
+
+
+COMPILE_OBJ(
+	SOURCES ${CUDA_FUNCTIONS}
+	TYPE ${CMAKE_BUILD_TYPE}
+	TARGET_PATH ${CMAKE_BINARY_DIR}/lib
+	GENPATHS GEN_CUDA_FUNC_OBJS
+	INCLUDE ${CMAKE_CURRENT_SOURCE_DIR} ${_VCPKG_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/common ${THIRDPARTY_DIR}/cuda-noise/include ${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb
+)
+message(STATUS "Genrated cuda functions objects ${GEN_CUDA_FUNC_OBJS}")
 
 ###################################################################
 
 ###################################################################
 add_executable(vpt ${SOURCE_FILES})
-target_link_libraries(vpt PRIVATE glfw imgui::imgui cudart cuda openvdb ${OIDN_LIBRARIES})
+target_link_libraries(vpt PRIVATE glfw GLEW::GLEW imgui::imgui cudart cuda OpenImageDenoise
+			TBB::tbb OpenVDB::openvdb opengl32 OpenImageIO::OpenImageIO ${OIDN_LIBRARIES} ${_VCPKG_LIB_DIR}/tinyexr.lib ${GEN_CUDA_FUNC_OBJS})
+
 set_target_properties(vpt PROPERTIES VS_GLOBAL_VcpkgEnabled true)
+set_target_properties(vpt PROPERTIES VS_GLOBAL_VcpkgEnableManifest true)
+target_compile_features(vpt PUBLIC cxx_std_17)
+
 set_target_properties(vpt PROPERTIES CUDA_ARCHITECTURES "61;75;86")
 
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_SOURCE_DIR})
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/atmosphere)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/common)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/util)
@@ -147,4 +164,4 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/gpu_vdb)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/bvh)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/geometry)
 include_directories(${THIRDPARTY_DIR}/cuda-noise/include)
-include_directories(${OID_DIR}/include)
+include_directories(${THIRDPARTY_DIR}/OpenImageDenoise/include)
