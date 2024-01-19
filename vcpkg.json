@@ -1,0 +1,17 @@
+{
+  "name": "main",
+  "version-string": "latest",
+  "dependencies": [
+    "openvdb",
+	"glfw3",
+	"glew",
+	"openimageio",
+	{
+		"name": "imgui",
+		"default-features": true,
+		"features": [ "glfw-binding", "opengl3-binding" ]
+	},
+	"tinyexr",
+	"stb"
+  ]
+}

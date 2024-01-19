@@ -517,7 +517,7 @@ inline bool compareData(const T *reference, const T *data,
 #if 0
 
     if (!comp) {
-      std::cerr << "ERROR, i = " << i << ",\t "
+      std::cerr << "VPT_ERROR, i = " << i << ",\t "
                 << reference[i] << " / "
                 << data[i]
                 << " (reference / data)\n";
@@ -789,7 +789,7 @@ inline bool sdkCompareL2fe(const float *reference, const float *data,
 
   if (fabs(ref) < 1e-7) {
 #ifdef _DEBUG
-    std::cerr << "ERROR, reference l2-norm is 0\n";
+    std::cerr << "VPT_ERROR, reference l2-norm is 0\n";
 #endif
     return false;
   }
@@ -800,7 +800,7 @@ inline bool sdkCompareL2fe(const float *reference, const float *data,
 #ifdef _DEBUG
 
   if (!result) {
-    std::cerr << "ERROR, l2-norm error " << error << " is greater than epsilon "
+    std::cerr << "VPT_ERROR, l2-norm error " << error << " is greater than epsilon "
               << epsilon << "\n";
   }
 

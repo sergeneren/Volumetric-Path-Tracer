@@ -1,0 +1,41 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "Default",
+      "displayName": "Development Configuration",
+      "description": "Default configuration for dev environment",
+      "binaryDir": "${sourceDir}/build/",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        },
+		"BUILD_VPT": {
+          "type": "BOOLEAN",
+          "value": "ON"
+        },
+		"OpenImageDenoise_DIR": "${sourceDir}/thirdparty/OpenImageDenoise/lib/cmake/OpenImageDenoise-2.1.0",
+        "CMAKE_CONFIGURATION_TYPES": "RelWithDebInfo",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg/vcpkg_installed",
+		"VCPKG_BUILD_TYPE": "release",
+		"VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "Default",
+      "configurePreset": "Default",
+      "displayName": "Build RelWithDebInfo",
+      "description": "Build RelWithDebInfo configuration",
+      "configuration": "RelWithDebInfo"
+    }
+  ]
+}

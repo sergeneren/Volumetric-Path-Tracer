@@ -1,3 +1,6 @@
 [submodule "thirdparty/cuda-noise"]
 	path = thirdparty/cuda-noise
 	url = https://github.com/sergeneren/cuda-noise
+[submodule "vcpkg"]
+	path = vcpkg
+	url = https://github.com/microsoft/vcpkg

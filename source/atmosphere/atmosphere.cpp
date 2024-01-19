@@ -50,8 +50,8 @@
 #include <helper_cuda.h>
 #include <helper_math.h>
 
-#include "boost/filesystem.hpp"
-namespace fs = boost::filesystem;
+#include <filesystem>
+namespace fs = std::filesystem;
 
 // TODO convert all device pointers to thrust device pointers 
 //#include "thrust/device_ptr.h"
@@ -258,7 +258,7 @@ atmosphere_error_t atmosphere::load_textures()
 	file_path.append("/transmittance.exr");
 
 	if (!fs::exists(fs::path(file_path))) {
-		log("File doesn't exists" + file_path, ERROR);
+		log("File doesn't exists" + file_path, VPT_ERROR);
 		return ATMO_LOAD_FILE_ERR;
 	}
 
@@ -271,7 +271,7 @@ atmosphere_error_t atmosphere::load_textures()
 	file_path = texture_folder;
 	file_path.append("/irradiance.exr");
 	if (!fs::exists(fs::path(file_path))) {
-		log("File doesn't exists" + file_path, ERROR);
+		log("File doesn't exists" + file_path, VPT_ERROR);
 		return ATMO_LOAD_FILE_ERR;
 	}
 
@@ -294,7 +294,7 @@ atmosphere_error_t atmosphere::load_textures()
 		file_path.append(".exr");
 
 		if (!fs::exists(fs::path(file_path))) {
-			log("File doesn't exists" + file_path, ERROR);
+			log("File doesn't exists" + file_path, VPT_ERROR);
 			return ATMO_LOAD_FILE_ERR;
 		}
 
@@ -332,7 +332,7 @@ atmosphere_error_t atmosphere::load_textures()
 		file_path.append(".exr");
 
 		if (!fs::exists(fs::path(file_path))) {
-			log("File doesn't exists" + file_path, ERROR);
+			log("File doesn't exists" + file_path, VPT_ERROR);
 			return ATMO_LOAD_FILE_ERR;
 		}
 		float4* host_scattering_buffer_2D = NULL;
@@ -366,7 +366,7 @@ atmosphere_error_t atmosphere::save_textures()
 	std::string file_path;
 
 	// Save transmittance buffer to exr file 
-	log("Saving transmittance texture", LOG);
+	log("Saving transmittance texture", VPT_LOG);
 	int transmittance_size = TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT * sizeof(float4);
 	float4* host_transmittance_buffer = new float4[TRANSMITTANCE_TEXTURE_WIDTH * TRANSMITTANCE_TEXTURE_HEIGHT];
 	checkCudaErrors(cudaMemcpy(host_transmittance_buffer, atmosphere_parameters.transmittance_buffer, transmittance_size, cudaMemcpyDeviceToHost));
@@ -376,7 +376,7 @@ atmosphere_error_t atmosphere::save_textures()
 	delete[] host_transmittance_buffer;
 
 	// Save irradiance buffer to exr file 
-	log("Saving irradiance texture", LOG);
+	log("Saving irradiance texture", VPT_LOG);
 	int irradiance_size = IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT * sizeof(float4);
 	float4* host_irradiance_buffer = new float4[IRRADIANCE_TEXTURE_WIDTH * IRRADIANCE_TEXTURE_HEIGHT];
 	checkCudaErrors(cudaMemcpy(host_irradiance_buffer, atmosphere_parameters.delta_irradience_buffer, irradiance_size, cudaMemcpyDeviceToHost));
@@ -389,7 +389,7 @@ atmosphere_error_t atmosphere::save_textures()
 	// Save scattering textures
 
 	// Save multiple scattering textures 
-	log("Saving scattering textures", LOG);
+	log("Saving scattering textures", VPT_LOG);
 	int scattering_size = SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH * sizeof(float4);
 	float4* host_scattering_buffer = new float4[SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT * SCATTERING_TEXTURE_DEPTH];
 	float4* host_scattering_buffer_2D = new float4[SCATTERING_TEXTURE_WIDTH * SCATTERING_TEXTURE_HEIGHT];
@@ -421,7 +421,7 @@ atmosphere_error_t atmosphere::save_textures()
 	}
 
 	// Save optional single scattering textures
-	log("Saving single scattering textures", LOG);
+	log("Saving single scattering textures", VPT_LOG);
 	checkCudaErrors(cudaMemcpy(host_scattering_buffer, atmosphere_parameters.optional_mie_single_scattering_buffer, scattering_size, cudaMemcpyDeviceToHost));
 
 	for (int i = 0; i < SCATTERING_TEXTURE_DEPTH; ++i) {
@@ -1180,15 +1180,15 @@ atmosphere_error_t atmosphere::init()
 	atmosphere_error_t load_error = load_textures();
 
 	if (load_error == ATMO_LOAD_FILE_ERR) {
-		log("Couldn't find precomputed textures to load. Computing textures...", WARNING);
+		log("Couldn't find precomputed textures to load. Computing textures...", VPT_WARNING);
 		m_need_compute = true;
 	}
 	else m_need_compute = false;
 
-	log("loading atmosphere module", LOG);
+	log("loading atmosphere module", VPT_LOG);
 	// Bind precomputation functions from ptx file 
 	CUresult error = cuModuleLoad(&atmosphere_module, "atmosphere_kernels.ptx");
-	if (error != CUDA_SUCCESS) printf("ERROR: cuModuleLoad, %i\n", error);
+	if (error != CUDA_SUCCESS) printf("VPT_ERROR: cuModuleLoad, %i\n", error);
 
 	init_functions(atmosphere_module);
 

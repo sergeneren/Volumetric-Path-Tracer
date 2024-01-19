@@ -26,7 +26,8 @@ v 1.0.2 Alpha
 
 ## Installation, Build and Usage
 
-Please see [this](https://sergeneren.com/2020/01/07/using-vpt/) detailed article for installing building and using VPT    
+Use the `build_windows.cmd` file for building automatically on windows. Also see [this](https://sergeneren.com/2020/01/07/using-vpt/) detailed article for using VPT. 
+This repo is tested with Cuda 12.1 and Nvidia Driver 546.65
 
 ## Author
 

@@ -68,13 +68,13 @@ static hdr_error_code_t hdr_read_image_header(
 		if ((c = find_identifier(line, "EXPOSURE=")))
 		{
 			float f = 1.0f;
-			if (sscanf(c, "%f", &f))
+			if (sscanf_s(c, "%f", &f))
 				header->exposure = f;
 		}
 		else if ((c = find_identifier(line, "GAMMA=")))
 		{
 			float f = 1.0f;
-			if (sscanf(c, "%f", &f))
+			if (sscanf_s(c, "%f", &f))
 				header->gamma = f;
 		}
 		else if ((c = find_identifier(line, "FORMAT=")))
@@ -90,11 +90,11 @@ static hdr_error_code_t hdr_read_image_header(
 		{
 			//!! extract flips, order?
 			const char *x = strchr(line, 'X');
-			if (!x || (x <= line) || !sscanf(x + 1, "%u", &header->rx))
+			if (!x || (x <= line) || !sscanf_s(x + 1, "%u", &header->rx))
 				return HDR_ERROR_INVALID_HEADER;
 
 			const char *y = strchr(line, 'Y');
-			if (!y || (y <= line) || !sscanf(y + 1, "%u", &header->ry))
+			if (!y || (y <= line) || !sscanf_s(y + 1, "%u", &header->ry))
 				return HDR_ERROR_INVALID_HEADER;
 
 			break;
@@ -250,7 +250,8 @@ static bool load_hdr_float4(float **pixels, unsigned int *rx, unsigned int *ry, 
 {
 	*pixels = NULL;
 	*rx = *ry = 0;
-	FILE *fp = fopen(filename, "rb");
+	FILE* fp = NULL;
+	fopen_s(&fp, filename, "rb");
 	if (!fp)
 		return false;
 

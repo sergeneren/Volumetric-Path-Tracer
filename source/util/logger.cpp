@@ -23,15 +23,15 @@ void log(const char * message, unsigned int level)
 void log(std::string message, unsigned int level)
 {
 
-	if (level == ERROR) {
+	if (level == VPT_ERROR) {
 		fprintf(stderr, "Error! %s\n", message.c_str());
 	}
-	if (level == WARNING) {
+	if (level == VPT_WARNING) {
 #if defined(LOG_LEVEL_WARNING) || defined(LOG_LEVEL_LOG)
 		printf("Warning: %s\n", message.c_str());
 #endif
 	}
-	if (level == LOG) {
+	if (level == VPT_LOG) {
 #if defined(LOG_LEVEL_LOG)
 		printf("%s\n", message.c_str());
 #endif

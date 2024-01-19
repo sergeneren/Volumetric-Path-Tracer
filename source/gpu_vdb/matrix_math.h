@@ -9,11 +9,11 @@
 //	* Redistributions in binary form must reproduce the above copyright notice,
 //	this list of conditions and the following disclaimer in the documentation
 //	and/or other materials provided with the distribution.
-//	
+//
 //	* Neither the name of the copyright holder nor the names of its
 //	contributors may be used to endorse or promote products derived from
 //	this software without specific prior written permission.
-//	
+//
 //	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 //	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 //	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,11 +24,11 @@
 //	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 //	OR TORT(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 //	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Copyright(c) 2019, Sergen Eren
 // All rights reserved.
 //----------------------------------------------------------------------------------
-// 
+//
 //	Version 1.0: Sergen Eren, 27/10/2019
 //
 // File: Column major 4x4 matrix for CUDA.
@@ -39,6 +39,9 @@
 #ifndef MATRIX_MATH_H
 #define MATRIX_MATH_H
 
+#ifdef _MSC_VER
+#pragma warning( disable : 4244)
+#endif // _MSC_VER
 
 #include "cuda_runtime.h"
 #include "helper_cuda.h"
@@ -69,7 +72,7 @@ struct mat4 {
 		return m[idx];
 	}
 
-	__host__ __device__ __forceinline__ float4 operator*(const float4 &v) const {
+	__host__ __device__ __forceinline__ float4 operator*(const float4& v) const {
 		float4 ret;
 		ret.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0] * v.w;
 		ret.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1] * v.w;
@@ -78,13 +81,12 @@ struct mat4 {
 		return ret;
 	}
 
-	__host__ __device__ __forceinline__ float3 operator*(const float3 &v) const {
-
+	__host__ __device__ __forceinline__ float3 operator*(const float3& v) const {
 		float3 ret;
 
-		ret.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0] ;
-		ret.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1] ;
-		ret.z = m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2] ;
+		ret.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0];
+		ret.y = m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1];
+		ret.z = m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2];
 
 		return ret;
 	}
@@ -107,7 +109,7 @@ struct mat4 {
 		return ret;
 	}
 
-	__host__ __device__ __forceinline__ mat4 operator+(const mat4 &other) const {
+	__host__ __device__ __forceinline__ mat4 operator+(const mat4& other) const {
 		mat4 ret;
 		ret[0][0] = m[0][0] + other.m[0][0]; ret[1][0] = m[1][0] + other.m[1][0]; ret[2][0] = m[2][0] + other.m[2][0]; ret[3][0] = m[3][0] + other.m[3][0];
 		ret[0][1] = m[0][1] + other.m[0][1]; ret[1][1] = m[1][1] + other.m[1][1]; ret[2][1] = m[2][1] + other.m[2][1]; ret[3][1] = m[3][1] + other.m[3][1];
@@ -116,7 +118,7 @@ struct mat4 {
 		return ret;
 	}
 
-	__host__ __device__ __forceinline__ mat4 operator-(const mat4 &other) const {
+	__host__ __device__ __forceinline__ mat4 operator-(const mat4& other) const {
 		mat4 ret;
 		ret[0][0] = m[0][0] - other.m[0][0]; ret[1][0] = m[1][0] - other.m[1][0]; ret[2][0] = m[2][0] - other.m[2][0]; ret[3][0] = m[3][0] - other.m[3][0];
 		ret[0][1] = m[0][1] - other.m[0][1]; ret[1][1] = m[1][1] - other.m[1][1]; ret[2][1] = m[2][1] - other.m[2][1]; ret[3][1] = m[3][1] - other.m[3][1];
@@ -125,7 +127,7 @@ struct mat4 {
 		return ret;
 	}
 
-	__host__ __device__ __forceinline__ mat4 operator*(const mat4 &other) const {
+	__host__ __device__ __forceinline__ mat4 operator*(const mat4& other) const {
 		auto a11 = m[0][0], a12 = m[1][0], a13 = m[2][0], a14 = m[3][0];
 		auto a21 = m[0][1], a22 = m[1][1], a23 = m[2][1], a24 = m[3][1];
 		auto a31 = m[0][2], a32 = m[1][2], a33 = m[2][2], a34 = m[3][2];
@@ -263,8 +265,7 @@ struct mat4 {
 		m[0][3] = 0.0; m[1][3] = 0.0; m[2][3] = 0.0; m[3][3] = 1.0;
 	}
 
-	__host__ __device__ __forceinline__ mat4 abs() const{
-
+	__host__ __device__ __forceinline__ mat4 abs() const {
 		mat4 ret;
 
 		for (int i = 0; i < 4; ++i) {
@@ -277,9 +278,7 @@ struct mat4 {
 		return ret;
 	}
 
-
 	__host__ __device__ __forceinline__ void print() {
-
 		for (int j = 0; j < 4; j++) {
 			for (int i = 0; i < 4; i++) {
 				printf("%f ", m[i][j]);
@@ -289,19 +288,18 @@ struct mat4 {
 		printf("\n");
 	}
 
-	__host__ __device__ __forceinline__ float3 transform_point(const float3 &pt) const {
+	__host__ __device__ __forceinline__ float3 transform_point(const float3& pt) const {
 		float4 temp = make_float4(pt.x, pt.y, pt.z, 1.0f);
 		temp = *this * temp;
 		return make_float3(temp.x, temp.y, temp.z);
 	}
-	__host__ __device__ __forceinline__ float3 transform_vector(const float3 &pt) const {
+	__host__ __device__ __forceinline__ float3 transform_vector(const float3& pt) const {
 		float4 temp = make_float4(pt.x, pt.y, pt.z, 0.0f);
 		temp = *this * temp;
 		return make_float3(temp.x, temp.y, temp.z);
 	}
 
-	__host__ __device__ __forceinline__ mat4 rotate_zyx(const float3 &angs) {
-
+	__host__ __device__ __forceinline__ mat4 rotate_zyx(const float3& angs) {
 		float cx, sx, cy, sy, cz, sz;
 		cx = (float)cos(angs.x);
 		sx = (float)sin(angs.x);
@@ -313,26 +311,23 @@ struct mat4 {
 		m[0][0] = cz * cy;
 		m[1][0] = sz * cy;
 		m[2][0] = -sy;
-		
-		m[0][1] = -sz * cx + cz * sy*sx;
-		m[1][1] = cz * cx - sz * sy*sz;
+
+		m[0][1] = -sz * cx + cz * sy * sx;
+		m[1][1] = cz * cx - sz * sy * sz;
 		m[2][1] = -cy * sx;
 
-		m[0][2] = -sz * sx + cz * sy*cx;
-		m[1][2] = cz * sx + sz * sy*cx;
+		m[0][2] = -sz * sx + cz * sy * cx;
+		m[1][2] = cz * sx + sz * sy * cx;
 		m[2][2] = cy * cx;
 
 		return *this;
-
 	}
 
 	__host__ __device__ __forceinline__ float3 extract_translate() {
-
 		return make_float3(m[0][3], m[1][3], m[2][3]);
 	}
 
-	__host__ __device__ __forceinline__ mat4 translate(const float3 &val) {
-		
+	__host__ __device__ __forceinline__ mat4 translate(const float3& val) {
 		m[0][3] += val.x;
 		m[1][3] += val.y;
 		m[2][3] += val.z;
@@ -340,8 +335,7 @@ struct mat4 {
 		return *this;
 	}
 
-	__host__ __device__ __forceinline__ mat4 scale(const float3 &val) {
-		
+	__host__ __device__ __forceinline__ mat4 scale(const float3& val) {
 		m[0][0] *= val.x;
 		m[1][1] *= val.y;
 		m[2][2] *= val.z;
@@ -349,22 +343,18 @@ struct mat4 {
 		return *this;
 	}
 
-
-	__host__ __device__ __forceinline__ mat4 &operator*=(const float f) { return *this = *this * f; }
-	__host__ __device__ __forceinline__ mat4 &operator/=(const float f) { return *this = *this / f; }
-	__host__ __device__ __forceinline__ mat4 &operator+=(const mat4 &m) { return *this = *this + m; }
-	__host__ __device__ __forceinline__ mat4 &operator-=(const mat4 &m) { return *this = *this - m; }
-	__host__ __device__ __forceinline__ mat4 &operator*=(const mat4 &m) { return *this = *this * m; }
-
+	__host__ __device__ __forceinline__ mat4& operator*=(const float f) { return *this = *this * f; }
+	__host__ __device__ __forceinline__ mat4& operator/=(const float f) { return *this = *this / f; }
+	__host__ __device__ __forceinline__ mat4& operator+=(const mat4& m) { return *this = *this + m; }
+	__host__ __device__ __forceinline__ mat4& operator-=(const mat4& m) { return *this = *this - m; }
+	__host__ __device__ __forceinline__ mat4& operator*=(const mat4& m) { return *this = *this * m; }
 };
-
 
 //////////////////////////////////////////////////////////////////////////
 // Inline Functions
 //////////////////////////////////////////////////////////////////////////
 
-__host__ __device__ __forceinline__ mat4 toMatrix(double *arr) {
-
+__host__ __device__ __forceinline__ mat4 toMatrix(double* arr) {
 	mat4 ret;
 
 	ret[0][0] = arr[0]; ret[1][0] = arr[1]; ret[2][0] = arr[2]; ret[3][0] = 0.0f;
@@ -375,8 +365,7 @@ __host__ __device__ __forceinline__ mat4 toMatrix(double *arr) {
 	return ret;
 }
 
-__host__ __device__ __forceinline__ mat4 toMatrix(float *arr) {
-
+__host__ __device__ __forceinline__ mat4 toMatrix(float* arr) {
 	mat4 ret;
 
 	ret[0][0] = arr[0]; ret[1][0] = arr[1]; ret[2][0] = arr[2]; ret[3][0] = 0.0f;
@@ -388,27 +377,26 @@ __host__ __device__ __forceinline__ mat4 toMatrix(float *arr) {
 }
 
 __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(double x, double y, double z, double w) {
-
-	const double n = 1.0 / sqrtf(x*x + y * y + z * z + w * w);
+	const double n = 1.0 / sqrtf(x * x + y * y + z * z + w * w);
 
 	x *= n;
 	y *= n;
 	z *= n;
 	w *= n;
 
-	float m11 = 1.0f - 2.0f*y*y - 2.0f*z*z;
-	float m12 = 2.0f*x*y + 2.0f*z*w;
-	float m13 = 2.0f*x*z - 2.0f*y*w;
-	float m14 = .0f;
+	float m11 = float(1.0f - 2.0f * y * y - 2.0f * z * z);
+	float m12 = float(2.0f * x * y + 2.0f * z * w);
+	float m13 = float(2.0f * x * z - 2.0f * y * w);
+	float m14 = 0.0f;
 
-	float m21 = 2.0f*x*y - 2.0f*z*w;
-	float m22 = 1.0f - 2.0f*x*x - 2.0f*z*z;
-	float m23 = 2.0f*y*z + 2.0f*x*w;
+	float m21 = float(2.0f * x * y - 2.0f * z * w);
+	float m22 = float(1.0f - 2.0f * x * x - 2.0f * z * z);
+	float m23 = float(2.0f * y * z + 2.0f * x * w);
 	float m24 = 0.0f;
 
-	float m31 = 2.0f*x*z + 2.0f*y*w;
-	float m32 = 2.0f*y*z - 2.0f*x*w;
-	float m33 = 1.0f - 2.0f*x*x - 2.0f*y*y;
+	float m31 = float(2.0f * x * z + 2.0f * y * w);
+	float m32 = float(2.0f * y * z - 2.0f * x * w);
+	float m33 = float(1.0f - 2.0f * x * x - 2.0f * y * y);
 	float m34 = 0.0f;
 
 	float m41 = 0.0f;
@@ -416,112 +404,105 @@ __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(double x, double y, 
 	float m43 = 0.0f;
 	float m44 = 1.0f;
 
-
 	mat4 ret(m11, m12, m13, m14,
 		m21, m22, m23, m24,
 		m31, m32, m33, m34,
 		m41, m42, m43, m44);
 
 	return ret;
-
 }
 
 __host__ __device__ __forceinline__ mat4 quaternion_to_mat4(float4 quaternion) {
-
 	float x = quaternion.x;
 	float y = quaternion.y;
 	float z = quaternion.z;
 	float w = quaternion.w;
 
-	const float n = 1.0f / sqrtf(x*x + y * y + z * z + w * w);
+	const float n = 1.0f / sqrtf(x * x + y * y + z * z + w * w);
 
 	x *= n;
 	y *= n;
 	z *= n;
 	w *= n;
 
-	mat4 m1 = mat4(w , z , -y , x,
-				   -z ,  w , x,  y,
-					y,  -x,  w,  z,
-					-x, -y, -z, w);
+	mat4 m1 = mat4(w, z, -y, x,
+		-z, w, x, y,
+		y, -x, w, z,
+		-x, -y, -z, w);
 
-	mat4 m2 = mat4(w , z , -y , -x,
-				   -z ,  w , x,  -y,
-					y,  -x,  w,  -z,
-					x, y, z, w);
+	mat4 m2 = mat4(w, z, -y, -x,
+		-z, w, x, -y,
+		y, -x, w, -z,
+		x, y, z, w);
 
 	mat4 ret = m1 * m2;
 
 	return ret;
-
 }
 
 // Rotation by quaternion about point
 __host__ __device__ __forceinline__ mat4 rotate_by_point(float4 q, float3 center) {
-
 	mat4 ret;
 
-	float sqw = q.w*q.w;
-	float sqx = q.x*q.x;
-	float sqy = q.y*q.y;
-	float sqz = q.z*q.z;
+	float sqw = q.w * q.w;
+	float sqx = q.x * q.x;
+	float sqy = q.y * q.y;
+	float sqz = q.z * q.z;
 
 	ret[0][0] = sqx - sqy - sqz + sqw; // since sqw + sqx + sqy + sqz =1
 	ret[1][1] = -sqx + sqy - sqz + sqw;
 	ret[2][2] = -sqx - sqy + sqz + sqw;
 
-	float tmp1 = q.x*q.y;
-	float tmp2 = q.z*q.w;
-	ret[1][0] = 2.0 * (tmp1 + tmp2);
-	ret[0][1] = 2.0 * (tmp1 - tmp2);
+	float tmp1 = q.x * q.y;
+	float tmp2 = q.z * q.w;
+	ret[1][0] = 2.0f * (tmp1 + tmp2);
+	ret[0][1] = 2.0f * (tmp1 - tmp2);
 
-	tmp1 = q.x*q.z;
-	tmp2 = q.y*q.w;
-	ret[2][0] = 2.0 * (tmp1 - tmp2);
-	ret[0][2] = 2.0 * (tmp1 + tmp2);
+	tmp1 = q.x * q.z;
+	tmp2 = q.y * q.w;
+	ret[2][0] = 2.0f * (tmp1 - tmp2);
+	ret[0][2] = 2.0f * (tmp1 + tmp2);
 
-	tmp1 = q.y*q.z;
-	tmp2 = q.x*q.w;
-	ret[2][1] = 2.0 * (tmp1 + tmp2);
-	ret[1][2] = 2.0 * (tmp1 - tmp2);
+	tmp1 = q.y * q.z;
+	tmp2 = q.x * q.w;
+	ret[2][1] = 2.0f * (tmp1 + tmp2);
+	ret[1][2] = 2.0f * (tmp1 - tmp2);
 
 	float a1 = center.x, a2 = center.y, a3 = center.z;
 
 	ret[3][0] = a1 - a1 * ret[0][0] - a2 * ret[1][0] - a3 * ret[2][0];
 	ret[3][1] = a2 - a1 * ret[0][1] - a2 * ret[1][1] - a3 * ret[2][1];
 	ret[3][2] = a3 - a1 * ret[0][2] - a2 * ret[1][2] - a3 * ret[2][2];
-	ret[0][3] = ret[1][3] = ret[2][3] = 0.0;
-	ret[3][3] = 1.0;
+	ret[0][3] = ret[1][3] = ret[2][3] = 0.0f;
+	ret[3][3] = 1.0f;
 
 	return ret;
-
 }
 
 struct mat3 {
 	float m[3][3];
 
 	__host__ __device__ __forceinline__ mat3() {
-		m[0][0] = 1.0; m[1][0] = 0.0; m[2][0] = 0.0; 
-		m[0][1] = 0.0; m[1][1] = 1.0; m[2][1] = 0.0; 
-		m[0][2] = 0.0; m[1][2] = 0.0; m[2][2] = 1.0; 
+		m[0][0] = 1.0; m[1][0] = 0.0; m[2][0] = 0.0;
+		m[0][1] = 0.0; m[1][1] = 1.0; m[2][1] = 0.0;
+		m[0][2] = 0.0; m[1][2] = 0.0; m[2][2] = 1.0;
 	}
 
 	__host__ __device__ __forceinline__ mat3(
-		const float m11, const float m12, const float m13, 
-		const float m21, const float m22, const float m23, 
+		const float m11, const float m12, const float m13,
+		const float m21, const float m22, const float m23,
 		const float m31, const float m32, const float m33
 	) {
-		m[0][0] = m11; m[1][0] = m12; m[2][0] = m13; 
-		m[0][1] = m21; m[1][1] = m22; m[2][1] = m23; 
-		m[0][2] = m31; m[1][2] = m32; m[2][2] = m33; 
+		m[0][0] = m11; m[1][0] = m12; m[2][0] = m13;
+		m[0][1] = m21; m[1][1] = m22; m[2][1] = m23;
+		m[0][2] = m31; m[1][2] = m32; m[2][2] = m33;
 	}
 
 	__host__ __device__ __forceinline__ float* operator[] (const size_t idx) {
 		return m[idx];
 	}
 
-	__host__ __device__ __forceinline__ float3 operator*(const float3 &v) const {
-
+	__host__ __device__ __forceinline__ float3 operator*(const float3& v) const {
 		float3 ret;
 
 		ret.x = m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z;
@@ -533,37 +514,37 @@ struct mat3 {
 
 	__host__ __device__ __forceinline__ mat3 operator*(const float f) const {
 		mat3 ret;
-		ret[0][0] = m[0][0] * f; ret[1][0] = m[1][0] * f; ret[2][0] = m[2][0] * f; 
-		ret[0][1] = m[0][1] * f; ret[1][1] = m[1][1] * f; ret[2][1] = m[2][1] * f; 
+		ret[0][0] = m[0][0] * f; ret[1][0] = m[1][0] * f; ret[2][0] = m[2][0] * f;
+		ret[0][1] = m[0][1] * f; ret[1][1] = m[1][1] * f; ret[2][1] = m[2][1] * f;
 		ret[0][2] = m[0][2] * f; ret[1][2] = m[1][2] * f; ret[2][2] = m[2][2] * f;
 		return ret;
 	}
 
 	__host__ __device__ __forceinline__ mat3 operator/(const float f) const {
 		mat3 ret;
-		ret[0][0] = m[0][0] / f; ret[1][0] = m[1][0] / f; ret[2][0] = m[2][0] / f; 
-		ret[0][1] = m[0][1] / f; ret[1][1] = m[1][1] / f; ret[2][1] = m[2][1] / f; 
-		ret[0][2] = m[0][2] / f; ret[1][2] = m[1][2] / f; ret[2][2] = m[2][2] / f; 
+		ret[0][0] = m[0][0] / f; ret[1][0] = m[1][0] / f; ret[2][0] = m[2][0] / f;
+		ret[0][1] = m[0][1] / f; ret[1][1] = m[1][1] / f; ret[2][1] = m[2][1] / f;
+		ret[0][2] = m[0][2] / f; ret[1][2] = m[1][2] / f; ret[2][2] = m[2][2] / f;
 		return ret;
 	}
 
-	__host__ __device__ __forceinline__ mat3 operator+(const mat3 &other) const {
+	__host__ __device__ __forceinline__ mat3 operator+(const mat3& other) const {
 		mat3 ret;
-		ret[0][0] = m[0][0] + other.m[0][0]; ret[1][0] = m[1][0] + other.m[1][0]; ret[2][0] = m[2][0] + other.m[2][0]; 
-		ret[0][1] = m[0][1] + other.m[0][1]; ret[1][1] = m[1][1] + other.m[1][1]; ret[2][1] = m[2][1] + other.m[2][1]; 
-		ret[0][2] = m[0][2] + other.m[0][2]; ret[1][2] = m[1][2] + other.m[1][2]; ret[2][2] = m[2][2] + other.m[2][2]; 
+		ret[0][0] = m[0][0] + other.m[0][0]; ret[1][0] = m[1][0] + other.m[1][0]; ret[2][0] = m[2][0] + other.m[2][0];
+		ret[0][1] = m[0][1] + other.m[0][1]; ret[1][1] = m[1][1] + other.m[1][1]; ret[2][1] = m[2][1] + other.m[2][1];
+		ret[0][2] = m[0][2] + other.m[0][2]; ret[1][2] = m[1][2] + other.m[1][2]; ret[2][2] = m[2][2] + other.m[2][2];
 		return ret;
 	}
 
-	__host__ __device__ __forceinline__ mat3 operator-(const mat3 &other) const {
+	__host__ __device__ __forceinline__ mat3 operator-(const mat3& other) const {
 		mat3 ret;
-		ret[0][0] = m[0][0] - other.m[0][0]; ret[1][0] = m[1][0] - other.m[1][0]; ret[2][0] = m[2][0] - other.m[2][0]; 
-		ret[0][1] = m[0][1] - other.m[0][1]; ret[1][1] = m[1][1] - other.m[1][1]; ret[2][1] = m[2][1] - other.m[2][1]; 
-		ret[0][2] = m[0][2] - other.m[0][2]; ret[1][2] = m[1][2] - other.m[1][2]; ret[2][2] = m[2][2] - other.m[2][2]; 
+		ret[0][0] = m[0][0] - other.m[0][0]; ret[1][0] = m[1][0] - other.m[1][0]; ret[2][0] = m[2][0] - other.m[2][0];
+		ret[0][1] = m[0][1] - other.m[0][1]; ret[1][1] = m[1][1] - other.m[1][1]; ret[2][1] = m[2][1] - other.m[2][1];
+		ret[0][2] = m[0][2] - other.m[0][2]; ret[1][2] = m[1][2] - other.m[1][2]; ret[2][2] = m[2][2] - other.m[2][2];
 		return ret;
 	}
 
-	__host__ __device__ __forceinline__ mat3 operator*(const mat3 &other) const {
+	__host__ __device__ __forceinline__ mat3 operator*(const mat3& other) const {
 		auto a11 = m[0][0], a12 = m[1][0], a13 = m[2][0];
 		auto a21 = m[0][1], a22 = m[1][1], a23 = m[2][1];
 		auto a31 = m[0][2], a32 = m[1][2], a33 = m[2][2];
@@ -590,9 +571,9 @@ struct mat3 {
 
 	__host__ __device__ __forceinline__ mat3 transpose() const {
 		mat3 ret;
-		ret[0][0] = m[0][0]; ret[0][1] = m[1][0]; ret[0][2] = m[2][0]; 
-		ret[1][0] = m[0][1]; ret[1][1] = m[1][1]; ret[1][2] = m[2][1]; 
-		ret[2][0] = m[0][2]; ret[2][1] = m[1][2]; ret[2][2] = m[2][2]; 
+		ret[0][0] = m[0][0]; ret[0][1] = m[1][0]; ret[0][2] = m[2][0];
+		ret[1][0] = m[0][1]; ret[1][1] = m[1][1]; ret[1][2] = m[2][1];
+		ret[2][0] = m[0][2]; ret[2][1] = m[1][2]; ret[2][2] = m[2][2];
 		return ret;
 	}
 
@@ -601,19 +582,18 @@ struct mat3 {
 		auto n21 = m[0][1], n22 = m[1][1], n23 = m[2][1];
 		auto n31 = m[0][2], n32 = m[1][2], n33 = m[2][2];
 
-		return (n11 * (n22*n33 - n23*n32) - n12 * (n21*n33 - n23*n31) + n13 * (n21*n32 - n22*n31) );
+		return (n11 * (n22 * n33 - n23 * n32) - n12 * (n21 * n33 - n23 * n31) + n13 * (n21 * n32 - n22 * n31));
 	}
 
 	__host__ __device__ __forceinline__ mat3 inverse() const {
-		
 		float det = this->det();
 
 		if (det == 0) return *this;
-		
-		mat3 ret; 
+
+		mat3 ret;
 
 		ret = this->transpose();
-		
+
 		auto det1 = ret[2][2] * ret[1][1] - ret[2][1] * ret[1][2];
 		auto det2 = ret[0][1] * ret[2][2] - ret[2][1] * ret[0][2];
 		auto det3 = ret[0][1] * ret[1][1] - ret[1][1] * ret[0][2];
@@ -621,33 +601,31 @@ struct mat3 {
 		auto det4 = ret[1][0] * ret[2][2] - ret[2][0] * ret[1][2];
 		auto det5 = ret[0][0] * ret[2][2] - ret[2][0] * ret[0][2];
 		auto det6 = ret[0][0] * ret[1][2] - ret[0][1] * ret[0][2];
-		
+
 		auto det7 = ret[1][0] * ret[2][1] - ret[2][0] * ret[1][1];
 		auto det8 = ret[0][0] * ret[2][1] - ret[2][0] * ret[0][1];
 		auto det9 = ret[0][0] * ret[1][1] - ret[1][0] * ret[0][1];
-		
-		ret = mat3(det1, det2, det3, det4, det5, det6, det7, det8, det9);	
-		ret = ret * mat3(1, -1, 1, -1, 1, -1, 1, -1, 1); // Adjoint matrix 
+
+		ret = mat3(det1, det2, det3, det4, det5, det6, det7, det8, det9);
+		ret = ret * mat3(1, -1, 1, -1, 1, -1, 1, -1, 1); // Adjoint matrix
 		ret = ret * (1 / det);
 
 		return ret;
 	}
 
 	__host__ __device__ __forceinline__ void zero() {
-		m[0][0] = 0.0; m[1][0] = 0.0; m[2][0] = 0.0; 
+		m[0][0] = 0.0; m[1][0] = 0.0; m[2][0] = 0.0;
 		m[0][1] = 0.0; m[1][1] = 0.0; m[2][1] = 0.0;
-		m[0][2] = 0.0; m[1][2] = 0.0; m[2][2] = 0.0; 
+		m[0][2] = 0.0; m[1][2] = 0.0; m[2][2] = 0.0;
 	}
 
 	__host__ __device__ __forceinline__ void identity() {
-		m[0][0] = 1.0; m[1][0] = 0.0; m[2][0] = 0.0; 
-		m[0][1] = 0.0; m[1][1] = 1.0; m[2][1] = 0.0; 
-		m[0][2] = 0.0; m[1][2] = 0.0; m[2][2] = 1.0; 
+		m[0][0] = 1.0; m[1][0] = 0.0; m[2][0] = 0.0;
+		m[0][1] = 0.0; m[1][1] = 1.0; m[2][1] = 0.0;
+		m[0][2] = 0.0; m[1][2] = 0.0; m[2][2] = 1.0;
 	}
 
-
 	__host__ __device__ __forceinline__ void print() {
-
 		for (int j = 0; j < 3; j++) {
 			for (int i = 0; i < 3; i++) {
 				printf("%f ", m[i][j]);
@@ -657,16 +635,15 @@ struct mat3 {
 		printf("\n");
 	}
 
-	__host__ __device__ __forceinline__ float3 transform_point(const float3 &pt) const {
+	__host__ __device__ __forceinline__ float3 transform_point(const float3& pt) const {
 		float3 temp = *this * pt;
 		return make_float3(temp.x, temp.y, temp.z);
 	}
-	__host__ __device__ __forceinline__ float3 transform_vector(const float3 &pt) const {
+	__host__ __device__ __forceinline__ float3 transform_vector(const float3& pt) const {
 		float3 temp = *this * pt;
 		return make_float3(temp.x, temp.y, temp.z);
 	}
-	__host__ __device__ __forceinline__ mat3 rotate_zyx(const float3 &angs) {
-
+	__host__ __device__ __forceinline__ mat3 rotate_zyx(const float3& angs) {
 		float cx, sx, cy, sy, cz, sz;
 		cx = (float)cos(angs.x);
 		sx = (float)sin(angs.x);
@@ -679,20 +656,18 @@ struct mat3 {
 		m[1][0] = sz * cy;
 		m[2][0] = -sy;
 
-		m[0][1] = -sz * cx + cz * sy*sx;
-		m[1][1] = cz * cx - sz * sy*sz;
+		m[0][1] = -sz * cx + cz * sy * sx;
+		m[1][1] = cz * cx - sz * sy * sz;
 		m[2][1] = -cy * sx;
 
-		m[0][2] = -sz * sx + cz * sy*cx;
-		m[1][2] = cz * sx + sz * sy*cx;
+		m[0][2] = -sz * sx + cz * sy * cx;
+		m[1][2] = cz * sx + sz * sy * cx;
 		m[2][2] = cy * cx;
 
 		return *this;
-
 	}
 
-	__host__ __device__ __forceinline__ mat3 translate(const float3 &val) {
-
+	__host__ __device__ __forceinline__ mat3 translate(const float3& val) {
 		m[0][2] += val.x;
 		m[1][2] += val.y;
 		m[2][2] += val.z;
@@ -700,8 +675,7 @@ struct mat3 {
 		return *this;
 	}
 
-	__host__ __device__ __forceinline__ mat3 scale(const float3 &val) {
-
+	__host__ __device__ __forceinline__ mat3 scale(const float3& val) {
 		m[0][0] *= val.x;
 		m[1][1] *= val.y;
 		m[2][2] *= val.z;
@@ -709,30 +683,26 @@ struct mat3 {
 		return *this;
 	}
 
-	__host__ __device__ __forceinline__ mat3 toMatrix(double *arr) {
-
+	__host__ __device__ __forceinline__ mat3 toMatrix(double* arr) {
 		m[0][0] = arr[0]; m[1][0] = arr[1]; m[2][0] = arr[2];
-		m[0][1] = arr[3]; m[1][1] = arr[4]; m[2][1] = arr[5];
-		m[0][2] = arr[6]; m[1][2] = arr[7]; m[2][2] = arr[8]; 
-
-		return *this;
-	}
-
-	__host__ __device__ __forceinline__ mat3 toMatrix(float *arr) {
-
-		m[0][0] = arr[0]; m[1][0] = arr[1]; m[2][0] = arr[2]; 
 		m[0][1] = arr[3]; m[1][1] = arr[4]; m[2][1] = arr[5];
 		m[0][2] = arr[6]; m[1][2] = arr[7]; m[2][2] = arr[8];
 
 		return *this;
 	}
 
+	__host__ __device__ __forceinline__ mat3 toMatrix(float* arr) {
+		m[0][0] = arr[0]; m[1][0] = arr[1]; m[2][0] = arr[2];
+		m[0][1] = arr[3]; m[1][1] = arr[4]; m[2][1] = arr[5];
+		m[0][2] = arr[6]; m[1][2] = arr[7]; m[2][2] = arr[8];
 
-	__host__ __device__ __forceinline__ mat3 &operator*=(const float f) { return *this = *this * f; }
-	__host__ __device__ __forceinline__ mat3 &operator/=(const float f) { return *this = *this / f; }
-	__host__ __device__ __forceinline__ mat3 &operator+=(const mat3 &m) { return *this = *this + m; }
-	__host__ __device__ __forceinline__ mat3 &operator-=(const mat3 &m) { return *this = *this - m; }
-	__host__ __device__ __forceinline__ mat3 &operator*=(const mat3 &m) { return *this = *this * m; }
+		return *this;
+	}
 
+	__host__ __device__ __forceinline__ mat3& operator*=(const float f) { return *this = *this * f; }
+	__host__ __device__ __forceinline__ mat3& operator/=(const float f) { return *this = *this / f; }
+	__host__ __device__ __forceinline__ mat3& operator+=(const mat3& m) { return *this = *this + m; }
+	__host__ __device__ __forceinline__ mat3& operator-=(const mat3& m) { return *this = *this - m; }
+	__host__ __device__ __forceinline__ mat3& operator*=(const mat3& m) { return *this = *this * m; }
 };
 #endif

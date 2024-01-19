@@ -9,11 +9,11 @@
 //	* Redistributions in binary form must reproduce the above copyright notice,
 //	this list of conditions and the following disclaimer in the documentation
 //	and/or other materials provided with the distribution.
-//	
+//
 //	* Neither the name of the copyright holder nor the names of its
 //	contributors may be used to endorse or promote products derived from
 //	this software without specific prior written permission.
-//	
+//
 //	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 //	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 //	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,11 +24,11 @@
 //	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 //	OR TORT(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 //	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Copyright(c) 2019, Sergen Eren
 // All rights reserved.
 //----------------------------------------------------------------------------------
-// 
+//
 //	Version 1.0: Sergen Eren, 15/12/2019
 //
 // File: This is the implementation file for fileIO
@@ -38,13 +38,9 @@
 #define NOMINMAX
 #define _CRT_SECURE_NO_WARNINGS
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
-
-#define TINYEXR_USE_MINIZ 0
-#include "zlib.h"
-#define TINYEXR_IMPLEMENTATION
-#include "tinyexr.h"
+#include <OpenImageIO/imageio.h>
+#include "OpenImageIO/imagebufalgo.h"
+using namespace OIIO;
 
 #include "bitmap_image.h"
 
@@ -54,546 +50,333 @@
 #include "fileIO.h"
 #include "logger.h"
 
-bool save_texture_jpg(float3 * buffer, std::string filename, const int width, const int height)
+bool save_texture_jpg(float3* buffer, std::string filename, const int width, const int height)
 {
-	unsigned char *data = new unsigned char[width*height * 3];
-
-	int idx = 0;
-	for (int i = 0; i < width; ++i) {
-		for (int y = 0; y < height; ++y) {
-
-			int index = i * height + y;
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].z * 255)), 255);
-
-		}
-	}
-	stbi_flip_vertically_on_write(1);
-
-	int res = stbi_write_jpg(filename.c_str(), width, height, 3, (void*)data, 100);
-	delete[] data;
-
-	if (res) {
-		log("Saved jpg file " + filename, LOG);
-		return true;
-	}
-	return false;
-}
-
-bool save_texture_jpg(float4 * buffer, std::string filename, const int width, const int height)
-{
-
-	unsigned char *data = new unsigned char[width*height * 3];
-
-	int idx = 0;
-	for (int i = 0; i < width; ++i) {
-		for (int y = 0; y < height; ++y) {
-
-			int index = i * height + y;
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].z * 255)), 255);
-
-		}
-	}
-	stbi_flip_vertically_on_write(1);
-
-	int res = stbi_write_jpg(filename.c_str(), width, height, 3, (void*)data, 100);
-	delete[] data;
-
-	if (res) {
-		log("Saved jpg file " + filename, LOG);
-		return true;
-	}
-	return false;
-}
-
-bool save_texture_png(float3 * buffer, std::string filename, const int width, const int height)
-{
-	unsigned char *data = new unsigned char[width*height * 3];
-
-	int idx = 0;
-	for (int i = 0; i < width; ++i) {
-		for (int y = 0; y < height; ++y) {
-
-			int index = i * height + y;
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].z * 255)), 255);
-
-		}
-	}
-	stbi_flip_vertically_on_write(1);
-
-	int res = stbi_write_png(filename.c_str(), width, height, 3, (void*)data, 0);
-	delete[] data;
-
-	if (res) {
-		log("Saved png file " + filename, LOG);
-		return true;
-	}
-	return false;
-
-}
-
-bool save_texture_png(float4 * buffer, std::string filename, const int width, const int height)
-{
-	unsigned char *data = new unsigned char[width*height * 4];
-
-	int idx = 0;
-	for (int i = 0; i < width; ++i) {
-		for (int y = 0; y < height; ++y) {
-
-			int index = i * height + y;
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].x * 255)), 255);
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].y * 255)), 255);
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].z * 255)), 255);
-			data[idx++] = fminf(fmaxf(0, unsigned char(buffer[index].w * 255)), 255);
-		}
-	}
-	stbi_flip_vertically_on_write(1);
-	int res = stbi_write_png(filename.c_str(), width, height, 4, (void*)data, 0);
-	delete[] data;
-
-	if (res) {
-		log("Saved png file " + filename, LOG);
-		return true;
-	}
-	return false;
-}
-
-bool save_texture_tga(float3 * buffer, std::string filename, const int width, const int height)
-{
-
-	unsigned char *data = new unsigned char[width*height * 3];
-
-	int idx = 0;
-	for (int i = 0; i < width; ++i) {
-		for (int y = 0; y < height; ++y) {
-
-			int index = i * height + y;
-			data[idx++] = (unsigned int)(255.0f * fminf(fmaxf(buffer[i].x, 0.0f), 1.0f));
-			data[idx++] = (unsigned int)(255.0f * fminf(fmaxf(buffer[i].y, 0.0f), 1.0f));
-			data[idx++] = (unsigned int)(255.0f * fminf(fmaxf(buffer[i].z, 0.0f), 1.0f));
-
-		}
-	}
-	stbi_flip_vertically_on_write(1);
-
-	int res = stbi_write_tga(filename.c_str(), width, height, 3, data);
-	delete[] data;
-
-	if (res) {
-		log("Saved tga file " + filename, LOG);
-		return true;
-	}
-	return false;
-
-}
-
-bool save_texture_tga(float4 * buffer, std::string filename, const int width, const int height)
-{
-	unsigned char *data = new unsigned char[width*height * 4];
-
-	int idx = 0;
-	for (int i = 0; i < width; ++i) {
-		for (int y = 0; y < height; ++y) {
-
-			int index = i * height + y;
-			data[idx++] = (unsigned int)(255.0f * fminf(fmaxf(buffer[i].x, 0.0f), 1.0f));
-			data[idx++] = (unsigned int)(255.0f * fminf(fmaxf(buffer[i].y, 0.0f), 1.0f));
-			data[idx++] = (unsigned int)(255.0f * fminf(fmaxf(buffer[i].z, 0.0f), 1.0f));
-			data[idx++] = (unsigned int)(255.0f * fminf(fmaxf(buffer[i].w, 0.0f), 1.0f));
-
-		}
-	}
-	stbi_flip_vertically_on_write(1);
-
-	int res = stbi_write_tga(filename.c_str(), width, height, 4, data);
-	delete[] data;
-
-	if (res) {
-		log("Saved tga file " + filename, LOG);
-		return true;
-	}
-	return false;
-}
-
-bool save_texture_exr(float3 *buffer, std::string filename, const int width, const int height, bool flip)
-{
-	EXRHeader header;
-	InitEXRHeader(&header);
-
-	EXRImage image;
-	InitEXRImage(&image);
-
-	image.num_channels = 3;
-
-	std::vector<float> images[3];
-	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
-
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-
-			int idx = i * width + j;
-
-			// Flip image vertically
-			if (flip) i = height - i - 1;
-			int idx2 = i * width + j;
-
-			images[0][idx] = buffer[idx2].x;
-			images[1][idx] = buffer[idx2].y;
-			images[2][idx] = buffer[idx2].z;
-		}
-	}
-
-	float* image_ptr[3];
-
-	image_ptr[0] = &(images[2].at(0)); // B
-	image_ptr[1] = &(images[1].at(0)); // G
-	image_ptr[2] = &(images[0].at(0)); // R
-
-	image.images = (unsigned char**)image_ptr;
-	image.width = width;
-	image.height = height;
-
-	header.num_channels = 3;
-	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
-	strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
-	strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
-
-	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	for (int i = 0; i < header.num_channels; i++) {
-		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-	}
-
-	const char* err = NULL; // or nullptr in C++11 or later.
-	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
-	if (ret != TINYEXR_SUCCESS) {
-		log("Save EXR err: " + *err, ERROR);
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
 		return false;
 	}
 
-	log("Saved exr file " + filename, LOG);
+	ImageSpec spec(width, height, 3, TypeDesc::FLOAT);
+	out->open(filename, spec);
+	out->write_image(TypeDesc::FLOAT, buffer);
+	out->close();
 
-	free(header.channels);
-	free(header.pixel_types);
-	free(header.requested_pixel_types);
+	// Flip
+	ImageBuf A(filename);
+	ImageBuf B;
+	B = ImageBufAlgo::flip(A);
+	B.write(filename);
 
 	return true;
 }
 
-bool save_texture_exr(float3* buffer, float *depth, std::string filename, const int width, const int height, bool flip)
+bool save_texture_jpg(float4* buffer, std::string filename, const int width, const int height)
 {
-	EXRHeader header;
-	InitEXRHeader(&header);
-
-	EXRImage image;
-	InitEXRImage(&image);
-
-	image.num_channels = 4;
-
-	std::vector<float> images[4];
-	for (int i = 0; i < image.num_channels; i++) images[i].resize(width * height);
-
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-
-			int idx = i * width + j;
-
-			// Flip image vertically
-			if (flip) i = height - i - 1;
-			int idx2 = i * width + j;
-
-			images[0][idx] = buffer[idx2].x;
-			images[1][idx] = buffer[idx2].y;
-			images[2][idx] = buffer[idx2].z;
-			images[3][idx] = depth[idx2];
-		}
-	}
-
-	float* image_ptr[4];
-
-	image_ptr[0] = &(images[2].at(0)); // B
-	image_ptr[1] = &(images[1].at(0)); // G
-	image_ptr[2] = &(images[0].at(0)); // R
-	image_ptr[3] = &(images[3].at(0)); // Z
-
-	image.images = (unsigned char**)image_ptr;
-	image.width = width;
-	image.height = height;
-
-	header.num_channels = 4;
-	header.channels = (EXRChannelInfo*)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "B", 255); header.channels[0].name[strlen("B")] = '\0';
-	strncpy(header.channels[1].name, "G", 255); header.channels[1].name[strlen("G")] = '\0';
-	strncpy(header.channels[2].name, "R", 255); header.channels[2].name[strlen("R")] = '\0';
-	strncpy(header.channels[3].name, "Z", 255); header.channels[3].name[strlen("Z")] = '\0';
-
-	header.pixel_types = (int*)malloc(sizeof(int) * header.num_channels);
-	header.requested_pixel_types = (int*)malloc(sizeof(int) * header.num_channels);
-	for (int i = 0; i < header.num_channels; i++) {
-		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-	}
-
-	const char* err = NULL; // or nullptr in C++11 or later.
-	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
-	if (ret != TINYEXR_SUCCESS) {
-		log("Save EXR err: " + *err, ERROR);
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
 		return false;
 	}
 
-	log("Saved exr file " + filename, LOG);
+	ImageSpec spec(width, height, 4, TypeDesc::FLOAT);
+	out->open(filename, spec);
+	out->write_image(TypeDesc::FLOAT, buffer);
+	out->close();
 
-	free(header.channels);
-	free(header.pixel_types);
-	free(header.requested_pixel_types);
+	// Flip
+	ImageBuf A(filename);
+	ImageBuf B;
+	B = ImageBufAlgo::flip(A);
+	B.write(filename);
 
 	return true;
 }
 
-bool save_texture_exr(float4 *buffer, std::string filename, const int width, const int height, bool flip)
+bool save_texture_jpg(uint32_t* buffer, std::string filename, const int width, const int height)
 {
-	EXRHeader header;
-	InitEXRHeader(&header);
-
-	EXRImage image;
-	InitEXRImage(&image);
-
-	image.num_channels = 4;
-
-	std::vector<float> images[4];
-	for (int i = 0; i < image.num_channels; i++) images[i].resize(width*height);
-
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-
-			int idx = i * width + j;
-
-			// Flip image vertically
-			if (flip) i = height - i - 1;
-			int idx2 = i * width + j;
-
-			images[0][idx] = buffer[idx2].x;
-			images[1][idx] = buffer[idx2].y;
-			images[2][idx] = buffer[idx2].z;
-			images[3][idx] = buffer[idx2].w;
-
-		}
-	}
-
-	float* image_ptr[4];
-
-	image_ptr[0] = &(images[3].at(0)); // A
-	image_ptr[1] = &(images[2].at(0)); // B
-	image_ptr[2] = &(images[1].at(0)); // G
-	image_ptr[3] = &(images[0].at(0)); // R
-
-	image.images = (unsigned char**)image_ptr;
-	image.width = width;
-	image.height = height;
-
-	header.num_channels = 4;
-	header.channels = (EXRChannelInfo *)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "A", 255); header.channels[0].name[strlen("A")] = '\0';
-	strncpy(header.channels[1].name, "B", 255); header.channels[1].name[strlen("B")] = '\0';
-	strncpy(header.channels[2].name, "G", 255); header.channels[2].name[strlen("G")] = '\0';
-	strncpy(header.channels[3].name, "R", 255); header.channels[3].name[strlen("R")] = '\0';
-
-	header.pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	header.requested_pixel_types = (int *)malloc(sizeof(int) * header.num_channels);
-	for (int i = 0; i < header.num_channels; i++) {
-		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-	}
-
-	const char* err = NULL; // or nullptr in C++11 or later.
-	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
-	if (ret != TINYEXR_SUCCESS) {
-		log("Save EXR err: " + *err, ERROR);
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
 		return false;
 	}
-	log("Saved exr file " + filename, LOG);
 
-	free(header.channels);
-	free(header.pixel_types);
-	free(header.requested_pixel_types);
+	ImageSpec spec(width, height, 4, TypeDesc::UINT32);
+	out->open(filename, spec);
+	out->write_image(TypeDesc::UINT8, buffer);
+	out->close();
 
 	return true;
 }
 
-bool save_texture_exr(float4* buffer, float *depth, std::string filename, const int width, const int height, bool flip)
+bool save_texture_png(float3* buffer, std::string filename, const int width, const int height)
 {
-	EXRHeader header;
-	InitEXRHeader(&header);
-
-	EXRImage image;
-	InitEXRImage(&image);
-
-	image.num_channels = 5;
-
-	std::vector<float> images[5];
-	for (int i = 0; i < image.num_channels; i++) images[i].resize(width * height);
-
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-
-			int idx = i * width + j;
-
-			// Flip image vertically
-			if (flip) i = height - i - 1;
-			int idx2 = i * width + j;
-
-			images[0][idx] = buffer[idx2].x;
-			images[1][idx] = buffer[idx2].y;
-			images[2][idx] = buffer[idx2].z;
-			images[3][idx] = buffer[idx2].w;
-			images[4][idx] = depth[idx2];
-
-		}
-	}
-
-	float* image_ptr[5];
-
-	image_ptr[0] = &(images[3].at(0)); // A
-	image_ptr[1] = &(images[2].at(0)); // B
-	image_ptr[2] = &(images[1].at(0)); // G
-	image_ptr[3] = &(images[0].at(0)); // R
-	image_ptr[4] = &(images[4].at(0)); // Z
-
-	image.images = (unsigned char**)image_ptr;
-	image.width = width;
-	image.height = height;
-
-	header.num_channels = 5;
-	header.channels = (EXRChannelInfo*)malloc(sizeof(EXRChannelInfo) * header.num_channels);
-	// Must be (A)BGR order, since most of EXR viewers expect this channel order.
-	strncpy(header.channels[0].name, "A", 255); header.channels[0].name[strlen("A")] = '\0';
-	strncpy(header.channels[1].name, "B", 255); header.channels[1].name[strlen("B")] = '\0';
-	strncpy(header.channels[2].name, "G", 255); header.channels[2].name[strlen("G")] = '\0';
-	strncpy(header.channels[3].name, "R", 255); header.channels[3].name[strlen("R")] = '\0';
-	strncpy(header.channels[4].name, "Z", 255); header.channels[4].name[strlen("Z")] = '\0';
-
-	header.pixel_types = (int*)malloc(sizeof(int) * header.num_channels);
-	header.requested_pixel_types = (int*)malloc(sizeof(int) * header.num_channels);
-	for (int i = 0; i < header.num_channels; i++) {
-		header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
-		header.requested_pixel_types[i] = TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
-	}
-
-	const char* err = NULL; // or nullptr in C++11 or later.
-	int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
-	if (ret != TINYEXR_SUCCESS) {
-		log("Save EXR err: " + *err, ERROR);
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
 		return false;
 	}
-	log("Saved exr file " + filename, LOG);
 
-	free(header.channels);
-	free(header.pixel_types);
-	free(header.requested_pixel_types);
+	ImageSpec spec(width, height, 3, TypeDesc::FLOAT);
+	out->open(filename, spec);
+	out->write_image(TypeDesc::UINT8, buffer);
+	out->close();
 
 	return true;
 }
 
-bool load_texture_exr(float3 **buffer, std::string filename, int &width, int &height, bool flip)
+bool save_texture_png(float4* buffer, std::string filename, const int width, const int height)
 {
-
-	float *rgba;
-	const char *err;
-
-	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
-
-	if (ret != 0) {
-		log("Save EXR err: " + *err, ERROR);
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
 		return false;
 	}
 
-	*buffer = new float3[width*height];
+	ImageSpec spec(width, height, 4, TypeDesc::FLOAT);
+	out->open(filename, spec);
+	out->write_image(TypeDesc::FLOAT, buffer);
+	out->close();
+
+	return true;
+}
+
+bool save_texture_png(uint32_t* buffer, std::string filename, const int width, const int height)
+{
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
+		return false;
+	}
+
+	ImageSpec spec(width, height, 4, TypeDesc::UINT32);
+	out->open(filename, spec);
+	out->write_image(TypeDesc::UINT8, buffer);
+	out->close();
+
+	return true;
+}
+
+bool save_texture_tga(float3* buffer, std::string filename, const int width, const int height)
+{
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
+		return false;
+	}
+
+	ImageSpec spec(width, height, 3, TypeDesc::FLOAT);
+	out->open(filename, spec);
+	out->write_image(TypeDesc::FLOAT, buffer);
+	out->close();
+
+	return true;
+}
+
+bool save_texture_tga(float4* buffer, std::string filename, const int width, const int height)
+{
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
+		return false;
+	}
+
+	ImageSpec spec(width, height, 4, TypeDesc::FLOAT);
+	out->open(filename, spec);
+	out->write_image(TypeDesc::FLOAT, buffer);
+	out->close();
+
+	return true;
+}
+
+bool save_texture_exr(float3* buffer, std::string filename, const int width, const int height, bool flip)
+{
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
+		return false;
+	}
+
+	ImageSpec spec(width, height, 3, TypeDesc::FLOAT);
+	spec.channelnames.push_back("R");
+	spec.channelnames.push_back("G");
+	spec.channelnames.push_back("B");
+	out->open(filename, spec);
+	out->write_image(TypeDesc::FLOAT, buffer);
+	out->close();
+
+	return true;
+}
+
+bool save_texture_exr(float3* buffer, float* depth, std::string filename, const int width, const int height, bool flip)
+{
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
+		return false;
+	}
+
+	ImageSpec spec(width, height, 4, TypeDesc::FLOAT);
+	spec.channelnames.push_back("R");
+	spec.channelnames.push_back("G");
+	spec.channelnames.push_back("B");
+	spec.channelnames.push_back("Z");
+	out->open(filename, spec);
+	out->write_image(TypeDesc::FLOAT, buffer);
+	out->close();
+
+	return true;
+}
+
+bool save_texture_exr(float4* buffer, std::string filename, const int width, const int height, bool flip)
+{
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
+		return false;
+	}
+
+	ImageSpec spec(width, height, 4, TypeDesc::FLOAT);
+	spec.channelnames.emplace_back("R");
+	spec.channelnames.emplace_back("G");
+	spec.channelnames.emplace_back("B");
+	spec.channelnames.emplace_back("A");
+	
+	out->open(filename, spec);
+	out->write_image(TypeDesc::FLOAT, buffer);
+	out->close();
+
+	return true;
+}
+
+bool save_texture_exr(float4* buffer, float* depth, std::string filename, const int width, const int height, bool flip)
+{
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
+		return false;
+	}
+	ImageSpec spec(width, height, 5, TypeDesc::FLOAT);
+	spec.channelnames.push_back("R");
+	spec.channelnames.push_back("G");
+	spec.channelnames.push_back("B");
+	spec.channelnames.push_back("A");
+	spec.channelnames.push_back("Z");
+
+	std::vector<float> combined(width * height * 5);
+	for (size_t x = 0; x < width * height; x++)
+	{
+		combined.push_back(buffer[x].x);
+		combined.push_back(buffer[x].y);
+		combined.push_back(buffer[x].z);
+		combined.push_back(buffer[x].w);
+		combined.push_back(depth[x]);
+	}
+
+	out->open(filename, spec);
+	out->write_image(TypeDesc::FLOAT, combined.data());
+	out->close();
+
+	return true;
+}
+
+bool save_texture_exr(uint32_t* buffer, std::string filename, const int width, const int height, bool flip)
+{
+	std::unique_ptr<ImageOutput> out = ImageOutput::create(filename);
+	if (!out) {
+		return false;
+	}
+	ImageSpec spec(width, height, 4, TypeDesc::UINT32);
+	spec.channelnames.push_back("R");
+	spec.channelnames.push_back("G");
+	spec.channelnames.push_back("B");
+	spec.channelnames.push_back("A");
+	out->open(filename, spec);
+	out->write_image(TypeDesc::UINT32, buffer);
+	out->close();
+
+	return true;
+}
+
+bool load_texture_exr(float3** buffer, std::string filename, int& width, int& height, bool flip)
+{
+	auto in = ImageInput::open(filename);
+	if (!in) {
+		return false;
+	}
+	const ImageSpec& specInput = in->spec();
+	width = specInput.width;
+	height = specInput.height;
+	int channels = specInput.nchannels;
+	std::vector<float> pixels(height * width * channels);
+	in->read_image(TypeDesc::FLOAT, &pixels[0]);
+	in->close();
+
+	*buffer = new float3[width * height];
 
 	int float_idx = 0;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			int idx = y * width + x;
 
-			if (flip) idx = (width*height) - idx - 1;
+			if (flip) idx = (width * height) - idx - 1;
 
-			(*buffer)[idx].x = rgba[float_idx++]; // r
-			(*buffer)[idx].y = rgba[float_idx++]; // g
-			(*buffer)[idx].z = rgba[float_idx++]; // b
+			(*buffer)[idx].x = pixels[float_idx++]; // r
+			(*buffer)[idx].y = pixels[float_idx++]; // g
+			(*buffer)[idx].z = pixels[float_idx++]; // b
 			float_idx++; // alpha
 		}
 	}
 
-	delete[] rgba;
-
 	return true;
 }
 
-bool load_texture_exr(float4 **buffer, std::string filename, int &width, int &height, bool flip)
+bool load_texture_exr(float4** buffer, std::string filename, int& width, int& height, bool flip)
 {
-	float *rgba;
-	const char *err;
-
-	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
-
-	if (ret != 0) {
-		log("Save EXR err: " + *err, ERROR);
+	auto in = ImageInput::open(filename);
+	if (!in) {
 		return false;
 	}
+	const ImageSpec& specInput = in->spec();
+	width = specInput.width;
+	height = specInput.height;
+	int channels = specInput.nchannels;
+	std::vector<float> pixels(height * width * channels);
+	in->read_image(TypeDesc::FLOAT, &pixels[0]);
+	in->close();
 
-	*buffer = new float4[width*height];
+	*buffer = new float4[width * height];
 
 	int float_idx = 0;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			int idx = y * width + x;
 
-			if (flip) idx = (width*height) - idx - 1;
+			if (flip) idx = (width * height) - idx - 1;
 
-			(*buffer)[idx].x = rgba[float_idx++]; // r
-			(*buffer)[idx].y = rgba[float_idx++]; // g
-			(*buffer)[idx].z = rgba[float_idx++]; // b
-			(*buffer)[idx].w = rgba[float_idx++]; // b
+			(*buffer)[idx].x = pixels[float_idx++]; // r
+			(*buffer)[idx].y = pixels[float_idx++]; // g
+			(*buffer)[idx].z = pixels[float_idx++]; // b
+			(*buffer)[idx].w = pixels[float_idx++]; // b
 		}
 	}
 
-	delete[] rgba;
-
 	return true;
 }
 
-bool load_texture_exr_gpu(float3 ** buffer, std::string filename, int & width, int & height, bool flip)
+bool load_texture_exr_gpu(float3** buffer, std::string filename, int& width, int& height, bool flip)
 {
-	float *rgba;
-	const char *err;
-	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
-	if (ret != 0) {
-		log("Save EXR err: " + *err, ERROR);
+	auto in = ImageInput::open(filename);
+	if (!in) {
 		return false;
 	}
+	const ImageSpec& specInput = in->spec();
+	width = specInput.width;
+	height = specInput.height;
+	int channels = specInput.nchannels;
+	std::vector<float> pixels(height * width * channels);
+	in->read_image(TypeDesc::FLOAT, &pixels[0]);
+	in->close();
 
-	float3 *values = new float3[height * width];
+	float3* values = new float3[height * width];
 
 	int float_idx = 0;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			int idx = y * width + x;
-			if (flip) idx = (width*height) - idx - 1;
-			values[idx].x = rgba[float_idx++]; // r
-			values[idx].y = rgba[float_idx++]; // g
-			values[idx].z = rgba[float_idx++]; // b
+			if (flip) idx = (width * height) - idx - 1;
+			values[idx].x = pixels[float_idx++]; // r
+			values[idx].y = pixels[float_idx++]; // g
+			values[idx].z = pixels[float_idx++]; // b
 			float_idx++; // alpha
 		}
 	}
@@ -601,106 +384,104 @@ bool load_texture_exr_gpu(float3 ** buffer, std::string filename, int & width, i
 	checkCudaErrors(cudaMalloc(buffer, width * height * sizeof(float3)));
 	checkCudaErrors(cudaMemcpy(*buffer, values, width * height * sizeof(float3), cudaMemcpyHostToDevice));
 
-	delete[] rgba;
 	delete[] values;
 
 	return true;
 }
 
-bool load_texture_exr_gpu(float4 ** buffer, std::string filename, int & width, int & height, bool flip)
+bool load_texture_exr_gpu(float4** buffer, std::string filename, int& width, int& height, bool flip)
 {
-	float *rgba;
-	const char *err;
-	int ret = LoadEXR(&rgba, &width, &height, filename.c_str(), &err);
-	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
-	if (ret != 0) {
-		log("Save EXR err: " + *err, ERROR);
+	auto in = ImageInput::open(filename);
+	if (!in) {
 		return false;
 	}
+	const ImageSpec& specInput = in->spec();
+	width = specInput.width;
+	height = specInput.height;
+	int channels = specInput.nchannels;
+	std::vector<float> pixels(height * width * channels);
+	in->read_image(TypeDesc::FLOAT, &pixels[0]);
+	in->close();
 
-	float4 *values = new float4[height * width];
+	float4* values = new float4[height * width];
 
 	int float_idx = 0;
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			int idx = y * width + x;
-			if (flip) idx = (width*height) - idx - 1;
-			values[idx].x = rgba[float_idx++]; // r
-			values[idx].y = rgba[float_idx++]; // g
-			values[idx].z = rgba[float_idx++]; // b
-			values[idx].w = rgba[float_idx++]; // b
+			if (flip) idx = (width * height) - idx - 1;
+			values[idx].x = pixels[float_idx++]; // r
+			values[idx].y = pixels[float_idx++]; // g
+			values[idx].z = pixels[float_idx++]; // b
+			values[idx].w = pixels[float_idx++]; // b
 		}
 	}
 
 	checkCudaErrors(cudaMalloc(buffer, width * height * sizeof(float4)));
 	checkCudaErrors(cudaMemcpy(*buffer, values, width * height * sizeof(float4), cudaMemcpyHostToDevice));
 
-	delete[] rgba;
 	delete[] values;
 
 	return true;
 }
 
-bool load_texture_bmp(float3 ** buffer, std::string filename, int & width, int & height, bool flip)
+bool load_texture_bmp(float3** buffer, std::string filename, int& width, int& height, bool flip)
 {
-	// Load blue noise texture from assets directory and send to gpu 
+	// Load blue noise texture from assets directory and send to gpu
 	bitmap_image image(filename.c_str());
 
 	if (!image) {
-		log("Unable to load file " + filename, ERROR);
+		log("Unable to load file " + filename, VPT_ERROR);
 		return false;
 	}
 	width = image.width();
 	height = image.height();
 
-	*buffer = new float3[width*height];
+	*buffer = new float3[width * height];
 
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
-
 			rgb_t color;
 
 			image.get_pixel(x, y, color);
 			int idx = y * width + x;
-			if (flip) idx = (width*height) - idx - 1;
+			if (flip) idx = (width * height) - idx - 1;
 			(*buffer)[idx].x = float(color.red) / 255.0f;
 			(*buffer)[idx].y = float(color.blue) / 255.0f;
 			(*buffer)[idx].z = float(color.green) / 255.0f;
 		}
 	}
 
-	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
+	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), VPT_LOG);
 
 	return true;
 }
 
-bool load_texture_bmp_gpu(float3 ** buffer, std::string filename, int & width, int & height, bool flip)
+bool load_texture_bmp_gpu(float3** buffer, std::string filename, int& width, int& height, bool flip)
 {
-	// Load blue noise texture from assets directory and send to gpu 
+	// Load blue noise texture from assets directory and send to gpu
 	bitmap_image image(filename.c_str());
 
 	if (!image) {
-		log("Unable to load file " + filename, ERROR);
+		log("Unable to load file " + filename, VPT_ERROR);
 		return false;
 	}
 
 	width = image.width();
 	height = image.height();
 
-	float3 *values = new float3[height * width];
+	float3* values = new float3[height * width];
 
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
-
 			rgb_t color;
 
 			image.get_pixel(x, y, color);
 			int idx = y * width + x;
-			if (flip) idx = (width*height) - idx - 1;
+			if (flip) idx = (width * height) - idx - 1;
 			values[idx].x = float(color.red) / 255.0f;
 			values[idx].y = float(color.blue) / 255.0f;
 			values[idx].z = float(color.green) / 255.0f;
-
 		}
 	}
 
@@ -709,8 +490,7 @@ bool load_texture_bmp_gpu(float3 ** buffer, std::string filename, int & width, i
 
 	delete[] values;
 
-	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), LOG);
+	log("loaded file " + filename + " width:" + std::to_string(width) + " height:" + std::to_string(height), VPT_LOG);
 
 	return true;
 }
-

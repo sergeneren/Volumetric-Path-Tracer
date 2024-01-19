@@ -90,7 +90,7 @@ public:
 		ray_pos = xform.transpose().inverse().transform_point(ray_pos);
 		ray_dir = xform.transpose().inverse().transform_vector(ray_dir);
 
-		register float ht[8];
+		float ht[8];
 		ht[0] = (vdb_info.bmin.x - ray_pos.x) / ray_dir.x;
 		ht[1] = (vdb_info.bmax.x - ray_pos.x) / ray_dir.x;
 		ht[2] = (vdb_info.bmin.y - ray_pos.y) / ray_dir.y;

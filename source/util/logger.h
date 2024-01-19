@@ -41,11 +41,10 @@
 
 #include <string>
 
-enum {
-
-	ERROR = 0,
-	WARNING = 1,
-	LOG = 2
+enum LogLevel{
+	VPT_ERROR = 0,
+	VPT_WARNING = 1,
+	VPT_LOG = 2
 };
 
 

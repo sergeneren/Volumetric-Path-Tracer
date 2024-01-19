@@ -9,11 +9,11 @@
 //	* Redistributions in binary form must reproduce the above copyright notice,
 //	this list of conditions and the following disclaimer in the documentation
 //	and/or other materials provided with the distribution.
-//	
+//
 //	* Neither the name of the copyright holder nor the names of its
 //	contributors may be used to endorse or promote products derived from
 //	this software without specific prior written permission.
-//	
+//
 //	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 //	AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 //	IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,17 +24,16 @@
 //	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 //	OR TORT(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 //	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Copyright(c) 2019, Sergen Eren
 // All rights reserved.
 //----------------------------------------------------------------------------------
-// 
+//
 //	Version 1.0: Sergen Eren, 21/10/2019
 //
-// File: Main entry point for render kernel. 
+// File: Main entry point for render kernel.
 //
 //-----------------------------------------------
-
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -63,7 +62,7 @@
 #include <vector>
 #include <random>
 
-#include "boost/filesystem.hpp"
+#include <filesystem>
 
 #undef APIENTRY
 
@@ -84,18 +83,16 @@
 // Instance file parser
 #include "instancer_hda/volume_instance.h"
 
-//#define SAVE_TGA
-#define SAVE_OPENEXR
+#define SAVE_JPG
+//#define SAVE_OPENEXR
 
 #include <Windows.h>
 
 // Third Party
 
-#define OIDN_STATIC_LIB
 #include <OpenImageDenoise/oidn.hpp>
 
-
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 // Atmosphere
 
@@ -114,10 +111,10 @@ std::vector<point_light> point_lights;
 light_list l_list(0);
 CUdeviceptr d_lights;
 
-static int num_volumes = 3; // TODO: read number of instances from json file 
+static int num_volumes = 3; // TODO: read number of instances from json file
 BVH_Builder bvh_builder;
 
-// Cam parameters 
+// Cam parameters
 camera	cam;
 float3	lookfrom;
 float3	lookat;
@@ -144,6 +141,43 @@ bool empty_volume = false;
         } \
     } while(false)
 
+std::string OIDNErrorToString(OIDNError errorCode)
+{
+	std::string ret;
+	switch (errorCode)
+	{
+	case OIDN_ERROR_UNKNOWN:
+		ret += "OIDN Error unknown ";
+		break;
+	case OIDN_ERROR_INVALID_ARGUMENT:
+		ret += "OIDN Error invalid argument";
+		break;
+	case OIDN_ERROR_INVALID_OPERATION:
+		ret += "OIDN Error invalid operation";
+		break;
+	case OIDN_ERROR_OUT_OF_MEMORY:
+		ret += "OIDN Error out of memory";
+		break;
+	case OIDN_ERROR_UNSUPPORTED_HARDWARE:
+		ret += "OIDN Error unsupported hardware";
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static void OIDNErrorCallback(void* ptr, OIDNError errorCode, const char* errorStr)
+{
+	if (errorCode == OIDN_ERROR_CANCELLED)
+		return;
+
+	std::string errorMsg = OIDNErrorToString(errorCode);
+	errorMsg += std::string("! msg: ") + std::string(errorStr);
+	printf("OIDN Error: %s \n", errorMsg.c_str());
+}
+
 // Env sampling functions
 static bool solveQuadratic(float a, float b, float c, float& x1, float& x2)
 {
@@ -168,7 +202,6 @@ static bool solveQuadratic(float a, float b, float c, float& x1, float& x2)
 // check ray against earth and atmosphere upper bound
 static bool raySphereIntersect(const float3& orig, const float3& dir, const float& radius, float& t0, float& t1)
 {
-
 	float A = dir.x * dir.x + dir.y * dir.y + dir.z * dir.z;
 	float B = 2 * (dir.x * orig.x + dir.y * orig.y + dir.z * orig.z);
 	float C = orig.x * orig.x + orig.y * orig.y + orig.z * orig.z - radius * radius;
@@ -186,15 +219,12 @@ static bool raySphereIntersect(const float3& orig, const float3& dir, const floa
 // Degree to radians conversion
 static float degree_to_radians(float degree)
 {
-
 	return degree * float(M_PI) / 180.0f;
-
 }
 
 // Polar coordinates to direction
 static float3 degree_to_cartesian(float azimuth, float elevation)
 {
-
 	float az = clamp(azimuth, .0f, 360.0f);
 	float el = clamp(elevation, .0f, 90.0f);
 
@@ -209,9 +239,8 @@ static float3 degree_to_cartesian(float azimuth, float elevation)
 }
 
 // Draw a sample from sky
-static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3 orig, const float3 dir, const float3 intensity)
+static float3 sample_atmosphere(const Kernel_params& kernel_params, const float3 orig, const float3 dir, const float3 intensity)
 {
-
 	// initial parameters
 	float	atmosphereRadius = 6420e3f;
 	float3	sunDirection = degree_to_cartesian(kernel_params.azimuth, kernel_params.elevation);
@@ -221,7 +250,6 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 	float3	betaR = make_float3(3.8e-6f, 13.5e-6f, 33.1e-6f);
 	float3	betaM = make_float3(21e-6f);
 	//
-
 
 	float t0, t1;
 	float tmin, tmax = FLT_MAX;
@@ -280,31 +308,28 @@ static float3 sample_atmosphere(const Kernel_params &kernel_params, const float3
 		tCurrent += segmentLength;
 	}
 
-
 	return (sumR * betaR * phaseR + sumM * betaM * phaseM) * intensity;
 }
 
 // Initialize GLFW and GLEW.
-static GLFWwindow *init_opengl()
+static GLFWwindow* init_opengl()
 {
-
 	check_success(glfwInit());
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-
-	GLFWwindow *window = glfwCreateWindow(1800, 640, "volume path tracer", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(1800, 640, "volume path tracer", NULL, NULL);
 	if (!window) {
-		log("Error creating OpenGL window.", ERROR);
+		log("Error creating OpenGL window.", VPT_ERROR);
 		glfwTerminate();
 	}
 	glfwMakeContextCurrent(window);
 
 	const GLenum res = glewInit();
 	if (res != GLEW_OK) {
-		log((char *)glewGetErrorString(res), ERROR);
+		log((char*)glewGetErrorString(res), VPT_ERROR);
 		glfwTerminate();
 	}
 
@@ -321,7 +346,7 @@ static void init_cuda()
 	unsigned int num_cuda_devices;
 	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
 	if (num_cuda_devices == 0) {
-		log("Could not determine CUDA device for current OpenGL context", ERROR);
+		log("Could not determine CUDA device for current OpenGL context", VPT_ERROR);
 		exit(EXIT_FAILURE);
 	}
 
@@ -330,7 +355,7 @@ static void init_cuda()
 }
 
 // Utility: add a GLSL shader.
-static void add_shader(GLenum shader_type, const char *source_code, GLuint program)
+static void add_shader(GLenum shader_type, const char* source_code, GLuint program)
 {
 	GLuint shader = glCreateShader(shader_type);
 	check_success(shader);
@@ -351,7 +376,7 @@ static GLuint create_shader_program()
 	GLint success;
 	GLuint program = glCreateProgram();
 
-	const char *vert =
+	const char* vert =
 		"#version 330\n"
 		"in vec3 Position;\n"
 		"out vec2 TexCoord;\n"
@@ -361,7 +386,7 @@ static GLuint create_shader_program()
 		"}\n";
 	add_shader(GL_VERTEX_SHADER, vert, program);
 
-	const char *frag =
+	const char* frag =
 		"#version 330\n"
 		"in vec2 TexCoord;\n"
 		"out vec4 FragColor;\n"
@@ -374,7 +399,7 @@ static GLuint create_shader_program()
 	glLinkProgram(program);
 	glGetProgramiv(program, GL_LINK_STATUS, &success);
 	if (!success) {
-		log("Error linking shadering program", ERROR);
+		log("Error linking shadering program", VPT_ERROR);
 		glfwTerminate();
 	}
 
@@ -433,9 +458,9 @@ struct Window_context
 };
 
 // GLFW scroll callback.
-static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset)
+static void handle_scroll(GLFWwindow* window, double xoffset, double yoffset)
 {
-	Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
+	Window_context* ctx = static_cast<Window_context*>(glfwGetWindowUserPointer(window));
 	if (yoffset > 0.0)
 		ctx->zoom_delta = 1;
 	else if (yoffset < 0.0)
@@ -443,12 +468,12 @@ static void handle_scroll(GLFWwindow *window, double xoffset, double yoffset)
 }
 
 // GLFW keyboard callback.
-static void handle_key(GLFWwindow *window, int key, int scancode, int action, int mods)
+static void handle_key(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	float dist = 0;
 
 	if (action == GLFW_PRESS) {
-		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
+		Window_context* ctx = static_cast<Window_context*>(glfwGetWindowUserPointer(window));
 		switch (key) {
 		case GLFW_KEY_ESCAPE:
 			glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -491,10 +516,10 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 			ctx->change = true;
 			break;
-		case GLFW_KEY_S: // Save linear image 
+		case GLFW_KEY_S: // Save linear image
 			ctx->save_image = true;
 			break;
-		case GLFW_KEY_C: // Save cost image 
+		case GLFW_KEY_C: // Save cost image
 			ctx->save_cost_image = true;
 			break;
 		case GLFW_KEY_F: // Frame camera to include objects
@@ -502,11 +527,9 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 			float3 bbox_min = make_float3(.0f);
 			float3 bbox_max = make_float3(.0f);;
 
-			for(GPU_VDB vdb: instances) { 
-			
-				bbox_min = fminf(bbox_min ,vdb.get_xform().transpose().transform_point(vdb.vdb_info.bmin));
-				bbox_max = fmaxf(bbox_max ,vdb.get_xform().transpose().transform_point(vdb.vdb_info.bmax));
-			
+			for (GPU_VDB vdb : instances) {
+				bbox_min = fminf(bbox_min, vdb.get_xform().transpose().transform_point(vdb.vdb_info.bmin));
+				bbox_max = fmaxf(bbox_max, vdb.get_xform().transpose().transform_point(vdb.vdb_info.bmax));
 			}
 
 			float3 center = (bbox_max + bbox_min) / 2;
@@ -525,9 +548,9 @@ static void handle_key(GLFWwindow *window, int key, int scancode, int action, in
 }
 
 // GLFW mouse button callback.
-static void handle_mouse_button(GLFWwindow *window, int button, int action, int mods)
+static void handle_mouse_button(GLFWwindow* window, int button, int action, int mods)
 {
-	Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
+	Window_context* ctx = static_cast<Window_context*>(glfwGetWindowUserPointer(window));
 	bool imgui_hover = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow);
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && !imgui_hover) {
@@ -550,9 +573,9 @@ static void handle_mouse_button(GLFWwindow *window, int button, int action, int 
 }
 
 // GLFW mouse position callback.
-static void handle_mouse_pos(GLFWwindow *window, double xpos, double ypos)
+static void handle_mouse_pos(GLFWwindow* window, double xpos, double ypos)
 {
-	Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
+	Window_context* ctx = static_cast<Window_context*>(glfwGetWindowUserPointer(window));
 	if (ctx->moving)
 	{
 		ctx->move_dx += xpos - ctx->move_start_x;
@@ -571,9 +594,9 @@ static void handle_mouse_pos(GLFWwindow *window, double xpos, double ypos)
 
 // Resize OpenGL and CUDA buffers for a given resolution.
 static void resize_buffers(
-	float3 **accum_buffer_cuda,
-	float4 **raw_buffer_cuda,
-	cudaGraphicsResource_t *display_buffer_cuda,
+	float3** accum_buffer_cuda,
+	float4** raw_buffer_cuda,
+	cudaGraphicsResource_t* display_buffer_cuda,
 	int width, int height,
 	GLuint display_buffer)
 {
@@ -596,49 +619,41 @@ static void resize_buffers(
 	if (*raw_buffer_cuda)
 		check_success(cudaFree(*raw_buffer_cuda) == cudaSuccess);
 	check_success(cudaMalloc(raw_buffer_cuda, width * height * sizeof(float4)) == cudaSuccess);
-
 }
 
-static void resize_buffer(float **buffer, int width, int height) {
-
+static void resize_buffer(float** buffer, int width, int height) {
 	if (*buffer) check_success(cudaFree(*buffer) == cudaSuccess);
 	check_success(cudaMalloc(buffer, width * height * sizeof(float)) == cudaSuccess);
-
 }
 
-static void resize_buffer(float3 **buffer, int width, int height) {
-
+static void resize_buffer(float3** buffer, int width, int height) {
 	if (*buffer)	check_success(cudaFree(*buffer) == cudaSuccess);
 	check_success(cudaMalloc(buffer, width * height * sizeof(float3)) == cudaSuccess);
-
 }
 
-static void resize_buffer(float4 **buffer, int width, int height) {
-
+static void resize_buffer(float4** buffer, int width, int height) {
 	if (*buffer)	check_success(cudaFree(*buffer) == cudaSuccess);
 	check_success(cudaMalloc(buffer, width * height * sizeof(float4)) == cudaSuccess);
-
 }
 
 static void update_debug_buffer(
-	float3 **debug_buffer_cuda,
+	float3** debug_buffer_cuda,
 	Kernel_params kernel_params)
 {
 	if (*debug_buffer_cuda)	check_success(cudaFree(*debug_buffer_cuda) == cudaSuccess);
 	check_success(cudaMalloc(debug_buffer_cuda, 1000 * sizeof(float3)) == cudaSuccess);
 }
 
-
 static bool create_cdf(
-	Kernel_params &kernel_params,
-	cudaArray_t *env_val_data,
-	cudaArray_t *env_func_data,
-	cudaArray_t *env_cdf_data,
-	cudaArray_t *env_marginal_func_data,
-	cudaArray_t *env_marginal_cdf_data)
+	Kernel_params& kernel_params,
+	cudaArray_t* env_val_data,
+	cudaArray_t* env_func_data,
+	cudaArray_t* env_cdf_data,
+	cudaArray_t* env_marginal_func_data,
+	cudaArray_t* env_marginal_cdf_data)
 {
 	if (kernel_params.debug) {
-		log("creating cdf and function textures for environment...", LOG);
+		log("creating cdf and function textures for environment...", VPT_LOG);
 	}
 
 	// Fill the value, function, marginal and cdf values
@@ -651,11 +666,11 @@ static bool create_cdf(
 	float az = 0;
 	float el = 0;
 
-	float3 *val = new float3[res*res], *val_p = val;							//RGB values of env sky
-	float *func = new float[res*res], *func_p = func;							// Luminous power of sky
-	float *cdf = new float[res*res], *cdf_p = cdf;							// constructed CDF of directions 
-	float *marginal_func = new float[res], *marginal_func_p = marginal_func;		// values for marginal distribution
-	float *marginal_cdf = new float[res], *marginal_cdf_p = marginal_cdf;			// cdf for marginal distribution
+	float3* val = new float3[res * res], * val_p = val;							//RGB values of env sky
+	float* func = new float[res * res], * func_p = func;							// Luminous power of sky
+	float* cdf = new float[res * res], * cdf_p = cdf;							// constructed CDF of directions
+	float* marginal_func = new float[res], * marginal_func_p = marginal_func;		// values for marginal distribution
+	float* marginal_cdf = new float[res], * marginal_cdf_p = marginal_cdf;			// cdf for marginal distribution
 
 	memset(val, 0x0, sizeof(float3) * res * res);
 	memset(func, 0x0, sizeof(float) * res * res);
@@ -671,10 +686,9 @@ static bool create_cdf(
 		el = float(y) / float(res - 1) * float(M_PI);			// elevation goes from 0 to 180 degrees
 		*(cdf_p - 1) = .0f;
 		for (int x = 0; x < res; ++x, ++val_p, ++func_p, ++cdf_p) {
+			az = float(x) / float(res - 1) * float(M_PI) * 2.0f;		// azimuth goes from 0 to 360 degrees
 
-			az = float(x) / float(res - 1) * float(M_PI) * 2.0f;		// azimuth goes from 0 to 360 degrees 
-
-			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el), sinf(el) * sinf(az)); // polar to cartesian 			
+			float3 dir = make_float3(sinf(el) * cosf(az), cosf(el), sinf(el) * sinf(az)); // polar to cartesian
 			*val_p = sample_atmosphere(kernel_params, pos, dir, kernel_params.sky_color);
 			*func_p = length((*val_p));
 			*cdf_p = *(cdf_p - 1) + *(func_p - 1) / (res);
@@ -713,13 +727,11 @@ static bool create_cdf(
 		}
 	}
 
-
 	// Construct marginal distribution cdf array
 	marginal_func_p = marginal_func;
 	*marginal_cdf_p = 0.0f;
 
 	for (int y = 0; y < res; ++y, ++marginal_func_p, ++marginal_cdf_p) {
-
 		*marginal_cdf_p = *(marginal_cdf_p - 1) + *marginal_func_p / res;
 		//printf("\n%d	%f",y ,*marginal_func_p);
 	}
@@ -741,15 +753,13 @@ static bool create_cdf(
 	// End array filling
 	//------------------------------------------------------------------------------------
 
-
-
-	// Send data to GPU 
+	// Send data to GPU
 	//-------------------------------------------------------------------------------------
 
 	// Send val data
 
-	float4 *texture = new float4[res*res];
-	for (int i = 0; i < res*res; i++) {
+	float4* texture = new float4[res * res];
+	for (int i = 0; i < res * res; i++) {
 		texture[i] = make_float4(val[i].x, val[i].y, val[i].z, 1.0f);
 	}
 
@@ -773,7 +783,6 @@ static bool create_cdf(
 
 	check_success(cudaCreateTextureObject(&kernel_params.sky_tex, &res_desc_val, &tex_desc_val, NULL) == cudaSuccess);
 
-
 	// Send func data
 	const cudaChannelFormatDesc channel_desc = cudaCreateChannelDesc<float>();
 	check_success(cudaMallocArray(env_func_data, &channel_desc, res, res) == cudaSuccess);
@@ -795,7 +804,7 @@ static bool create_cdf(
 
 	check_success(cudaCreateTextureObject(&kernel_params.env_func_tex, &res_desc_func, &tex_desc_func, NULL) == cudaSuccess);
 
-	// Send cdf data 
+	// Send cdf data
 
 	check_success(cudaMallocArray(env_cdf_data, &channel_desc, res, res) == cudaSuccess);
 	check_success(cudaMemcpy2DToArray(*env_cdf_data, 0, 0, cdf, res * sizeof(float), res * sizeof(float), res, cudaMemcpyHostToDevice) == cudaSuccess);
@@ -837,7 +846,6 @@ static bool create_cdf(
 
 	check_success(cudaCreateTextureObject(&kernel_params.env_marginal_func_tex, &res_desc_marginal_func, &tex_desc_marginal_func, NULL) == cudaSuccess);
 
-
 	// Send Marginal 1D distribution cdf data
 
 	check_success(cudaMallocArray(env_marginal_cdf_data, &channel_desc, res, 0) == cudaSuccess);
@@ -858,8 +866,6 @@ static bool create_cdf(
 
 	check_success(cudaCreateTextureObject(&kernel_params.env_marginal_cdf_tex, &res_desc_marginal_cdf, &tex_desc_marginal_cdf, NULL) == cudaSuccess);
 
-
-
 	//End host to device data migration
 	//------------------------------------------------------------------------------------------
 
@@ -869,10 +875,8 @@ static bool create_cdf(
 
 	if (CreateDirectory("./env_sample", NULL) || ERROR_ALREADY_EXISTS == GetLastError());
 	else {
-
 		printf("\nError: unable to create directory for environment sample textures\n");
 		exit(-1);
-
 	};
 
 	std::ofstream ofs_val("./env_sample/val.ppm", std::ios::out | std::ios::binary);
@@ -923,7 +927,6 @@ static bool create_cdf(
 			ofs_cdf << (unsigned char)(min(1.0f, (*cdf_p)) * 255)
 				<< (unsigned char)(min(1.0f, (*cdf_p)) * 255)
 				<< (unsigned char)(min(1.0f, (*cdf_p)) * 255);
-
 		}
 	}
 	ofs_val.close();
@@ -934,22 +937,20 @@ static bool create_cdf(
 
 #endif
 
-
 	delete[] val, func, cdf;
 	return true;
-
 }
 
 // Create enviroment texture.
 static bool create_environment(
-	cudaTextureObject_t *env_tex,
-	cudaArray_t *env_tex_data,
-	const char *envmap_name)
+	cudaTextureObject_t* env_tex,
+	cudaArray_t* env_tex_data,
+	const char* envmap_name)
 {
 	unsigned int rx, ry;
-	float *pixels;
+	float* pixels;
 	if (!load_hdr_float4(&pixels, &rx, &ry, envmap_name)) {
-		log("error loading environment map file", ERROR);
+		log("error loading environment map file", VPT_ERROR);
 		return false;
 	}
 
@@ -977,7 +978,6 @@ static bool create_environment(
 }
 
 static void read_instance_file(std::string file_name) {
-	
 	assert(!file_name.empty());
 
 	std::ifstream stream;
@@ -987,9 +987,8 @@ static void read_instance_file(std::string file_name) {
 	std::getline(stream, num_vdbs);
 
 	if (num_vdbs == "light") {
+		log("Setting up instanced point lights...", VPT_LOG);
 
-		log("Setting up instanced point lights...", LOG);
-		
 		int num_lights;
 		std::string num_points;
 		std::getline(stream, num_points);
@@ -1001,20 +1000,16 @@ static void read_instance_file(std::string file_name) {
 		cudaMallocManaged(&l_list.light_ptr, num_lights * sizeof(point_light));
 
 		for (int i = 0; i < num_lights; ++i) {
-
 			std::string instance_parameters;
 			std::getline(stream, instance_parameters);
 			std::istringstream params(instance_parameters);
 			double p_x, p_y, p_z, r, g, b, p;
 			params >> p_x >> p_y >> p_z >> r >> g >> b >> p;
 
-
 			l_list.light_ptr[i] = point_light();
 			l_list.light_ptr[i].color = make_float3(r, g, b);
 			l_list.light_ptr[i].pos = make_float3(p_x, p_y, p_z);;
 			l_list.light_ptr[i].power = p;
-
-
 		}
 
 		check_success(cuMemAlloc(&d_lights, sizeof(light_list)) == cudaSuccess);
@@ -1022,17 +1017,15 @@ static void read_instance_file(std::string file_name) {
 		empty_volume = true;
 	}
 	else {
-
-		log("Setting up instanced volumes...", LOG);
+		log("Setting up instanced volumes...", VPT_LOG);
 
 		std::istringstream iss(num_vdbs);
 		int num_volumes;
 		iss >> num_volumes;
-		log("number of vdbs: " + num_volumes, LOG);
+		log("number of vdbs: " + num_volumes, VPT_LOG);
 		volume_files.resize(num_volumes);
 
 		for (int i = 0; i < num_volumes; ++i) {
-
 			std::string vdb_file_name;
 			std::getline(stream, vdb_file_name);
 			volume_files.at(i).vdb_file = vdb_file_name;
@@ -1043,7 +1036,6 @@ static void read_instance_file(std::string file_name) {
 			volume_files.at(i).instances.resize(volume_files.at(i).num_instances);
 
 			for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
-
 				std::string instance_parameters;
 				std::getline(stream, instance_parameters);
 				std::istringstream params(instance_parameters);
@@ -1065,12 +1057,10 @@ static void read_instance_file(std::string file_name) {
 		stream.close();
 
 		for (int i = 0; i < volume_files.size(); ++i) {
-
 			unique_vdb_files.push_back(GPU_VDB());
 			unique_vdb_files.at(i).loadVDB(volume_files.at(i).vdb_file, "density", "heat", "Cd");
 
 			for (unsigned int x = 0; x < volume_files.at(i).num_instances; ++x) {
-
 				GPU_VDB new_instance(GPU_VDB(unique_vdb_files.at(i)));
 
 				mat4 xform = unique_vdb_files.at(i).get_xform();
@@ -1080,7 +1070,6 @@ static void read_instance_file(std::string file_name) {
 
 				// Set scale
 				xform.scale(make_float3(volume_files.at(i).instances.at(x).scale));
-
 
 				// Apply instance rotation
 
@@ -1105,25 +1094,23 @@ static void read_instance_file(std::string file_name) {
 					volume_files.at(i).instances.at(x).position[1],
 					volume_files.at(i).instances.at(x).position[2]));
 
-
 				new_instance.set_xform(xform);
 				instances.push_back(new_instance);
-
 			}
 		}
 	}
 }
 
 // Process camera movement.
-static void update_camera(double dx, double dy, double mx, double my, int zoom_delta, const atmosphere &atm, float scene_max)
+static void update_camera(double dx, double dy, double mx, double my, int zoom_delta, const atmosphere& atm, float scene_max)
 {
 	float rot_speed = 1;
 	float zoom_speed = scene_max / 4.0f;
 	float dist = length(lookfrom - lookat);
 	// Rotation
 
-	lookfrom -= cam.u * float(dx) * rot_speed  * dist * 0.01f;
-	lookfrom += cam.v * float(dy) * rot_speed  * dist * 0.01f;
+	lookfrom -= cam.u * float(dx) * rot_speed * dist * 0.01f;
+	lookfrom += cam.v * float(dy) * rot_speed * dist * 0.01f;
 
 	//Pan
 	lookfrom -= cam.u * float(mx) * rot_speed;
@@ -1131,23 +1118,18 @@ static void update_camera(double dx, double dy, double mx, double my, int zoom_d
 	lookat -= cam.u * float(mx) * rot_speed;
 	lookat += cam.v * float(my) * rot_speed;
 
-	// Zoom 
+	// Zoom
 	lookfrom -= cam.w * float(zoom_delta) * zoom_speed;
 
 	float3 earth_center = make_float3(.0f, -atm.atmosphere_parameters.bottom_radius, .0f);
 
 	if (length(lookfrom - earth_center) < atm.atmosphere_parameters.bottom_radius) lookfrom += normalize(lookfrom - earth_center) * (atm.atmosphere_parameters.bottom_radius - length(lookfrom - earth_center));
 
-
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
-
 }
-
 
 int main(const int argc, const char* argv[])
 {
-
-	
 	//***********************************************************************************************************************************
 	// Create necessary folders
 	//
@@ -1168,16 +1150,15 @@ int main(const int argc, const char* argv[])
 	GLuint program = 0;
 	GLuint quad_vertex_buffer = 0;
 	GLuint quad_vao = 0;
-	GLFWwindow *window = NULL;
+	GLFWwindow* window = NULL;
 	int width = -1;
 	int height = -1;
 	window_context.change = false;
 	window_context.save_image = false;
 	window_context.save_cost_image = false;
 
-	log("Initializing opengl...", LOG);
+	log("Initializing opengl...", VPT_LOG);
 
-	
 	//***********************************************************************************************************************************
 	// Init OpenGL window and callbacks.
 	//
@@ -1197,27 +1178,24 @@ int main(const int argc, const char* argv[])
 	program = create_shader_program();
 	quad_vao = create_quad(program, &quad_vertex_buffer);
 
-
-	log("Initializing cuda...", LOG);
+	log("Initializing cuda...", VPT_LOG);
 	init_cuda();
 
-
 	// SETUP IMGUI PARAMETERS
-	log("Setting up Imgui parameters...", LOG);
+	log("Setting up Imgui parameters...", VPT_LOG);
 	const char* glsl_version = "#version 330";
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGuiIO &io = ImGui::GetIO(); (void)io;
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigWindowsMoveFromTitleBarOnly = true;
 	ImGui::StyleColorsDark();
 
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-
 	//***********************************************************************************************************************************
-	// Setup modules and contexes 
+	// Setup modules and contexes
 	//
 	//***********************************************************************************************************************************
 
@@ -1230,14 +1208,14 @@ int main(const int argc, const char* argv[])
 	unsigned int num_cuda_devices;
 	check_success(cudaGLGetDevices(&num_cuda_devices, cuda_devices, 1, cudaGLDeviceListAll) == cudaSuccess);
 	if (num_cuda_devices == 0) {
-		log("Could not determine CUDA device for context", ERROR);
+		log("Could not determine CUDA device for context", VPT_ERROR);
 		exit(EXIT_FAILURE);
 	}
 
 	CUcontext cuctx;
 	cuCtxGetCurrent(&cuctx);
 
-	log("Loading Cuda kernel modules and functions...", LOG);
+	log("Loading Cuda kernel modules and functions...", VPT_LOG);
 	CUresult error;
 
 	CUlinkState state;
@@ -1251,52 +1229,46 @@ int main(const int argc, const char* argv[])
 	cuLinkComplete(state, (void**)&image, &sz);
 
 	error = cuModuleLoadData(&Module, image);
-	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, ERROR);
+	if (error != CUDA_SUCCESS) log("cuModuleLoad " + error, VPT_ERROR);
 	cuLinkDestroy(state);
 
 	error = cuModuleGetFunction(&cuRaycastKernel, Module, render_kernel_name);
-	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, VPT_ERROR);
 
 	error = cuModuleGetFunction(&cuTextureKernel, Module, texture_kernel_name);
-	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
-
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, VPT_ERROR);
 
 	error = cuModuleGetFunction(&cuCreateGeometryKernel, Module, "create_geometry_list");
-	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, VPT_ERROR);
 	error = cuModuleGetFunction(&cuTestGeometryKernel, Module, "test_geometry_list");
-	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, ERROR);
+	if (error != CUDA_SUCCESS) log("cuModuleGetFunction " + error, VPT_ERROR);
 
-
-	
 	//***********************************************************************************************************************************
 	// Setup gpu_vdb
 	//
 	//***********************************************************************************************************************************
 
-	log("Setting up gpu_vdb instances...", LOG);
+	log("Setting up gpu_vdb instances...", VPT_LOG);
 	std::string fname;
 	if (argc >= 2) fname = argv[1];
 
 	std::string env_name;
 	if (argc >= 3) env_name = argv[2];
 
-
-	std::string file_extension = boost::filesystem::extension(fname);
-	std::string file_extension_env = boost::filesystem::extension(env_name);
+	std::string file_extension = fs::path(fname).extension().string();
+	std::string file_extension_env = fs::path(env_name).extension().string();
 
 	GPU_PROC_VOL proc_vol;
 	float3 proc_box_min;
 	float3 proc_box_max;
 
 	if (file_extension == ".vdb") {
-	
 		std::string file_path = ASSET_PATH;
 		file_path.append(fname);
 
 		instances.clear();
 		instances.push_back(GPU_VDB());
 		instances.at(0).loadVDB(file_path, "density", "heat", "Cd");
-
 	}
 	else if (file_extension == ".ins") {
 		read_instance_file(fname);
@@ -1306,56 +1278,46 @@ int main(const int argc, const char* argv[])
 		env_tex_name = ASSET_PATH;
 		env_tex_name.append(fname);
 	}
-	else { // No vdb or instance file is given procede with procedural volume 
-		log("No vdb file or an instance file is provided. Continuing with procedural volume", LOG);
-		
+	else { // No vdb or instance file is given procede with procedural volume
+		log("No vdb file or an instance file is provided. Continuing with procedural volume", VPT_LOG);
 	}
-	
+
 	if (file_extension_env == ".hdr") {
 		env_tex = true;
 		env_tex_name = ASSET_PATH;
 		env_tex_name.append(env_name);
 	}
 
-
 	if (empty_volume) {
-
 		proc_box_min = make_float3(-230, -100, -228);
 		proc_box_max = make_float3(230, 100, 244);
 		if (!proc_vol.create_volume(proc_box_min, proc_box_max, 1.0f, 0, 0.1f)) return 0;
 
 		instances.push_back(proc_vol);
 	}
-	
-
-	
 
 	// Send volume instances to gpu
 
 	CUdeviceptr d_volume_ptr;
 	check_success(cuMemAlloc(&d_volume_ptr, sizeof(GPU_VDB) * instances.size()) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_volume_ptr, instances.data(), sizeof(GPU_VDB) * instances.size()) == cudaSuccess);
-	
 
-	// Create BVH from vdb vector 
-	log("Creating BVH and Octree structures...", LOG);
+	// Create BVH from vdb vector
+	log("Creating BVH and Octree structures...", VPT_LOG);
 	AABB scene_bounds(make_float3(.0f), make_float3(.0f));
-	
+
 #ifdef LOG_LEVEL_LOG
 	bvh_builder.m_debug_bvh = true;
 #endif
 
 	bvh_builder.build_bvh(instances, (int)instances.size(), scene_bounds);
 
-
-
-	
 	//***********************************************************************************************************************************
-	// Setup initial camera 
+	// Setup initial camera
 	//
 	//***********************************************************************************************************************************
-	
-	log("Setting up camera...", LOG);
+
+	log("Setting up camera...", VPT_LOG);
 	lookfrom = make_float3(1300.0f, 77.0f, 0.0f);
 	lookat = make_float3(-10.0f, 72.0f, -43.0f);
 	vup = make_float3(.0f, 1.0f, .0f);
@@ -1371,22 +1333,19 @@ int main(const int argc, const char* argv[])
 
 	cam.update_camera(lookfrom, lookat, vup, fov, aspect, aperture);
 
-
-	
 	//***********************************************************************************************************************************
 	// Setup initial render kernel parameters.
 	//
 	//***********************************************************************************************************************************
 
-
 	// Kernel param buffers
-	log("Setting kernel paramaters...", LOG);
-	float3 *accum_buffer = NULL;
-	float4 *raw_buffer = NULL;
+	log("Setting kernel paramaters...", VPT_LOG);
+	float3* accum_buffer = NULL;
+	float4* raw_buffer = NULL;
 	cudaGraphicsResource_t display_buffer_cuda = NULL;
-	float3 *debug_buffer = NULL;
-	float3 *cost_buffer = NULL;
-	float *depth_buffer = NULL;
+	float3* debug_buffer = NULL;
+	float3* cost_buffer = NULL;
+	float* depth_buffer = NULL;
 
 	Kernel_params kernel_params;
 	memset(&kernel_params, 0, sizeof(Kernel_params));
@@ -1416,30 +1375,30 @@ int main(const int argc, const char* argv[])
 	kernel_params.emission_scale = 0.0f;
 	kernel_params.emission_pivot = 1.0f;
 
-	log("Loading blue noise buffer...", LOG);
+	log("Loading blue noise buffer...", VPT_LOG);
 	std::string bn_path = ASSET_PATH;
 	bn_path.append("BN0.bmp");
-	float3 *bn_buffer = NULL;
+	float3* bn_buffer = NULL;
 	int bn_width, bn_height;
 	load_texture_bmp_gpu(&bn_buffer, bn_path, bn_width, bn_height, false);
 	kernel_params.blue_noise_buffer = bn_buffer;
-	
-	log("Setting up debug buffer...", LOG);
+
+	log("Setting up debug buffer...", VPT_LOG);
 	update_debug_buffer(&debug_buffer, kernel_params);
 	kernel_params.debug_buffer = debug_buffer;
-	
-	log("Loading emission lookup texture...", LOG);		
+
+	log("Loading emission lookup texture...", VPT_LOG);
 	std::string emm_path = ASSET_PATH;
 	emm_path.append("blackbody_texture.exr");
-	float3 *emmission_buffer = NULL;
+	float3* emmission_buffer = NULL;
 	int file_width, file_height;
 	load_texture_exr_gpu(&emmission_buffer, emm_path, file_width, file_height, false);
 	kernel_params.emission_texture = emmission_buffer;
 
-	log("Loading density color lookup texture...", LOG);
+	log("Loading density color lookup texture...", VPT_LOG);
 	std::string color_path = ASSET_PATH;
 	color_path.append("density_color_texture2.exr");
-	float3 *density_color_buffer = NULL;
+	float3* density_color_buffer = NULL;
 	load_texture_exr_gpu(&density_color_buffer, color_path, file_width, file_height, false);
 	kernel_params.density_color_texture = density_color_buffer;
 
@@ -1450,7 +1409,6 @@ int main(const int argc, const char* argv[])
 	cudaArray_t env_cdf_data = 0;
 	cudaArray_t env_marginal_func_data = 0;
 	cudaArray_t env_marginal_cdf_data = 0;
-	
 
 	// Imgui Parameters
 
@@ -1464,12 +1422,11 @@ int main(const int argc, const char* argv[])
 	int integrator = 0;
 	bool render = true;
 	bool debug = false;
-	bool denoise = false;
 	bool viz_dof = false;
 	int frame = 0;
 	float rot_amount = 0.0f;
 
-	static const char *items[] = {"NONE", "APPROXIMATE", "PRECOMPUTED"};
+	static const char* items[] = { "NONE", "APPROXIMATE", "PRECOMPUTED" };
 	static int env_comp = 0;
 	int temp_env_comp = 0;
 
@@ -1480,21 +1437,18 @@ int main(const int argc, const char* argv[])
 	float emission_scale = 0.0f;
 	float emission_pivot = 1.0f;
 
-
 	// Noise parameters
-	int noise_type = 0 , temp_noise_type;
-	float scale = 1.0f , temp_scale;
-	float noise_res = 1.0f , temp_res;
-	   
+	int noise_type = 0, temp_noise_type;
+	float scale = 1.0f, temp_scale;
+	float noise_res = 1.0f, temp_res;
+
 	// End ImGui parameters
 
-	
 	//***********************************************************************************************************************************
-	// Create env texture 
+	// Create env texture
 	//
 	//***********************************************************************************************************************************
 	if (env_tex) {
-
 		env_tex = create_environment(&kernel_params.env_tex, &env_tex_data, env_tex_name.c_str());
 	}
 	if (env_tex) {
@@ -1503,43 +1457,32 @@ int main(const int argc, const char* argv[])
 	}
 
 	// Create env map sampling textures
-	log("Creating env texture CDF...", LOG);
+	log("Creating env texture CDF...", VPT_LOG);
 	create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
-	
-
-
-
-
 
 	//***********************************************************************************************************************************
-	// Init atmosphere 
+	// Init atmosphere
 	//
 	//***********************************************************************************************************************************
 
-	log("Creating atmosphere...", LOG);
+	log("Creating atmosphere...", VPT_LOG);
 	earth_atmosphere.texture_folder = "./atmosphere_textures";
 	earth_atmosphere.texture_folder_debug = "./atmosphere_textures_debug";
 	earth_atmosphere.init();
-	AtmosphereParameters *atmos_params = &earth_atmosphere.atmosphere_parameters;
-	
+	AtmosphereParameters* atmos_params = &earth_atmosphere.atmosphere_parameters;
 
-
-
-
-
-	  
 	//***********************************************************************************************************************************
 	// Setup geometry and device pointers. TODO make obj loaders and send triangle geometry
 	//
 	//***********************************************************************************************************************************
 
-	log("Setting up geometry and device pointers...", LOG);
+	log("Setting up geometry and device pointers...", VPT_LOG);
 	float3 center = make_float3(0, 1000, 0);
 	float radius = 1;
 	sphere ref_sphere(center, radius);
 	ref_sphere.roughness = 1.0f;
-	ref_sphere.color = make_float3(10.0f, 0 , 0);
-	   	  
+	ref_sphere.color = make_float3(10.0f, 0, 0);
+
 	CUdeviceptr d_geo_ptr;
 	check_success(cuMemAlloc(&d_geo_ptr, sizeof(sphere) * 1) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_geo_ptr, &ref_sphere, sizeof(sphere) * 1) == cudaSuccess);
@@ -1551,41 +1494,40 @@ int main(const int argc, const char* argv[])
 	cudaMallocManaged(&geo_list.list, num_spheres * sizeof(sphere));
 
 	geo_list.list_size = num_spheres;
-	geo_list.list[0] = sphere(make_float3(0,10,0), 10);
+	geo_list.list[0] = sphere(make_float3(0, 10, 0), 10);
 	geo_list.list[1] = sphere(make_float3(20, 10, 0), 10);
 
 	CUdeviceptr d_geo_list_ptr;
 	check_success(cuMemAlloc(&d_geo_list_ptr, sizeof(geometry_list)) == cudaSuccess);
 	check_success(cuMemcpyHtoD(d_geo_list_ptr, &geo_list, sizeof(geometry_list)) == cudaSuccess);
 
-	 
-
-
-
-
 	//***********************************************************************************************************************************
-	// Create OIDN devices 
+	// Create OIDN devices
 	//
 	//***********************************************************************************************************************************
-	oidn::DeviceRef oidn_device = oidn::newDevice();
-	oidn_device.commit();
-	oidn::FilterRef filter = oidn_device.newFilter("RT");
+	OIDNDevice oidnDevice = oidnNewDevice(OIDN_DEVICE_TYPE_CUDA);
+	const char* errorMsg;
+	OIDNError errorCode = oidnGetDeviceError(oidnDevice, &errorMsg);
+	if (errorCode != OIDN_ERROR_NONE)
+	{
+		log("Denoising Error!", VPT_ERROR);
+		return 1;
+	}
+	oidnSetDeviceErrorFunction(oidnDevice, OIDNErrorCallback, nullptr);
+	oidnCommitDevice(oidnDevice);
 
+	OIDNFilter filter = oidnNewFilter(oidnDevice, "RT");
+	OIDNBuffer inputBuffer = nullptr;
 
-
-
-
-	
 	//***********************************************************************************************************************************
 	// Main loop
 	//
 	//***********************************************************************************************************************************
-	log("Entering main loop...", LOG);
+	log("Entering main loop...", VPT_LOG);
 	while (!glfwWindowShouldClose(window)) {
-
 		// Process events.
 		glfwPollEvents();
-		Window_context *ctx = static_cast<Window_context *>(glfwGetWindowUserPointer(window));
+		Window_context* ctx = static_cast<Window_context*>(glfwGetWindowUserPointer(window));
 
 		// Update kernel params
 		kernel_params.exposure_scale = powf(2.0f, ctx->exposure);
@@ -1606,20 +1548,18 @@ int main(const int argc, const char* argv[])
 		const unsigned int volume_type = ctx->config_type & 1;
 		const unsigned int environment_type = env_tex ? ((ctx->config_type >> 1) & 1) : 0;
 
-
 		// Update atmosphere
 		earth_atmosphere.m_use_constant_solar_spectrum = use_constant_solar_spectrum;
 		earth_atmosphere.m_use_ozone = use_ozone;
 		earth_atmosphere.m_do_white_balance = do_white_balance;
 		earth_atmosphere.m_exposure = exposure;
-		
+
 		// Update temp holders
 		temp_noise_type = noise_type;
 		temp_scale = scale;
 		temp_res = noise_res;
-		
-		
-		// Draw imgui 
+
+		// Draw imgui
 		//-------------------------------------------------------------------
 
 		ImGui_ImplOpenGL3_NewFrame();
@@ -1628,21 +1568,46 @@ int main(const int argc, const char* argv[])
 
 		ImGui::Begin("Parameters window");
 		ImGui::Checkbox("Render", &render);
-		ImGui::Checkbox("Denoise", &denoise);
+		if (ImGui::Button("Denoise"))
+		{
+			oidnSetFilterImage(filter, "color", inputBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, sizeof(float3), sizeof(float3) * width);
+			oidnSetFilterImage(filter, "output", inputBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, sizeof(float3), sizeof(float3) * width);
+
+			oidnSetFilterBool(filter, "hdr", true);
+			oidnSetFilterBool(filter, "srgb", false);
+
+			oidnSetFilterInt(filter, "quality", OIDN_QUALITY_DEFAULT);
+			//oidnSetFilterInt(filter, "quality", OIDN_QUALITY_BALANCED);
+			//oidnSetFilterInt(filter, "quality", OIDN_QUALITY_HIGH);
+
+			oidnCommitFilter(filter);
+			oidnExecuteFilter(filter);
+			errorCode = oidnGetDeviceError(oidnDevice, &errorMsg);
+			if (errorCode != OIDN_ERROR_NONE)
+			{
+				log("Denoising Error! ", VPT_ERROR);
+				oidnReleaseFilter(filter);
+				oidnReleaseDevice(oidnDevice);
+				return false;
+			}
+
+			oidnSyncDevice(oidnDevice);
+		}
+
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
 		ImGui::InputInt("Ray Depth", &ray_depth, 1);
 		ImGui::InputInt("Volume Depth", &volume_depth, 1);
 		ImGui::InputInt("Integrator", &integrator, 0);
-		
+
 		ImGui::Checkbox("debug", &debug);
 		ImGui::SliderFloat("phase g1", &kernel_params.phase_g1, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase g2", &kernel_params.phase_g2, -1.0f, 1.0f);
 		ImGui::SliderFloat("phase f", &kernel_params.phase_f, 0.0f, 1.0f);
 		ImGui::InputFloat("Density Multiplier", &kernel_params.density_mult);
 		ImGui::InputFloat("Depth Multiplier", &kernel_params.tr_depth);
-		ImGui::InputFloat3("Volume Extinction", (float *)&kernel_params.extinction);
-		ImGui::InputFloat3("Volume Color", (float *)&kernel_params.albedo);
+		ImGui::InputFloat3("Volume Extinction", (float*)&kernel_params.extinction);
+		ImGui::InputFloat3("Volume Color", (float*)&kernel_params.albedo);
 		ImGui::InputDouble("Energy Injection", &energy, 0.0);
 		ImGui::SliderFloat("Emission Scale", &emission_scale, .0f, 10.0f);
 		ImGui::SliderFloat("Emission Pivot", &emission_pivot, .0f, 10.0f);
@@ -1662,9 +1627,9 @@ int main(const int argc, const char* argv[])
 		// Atmosphere Parameters GUI
 		ImGui::Begin("Atmosphere Parameters");
 		ImGui::SliderFloat("Sky Exposure", &exposure, -10.0f, 10.0f);
-		ImGui::ColorEdit3("Sun Color", (float *)&kernel_params.sun_color);
+		ImGui::ColorEdit3("Sun Color", (float*)&kernel_params.sun_color);
 		ImGui::InputFloat("Sun Multiplier", &kernel_params.sun_mult, 0.0f, 100.0f);
-		ImGui::InputFloat3("Sky Color", (float *)&kernel_params.sky_color);
+		ImGui::InputFloat3("Sky Color", (float*)&kernel_params.sky_color);
 		ImGui::InputFloat("Sky Multiplier", &kernel_params.sky_mult, 0.0f, 100.0f);
 		ImGui::SliderFloat("Azimuth", &azimuth, 0, 360);
 		ImGui::SliderFloat("Elevation", &elevation, -90, 90);
@@ -1679,84 +1644,59 @@ int main(const int argc, const char* argv[])
 		//-----------------------------------------------------------------
 
 		if (0) {
-
 			// Reserved for host side debugging
 
 #if 0
 //Copy debug buffer and print
 			printf("ray_depth:%d\n", ray_depth);
-			float3 *c = new float3[1000];
+			float3* c = new float3[1000];
 			memset(c, 0x0, sizeof(float3) * 1000);
 
 			check_success(cudaMemcpy(c, debug_buffer, sizeof(float3) * 1000, cudaMemcpyDeviceToHost) == cudaSuccess);
 
-
 			std::ofstream ray_pos("C:/Users/Admin/Desktop/PT_Plot/Ray_tr.txt", std::ios::out);
 			for (int y = 0; y < 1000; y++) {
-
 				if (c[y].x == .0f) continue;
 				ray_pos << y + 1 << "	" << c[y].x << "\n";
-
-
 			}
 
 #endif
-
 		}
 
-		// Restart rendering if paused and started back 
+		// Restart rendering if paused and started back
 		if (!render) {
-
 			kernel_params.iteration = 0;
-
 		}
 
 		if (temp_noise_type != noise_type ||
 			temp_res != noise_res ||
 			temp_scale != scale)
 		{
-
 			proc_vol.create_volume(proc_box_min, proc_box_max, noise_res, noise_type, scale);
-			
+
 			instances.pop_back();
 			instances.push_back(proc_vol);
-			check_success(cuMemcpyHtoD(d_volume_ptr, instances.data(), sizeof(GPU_VDB)* instances.size()) == cudaSuccess);
-			
-			kernel_params.iteration = 0;
+			check_success(cuMemcpyHtoD(d_volume_ptr, instances.data(), sizeof(GPU_VDB) * instances.size()) == cudaSuccess);
 
+			kernel_params.iteration = 0;
 		}
 
-
-		// Restart rendering if there is a change 
+		// Restart rendering if there is a change
 		if (ctx->change ||
 			max_interaction != kernel_params.max_interactions ||
 			ray_depth != kernel_params.ray_depth ||
 			integrator != kernel_params.integrator ||
-			emission_scale != kernel_params.emission_scale || 
-			emission_pivot != kernel_params.emission_pivot || 
+			emission_scale != kernel_params.emission_scale ||
+			emission_pivot != kernel_params.emission_pivot ||
 			cam.viz_dof != viz_dof) {
-
 			kernel_params.integrator = integrator;
 			//update_debug_buffer(&debug_buffer, kernel_params);
 			//kernel_params.debug_buffer = debug_buffer;
 			kernel_params.iteration = 0;
 			ctx->change = false;
-
 		}
 
-		if (kernel_params.iteration == kernel_params.max_interactions-1) ctx->save_image = true;
-
-		// Test rotation
-#if 0 
-		float3 rotation = make_float3(0, 0, (M_PI / 10.0f) * rot_amount);
-		mat4 rot = vdbs[0].get_xform().rotate_zyx(rotation);
-		vdbs[0].set_xform(rot);
-		check_success(cuMemcpyHtoD(d_volume_ptr, vdbs, sizeof(GPU_VDB) * 2) == cudaSuccess);
-		rot_amount += 0.1f;
-		kernel_params.iteration = 0;
-#endif
-
-
+		if (kernel_params.iteration == kernel_params.max_interactions - 1) ctx->save_image = true;
 
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
@@ -1764,12 +1704,11 @@ int main(const int argc, const char* argv[])
 			kernel_params.iteration = 0;
 		}
 
-		// Recompute sky if there is a change 
+		// Recompute sky if there is a change
 
-		if (temp_env_comp != env_comp || 
-			earth_atmosphere.m_use_constant_solar_spectrum != use_constant_solar_spectrum || 
+		if (temp_env_comp != env_comp ||
+			earth_atmosphere.m_use_constant_solar_spectrum != use_constant_solar_spectrum ||
 			earth_atmosphere.m_use_ozone != use_ozone) {
-
 			earth_atmosphere.m_use_constant_solar_spectrum = use_constant_solar_spectrum;
 			earth_atmosphere.m_use_ozone = use_ozone;
 
@@ -1791,14 +1730,13 @@ int main(const int argc, const char* argv[])
 			temp_env_comp = env_comp;
 			kernel_params.iteration = 0;
 		}
-		if (earth_atmosphere.m_do_white_balance != do_white_balance || 
+		if (earth_atmosphere.m_do_white_balance != do_white_balance ||
 			earth_atmosphere.m_exposure != exposure) {
 			earth_atmosphere.m_exposure = exposure;
 			earth_atmosphere.m_do_white_balance = do_white_balance;
 			earth_atmosphere.update_model();
 			kernel_params.iteration = 0;
 		}
-
 
 		// Reallocate buffers if window size changed.
 		int nwidth, nheight;
@@ -1814,6 +1752,14 @@ int main(const int argc, const char* argv[])
 			resize_buffer(&cost_buffer, width, height);
 			resize_buffer(&depth_buffer, width, height);
 
+			inputBuffer = oidnNewSharedBuffer(oidnDevice, accum_buffer, sizeof(float3) * width * height);
+			if (!inputBuffer)
+			{
+				log("Unable to create denoising buffer!", VPT_ERROR);
+				oidnReleaseDevice(oidnDevice);
+				return 1;
+			}
+
 			kernel_params.depth_buffer = depth_buffer;
 			kernel_params.cost_buffer = cost_buffer;
 			kernel_params.accum_buffer = accum_buffer;
@@ -1825,69 +1771,38 @@ int main(const int argc, const char* argv[])
 			kernel_params.iteration = 0;
 		}
 
-		// Restart render if camera moves 
+		// Restart render if camera moves
 		if (ctx->move_dx != 0.0 || ctx->move_dy != 0.0 || ctx->move_mx != 0.0 || ctx->move_my != 0.0 || ctx->zoom_delta) {
-
 			update_camera(ctx->move_dx, ctx->move_dy, ctx->move_mx, ctx->move_my, ctx->zoom_delta, earth_atmosphere, scene_max);
 			ctx->move_dx = ctx->move_dy = ctx->move_mx = ctx->move_my = 0.0;
 			ctx->zoom_delta = 0;
 			kernel_params.iteration = 0;
-
 		}
 
 		if (ctx->save_image) {
-
 			std::string file_path = "./render/pathtrace.";
 			file_path.append(std::to_string(frame));
-			
 
-#ifdef SAVE_TGA   
-
-			file_path.append(".tga");
+			file_path.append(".jpeg");
 
 			int res = width * height;
-			float4 *c = (float4*)malloc(res * sizeof(float4));
-			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
-
-			bool success = save_texture_tga(c, file_name, width, height);
-
-#endif
-
-#ifdef SAVE_OPENEXR
-			
-			file_path.append(".exr");
-
-			int res = width * height;
-			float4 *c = (float4*)malloc(res * sizeof(float4));
-			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
-
-			// TODO send depth buffer to Z layer  
-			float* depth = (float*)malloc(res * sizeof(float));
-			check_success(cudaMemcpy(depth, depth_buffer, sizeof(float)* res, cudaMemcpyDeviceToHost) == cudaSuccess);
-
-			bool success = save_texture_exr(c, depth, file_path, width, height, true);
-
-#endif
+			float3* c = (float3*)malloc(res * sizeof(float3));
+			check_success(cudaMemcpy(c, accum_buffer, sizeof(float3) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
+			bool success = save_texture_jpg(c, file_path, width, height);
 
 			frame++;
 			ctx->save_image = false;
 		}
 
-
-
 		if (ctx->save_cost_image) {
-
 			std::string file_path = "./render/cost.";
 			file_path.append(std::to_string(frame));
 			file_path.append(".exr");
 
 #ifdef SAVE_OPENEXR
 			int res = width * height;
-			float3 *c = (float3*)malloc(res * sizeof(float3));
+			float3* c = (float3*)malloc(res * sizeof(float3));
 			check_success(cudaMemcpy(c, cost_buffer, sizeof(float3) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
-
-			
-
 
 			bool success = save_texture_exr(c, file_path, width, height, true);
 
@@ -1898,86 +1813,29 @@ int main(const int argc, const char* argv[])
 
 		// Map GL buffer for access with CUDA.
 		check_success(cudaGraphicsMapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
-		void *p;
+		void* p;
 		size_t size_p;
 
 		cudaGraphicsResourceGetMappedPointer(&p, &size_p, display_buffer_cuda);
-		kernel_params.display_buffer = reinterpret_cast<unsigned int *>(p);
+		kernel_params.display_buffer = reinterpret_cast<unsigned int*>(p);
 
 		// Launch volume rendering kernel.
 		dim3 block(16, 16, 1);
 		dim3 grid(int(width / block.x) + 1, int(height / block.y) + 1, 1);
 
-		void *params[] = { &cam, (void *)&l_list , (void *)&d_volume_ptr, (void *)&d_geo_ptr, (void*)&d_geo_list_ptr ,&bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void *)atmos_params, &kernel_params};
+		void* params[] = { &cam, (void*)&l_list , (void*)&d_volume_ptr, (void*)&d_geo_ptr, (void*)&d_geo_list_ptr ,&bvh_builder.bvh.BVHNodes, &bvh_builder.root ,(void*)atmos_params, &kernel_params };
 		cuLaunchKernel(cuRaycastKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, params, NULL);
 		++kernel_params.iteration;
 		cudaDeviceSynchronize();
 
-		if (0) { // TODO will do post effects after they are implemented in texture_kernels 
+		if (0) { // TODO will do post effects after they are implemented in texture_kernels
 			float treshold = 0.09f;
-			void *texture_params[] = { &kernel_params, &treshold, &width, &height };
+			void* texture_params[] = { &kernel_params, &treshold, &width, &height };
 			cuLaunchKernel(cuTextureKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, texture_params, NULL);
 		}
+
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
-
-		//Do Image denoising with OIDN library 
-		if (denoise) {
-
-			int resolution = width * height;
-			float4 *in_buffer;
-			float3 *temp_in_buffer, *temp_out_buffer;
-
-			in_buffer = (float4*)malloc(resolution * sizeof(float4));
-
-			check_success(cudaMemcpy(in_buffer, raw_buffer, sizeof(float4) * resolution, cudaMemcpyDeviceToHost) == cudaSuccess);
-
-			temp_in_buffer = (float3*)malloc(resolution * sizeof(float3));
-			temp_out_buffer = (float3*)malloc(resolution * sizeof(float3));
-
-			for (int i = 0; i < resolution; i++) {
-
-				temp_in_buffer[i].x = in_buffer[i].x;
-				temp_in_buffer[i].y = in_buffer[i].y;
-				temp_in_buffer[i].z = in_buffer[i].z;
-			}
-
-			filter.setImage("color", temp_in_buffer, oidn::Format::Float3, width, height);
-			filter.setImage("output", temp_out_buffer, oidn::Format::Float3, width, height);
-			filter.set("hdr", true);
-			filter.set("srgb", false);
-
-			filter.commit();
-			filter.execute();
-
-			if (1) { // save denoised image 
-
-				/*
-				float3 red = make_float3(1.0f, .0f, .0f);
-				float3 blue = make_float3(.0f, .0f, 1.0f);
-
-				for (int i = 0; i < resolution; i++) {
-
-					float diff = length(temp_in_buffer[i] - temp_out_buffer[i]);
-
-					temp_out_buffer[i] = lerp(blue, red, diff);
-
-				}
-				*/
-
-				std::string file_path = "./render/pathtrace_denoised.";
-				file_path.append(std::to_string(frame));
-				file_path.append(".exr");
-				
-
-				bool success = save_texture_exr(temp_out_buffer, file_path, width, height, true);
-
-				frame++;
-
-			}
-
-			denoise = false;
-		}
 
 		// Update texture for display.
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, display_buffer);
@@ -1999,12 +1857,17 @@ int main(const int argc, const char* argv[])
 
 		glfwSwapBuffers(window);
 		//break;
-	}
+		}
 
 	//Cleanup imgui
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
+
+	// Cleanup OIDN
+	oidnReleaseBuffer(inputBuffer);
+	oidnReleaseFilter(filter);
+	oidnReleaseDevice(oidnDevice);
 
 	// Cleanup CUDA.
 	if (env_tex) {
@@ -2025,4 +1888,4 @@ int main(const int argc, const char* argv[])
 	glfwTerminate();
 
 	return 0;
-}
+	}
