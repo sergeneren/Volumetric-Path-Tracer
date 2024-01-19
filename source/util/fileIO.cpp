@@ -59,8 +59,14 @@ bool save_texture_jpg(float3* buffer, std::string filename, const int width, con
 
 	ImageSpec spec(width, height, 3, TypeDesc::FLOAT);
 	out->open(filename, spec);
-	out->write_image(TypeDesc::UINT8, buffer);
+	out->write_image(TypeDesc::FLOAT, buffer);
 	out->close();
+
+	// Flip
+	ImageBuf A(filename);
+	ImageBuf B;
+	B = ImageBufAlgo::flip(A);
+	B.write(filename);
 
 	return true;
 }

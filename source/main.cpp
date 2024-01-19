@@ -141,6 +141,43 @@ bool empty_volume = false;
         } \
     } while(false)
 
+std::string OIDNErrorToString(OIDNError errorCode)
+{
+	std::string ret;
+	switch (errorCode)
+	{
+	case OIDN_ERROR_UNKNOWN:
+		ret += "OIDN Error unknown ";
+		break;
+	case OIDN_ERROR_INVALID_ARGUMENT:
+		ret += "OIDN Error invalid argument";
+		break;
+	case OIDN_ERROR_INVALID_OPERATION:
+		ret += "OIDN Error invalid operation";
+		break;
+	case OIDN_ERROR_OUT_OF_MEMORY:
+		ret += "OIDN Error out of memory";
+		break;
+	case OIDN_ERROR_UNSUPPORTED_HARDWARE:
+		ret += "OIDN Error unsupported hardware";
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static void OIDNErrorCallback(void* ptr, OIDNError errorCode, const char* errorStr)
+{
+	if (errorCode == OIDN_ERROR_CANCELLED)
+		return;
+
+	std::string errorMsg = OIDNErrorToString(errorCode);
+	errorMsg += std::string("! msg: ") + std::string(errorStr);
+	printf("OIDN Error: %s \n", errorMsg.c_str());
+}
+
 // Env sampling functions
 static bool solveQuadratic(float a, float b, float c, float& x1, float& x2)
 {
@@ -1385,7 +1422,6 @@ int main(const int argc, const char* argv[])
 	int integrator = 0;
 	bool render = true;
 	bool debug = false;
-	bool denoise = false;
 	bool viz_dof = false;
 	int frame = 0;
 	float rot_amount = 0.0f;
@@ -1469,9 +1505,19 @@ int main(const int argc, const char* argv[])
 	// Create OIDN devices
 	//
 	//***********************************************************************************************************************************
-	oidn::DeviceRef oidn_device = oidn::newDevice();
-	oidn_device.commit();
-	oidn::FilterRef filter = oidn_device.newFilter("RT");
+	OIDNDevice oidnDevice = oidnNewDevice(OIDN_DEVICE_TYPE_CUDA);
+	const char* errorMsg;
+	OIDNError errorCode = oidnGetDeviceError(oidnDevice, &errorMsg);
+	if (errorCode != OIDN_ERROR_NONE)
+	{
+		log("Denoising Error!", VPT_ERROR);
+		return 1;
+	}
+	oidnSetDeviceErrorFunction(oidnDevice, OIDNErrorCallback, nullptr);
+	oidnCommitDevice(oidnDevice);
+
+	OIDNFilter filter = oidnNewFilter(oidnDevice, "RT");
+	OIDNBuffer inputBuffer = nullptr;
 
 	//***********************************************************************************************************************************
 	// Main loop
@@ -1522,7 +1568,32 @@ int main(const int argc, const char* argv[])
 
 		ImGui::Begin("Parameters window");
 		ImGui::Checkbox("Render", &render);
-		ImGui::Checkbox("Denoise", &denoise);
+		if (ImGui::Button("Denoise"))
+		{
+			oidnSetFilterImage(filter, "color", inputBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, sizeof(float3), sizeof(float3) * width);
+			oidnSetFilterImage(filter, "output", inputBuffer, OIDN_FORMAT_FLOAT3, width, height, 0, sizeof(float3), sizeof(float3) * width);
+
+			oidnSetFilterBool(filter, "hdr", true);
+			oidnSetFilterBool(filter, "srgb", false);
+
+			oidnSetFilterInt(filter, "quality", OIDN_QUALITY_DEFAULT);
+			//oidnSetFilterInt(filter, "quality", OIDN_QUALITY_BALANCED);
+			//oidnSetFilterInt(filter, "quality", OIDN_QUALITY_HIGH);
+
+			oidnCommitFilter(filter);
+			oidnExecuteFilter(filter);
+			errorCode = oidnGetDeviceError(oidnDevice, &errorMsg);
+			if (errorCode != OIDN_ERROR_NONE)
+			{
+				log("Denoising Error! ", VPT_ERROR);
+				oidnReleaseFilter(filter);
+				oidnReleaseDevice(oidnDevice);
+				return false;
+			}
+
+			oidnSyncDevice(oidnDevice);
+		}
+
 		ImGui::SliderFloat("exposure", &ctx->exposure, -10.0f, 10.0f);
 		ImGui::InputInt("Max interactions", &max_interaction, 1);
 		ImGui::InputInt("Ray Depth", &ray_depth, 1);
@@ -1627,7 +1698,6 @@ int main(const int argc, const char* argv[])
 
 		if (kernel_params.iteration == kernel_params.max_interactions - 1) ctx->save_image = true;
 
-
 		// Recreate environment sampling textures if sun position changes
 		if (azimuth != kernel_params.azimuth || elevation != kernel_params.elevation) {
 			create_cdf(kernel_params, &env_val_data, &env_func_data, &env_cdf_data, &env_marginal_func_data, &env_marginal_cdf_data);
@@ -1682,6 +1752,14 @@ int main(const int argc, const char* argv[])
 			resize_buffer(&cost_buffer, width, height);
 			resize_buffer(&depth_buffer, width, height);
 
+			inputBuffer = oidnNewSharedBuffer(oidnDevice, accum_buffer, sizeof(float3) * width * height);
+			if (!inputBuffer)
+			{
+				log("Unable to create denoising buffer!", VPT_ERROR);
+				oidnReleaseDevice(oidnDevice);
+				return 1;
+			}
+
 			kernel_params.depth_buffer = depth_buffer;
 			kernel_params.cost_buffer = cost_buffer;
 			kernel_params.accum_buffer = accum_buffer;
@@ -1708,9 +1786,8 @@ int main(const int argc, const char* argv[])
 			file_path.append(".jpeg");
 
 			int res = width * height;
-			float4* c = (float4*)malloc(res * sizeof(float4));
-			check_success(cudaMemcpy(c, raw_buffer, sizeof(float4) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
-
+			float3* c = (float3*)malloc(res * sizeof(float3));
+			check_success(cudaMemcpy(c, accum_buffer, sizeof(float3) * res, cudaMemcpyDeviceToHost) == cudaSuccess);
 			bool success = save_texture_jpg(c, file_path, width, height);
 
 			frame++;
@@ -1756,46 +1833,9 @@ int main(const int argc, const char* argv[])
 			void* texture_params[] = { &kernel_params, &treshold, &width, &height };
 			cuLaunchKernel(cuTextureKernel, grid.x, grid.y, 1, block.x, block.y, 1, 0, NULL, texture_params, NULL);
 		}
+
 		// Unmap GL buffer.
 		check_success(cudaGraphicsUnmapResources(1, &display_buffer_cuda, /*stream=*/0) == cudaSuccess);
-
-		//Do Image denoising with OIDN library
-		if (denoise) {
-			int resolution = width * height;
-			float4* in_buffer;
-			float3* temp_in_buffer, * temp_out_buffer;
-
-			in_buffer = (float4*)malloc(resolution * sizeof(float4));
-
-			check_success(cudaMemcpy(in_buffer, raw_buffer, sizeof(float4) * resolution, cudaMemcpyDeviceToHost) == cudaSuccess);
-
-			temp_in_buffer = (float3*)malloc(resolution * sizeof(float3));
-			temp_out_buffer = (float3*)malloc(resolution * sizeof(float3));
-
-			for (int i = 0; i < resolution; i++) {
-				temp_in_buffer[i].x = in_buffer[i].x;
-				temp_in_buffer[i].y = in_buffer[i].y;
-				temp_in_buffer[i].z = in_buffer[i].z;
-			}
-
-			filter.setImage("color", temp_in_buffer, oidn::Format::Float3, width, height);
-			filter.setImage("output", temp_out_buffer, oidn::Format::Float3, width, height);
-			filter.set("hdr", true);
-			filter.set("srgb", false);
-
-			filter.commit();
-			filter.execute();
-
-			std::string file_path = "./render/pathtrace_denoised.";
-			file_path.append(std::to_string(frame));
-			file_path.append(".jpg");
-
-			bool success = save_texture_jpg(temp_out_buffer, file_path, width, height);
-
-			frame++;
-
-			denoise = false;
-		}
 
 		// Update texture for display.
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, display_buffer);
@@ -1817,12 +1857,17 @@ int main(const int argc, const char* argv[])
 
 		glfwSwapBuffers(window);
 		//break;
-	}
+		}
 
 	//Cleanup imgui
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
+
+	// Cleanup OIDN
+	oidnReleaseBuffer(inputBuffer);
+	oidnReleaseFilter(filter);
+	oidnReleaseDevice(oidnDevice);
 
 	// Cleanup CUDA.
 	if (env_tex) {
@@ -1843,4 +1888,4 @@ int main(const int argc, const char* argv[])
 	glfwTerminate();
 
 	return 0;
-}
+	}

@@ -155,6 +155,12 @@ target_compile_features(vpt PUBLIC cxx_std_17)
 
 set_target_properties(vpt PROPERTIES CUDA_ARCHITECTURES "61;75;86")
 
+
+file ( GLOB OIDN_DLLS "${THIRDPARTY_DIR}/OpenImageDenoise/bin/*.dll" )
+add_custom_command(
+        TARGET vpt PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${OIDN_DLLS} ${CMAKE_BINARY_DIR}/bin)
+
 include_directories(${_VCPKG_INCLUDE_DIR})
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/atmosphere)
